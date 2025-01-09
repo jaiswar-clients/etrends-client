@@ -98,7 +98,7 @@ const ClientDetail: React.FC<IProps> = ({ handler, disable = false, defaultValue
         })
     })
 
-    const { fields, append, remove, update } = useFieldArray({
+    const { fields, append, remove } = useFieldArray({
         control: form.control,
         name: "point_of_contacts"
     });
