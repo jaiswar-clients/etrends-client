@@ -1278,7 +1278,7 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
                                     {renderFormField("other_document.url", "Other Document", "", "file", true)}
                                 </div>
                                 <div className=" mt-6">
-                                    <Typography variant='h3' className='mb-3'>Agreement Date <span className='text-xs text-gray-400 ml-1'>Optional</span> </Typography>
+                                    <Typography variant='h3' className='mb-3'>Agreement <span className='text-xs text-gray-400 ml-1'>Optional</span> </Typography>
                                     {
                                         agreementDateFields.map((_, index: number) => (
                                             <div className="md:flex items-end mb-4 justify-between gap-4 w-full" key={index}>

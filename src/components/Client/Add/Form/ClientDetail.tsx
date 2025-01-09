@@ -21,7 +21,7 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { industriesArray } from '@/contants/client'
-import { Bell, CirclePlus, X, Edit, CircleX, Plus } from 'lucide-react'
+import { CirclePlus, X, Edit, CircleX, Plus, CircleCheck } from 'lucide-react'
 import {
     Accordion,
     AccordionContent,
@@ -49,7 +49,7 @@ interface IProps {
 
 const ClientDetail: React.FC<IProps> = ({ handler, disable = false, defaultValue, disableAccordion = false }) => {
     const [disableInput, setDisableInput] = useState(disable)
-    // const [isLoading, setIsLoading] = useState(false)
+    const [isLoading, setIsLoading] = useState(false)
     const router = useRouter()
 
     const [filteredParentCompany, setFilteredParentCompany] = useState<{ _id: string, name: string }[]>([])
@@ -102,21 +102,15 @@ const ClientDetail: React.FC<IProps> = ({ handler, disable = false, defaultValue
         control: form.control,
         name: "point_of_contacts"
     });
-
-    const toggleReminder = (index: number) => {
-        const poc = form.getValues(`point_of_contacts.${index}`);
-        update(index, { ...poc, opt_for_email_reminder: !poc.opt_for_email_reminder });
-    }
-
     const onSubmit: SubmitHandler<ClientDetailsInputs> = async (data) => {
-        // setIsLoading(true)
+        setIsLoading(true)
         try {
             const dbClientId = await handler({ ...data, amc_frequency_in_months: Number(data.amc_frequency_in_months) })
             if (!defaultValue?._id && dbClientId)
                 router.push(`/clients/${dbClientId}`)
             else if (defaultValue?._id)
                 setDisableInput(true)
-            // setIsLoading(false)
+            setIsLoading(false)
         } catch (error) {
             console.error("Error submitting form:", error)
         }
@@ -307,7 +301,7 @@ const ClientDetail: React.FC<IProps> = ({ handler, disable = false, defaultValue
                                 {renderFormField(`point_of_contacts.${index}.email`, "Email", "Email", "email")}
                                 {renderFormField(`point_of_contacts.${index}.phone`, "Phone", "Phone")}
                                 {renderFormField(`point_of_contacts.${index}.designation`, "Designation", "Designation")}
-                                <Button
+                                {/* <Button
                                     type='button'
                                     onClick={() => toggleReminder(index)}
                                     className={`bg-[#1D0259] text-white hover:bg-[#2A037A] transition-colors duration-200 ${form.watch(`point_of_contacts.${index}.opt_for_email_reminder`) ? 'ring-2 ring-offset-2 ring-[#1D0259]' : ''
@@ -315,8 +309,7 @@ const ClientDetail: React.FC<IProps> = ({ handler, disable = false, defaultValue
                                     disabled={disableInput}
                                 >
                                     <Bell />
-
-                                </Button>
+                                </Button> */}
 
                                 {index > 0 && !disableInput && (
                                     <Button
@@ -342,6 +335,12 @@ const ClientDetail: React.FC<IProps> = ({ handler, disable = false, defaultValue
                                 <Typography variant='p' className='text-black group-hover:text-white'>Add more POC</Typography>
                             </Button>
                         </div>
+                    </div>
+                    <div className="flex justify-end">
+                        <Button type="submit" disabled={disableInput} loading={{ isLoading, loader: "tailspin" }} className='w-full md:w-36 '>
+                            <CircleCheck />
+                            <span className='text-white'>Save changes</span>
+                        </Button>
                     </div>
                 </form>
             </Form>
