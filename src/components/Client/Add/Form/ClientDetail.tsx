@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/accordion"
 import { useRouter } from 'next/navigation'
 import { ClientDetailsInputs } from '@/types/client'
-import { IClientDataObject, useGetAllParentCompaniesQuery } from '@/redux/api/client'
+import { IClientDataObject, useGenerateNewClientIdQuery, useGetAllParentCompaniesQuery } from '@/redux/api/client'
 import { decrypt } from '@/utils/crypto'
 
 enum AMC_FREQUENCY {
@@ -51,6 +51,7 @@ const ClientDetail: React.FC<IProps> = ({ handler, disable = false, defaultValue
     const [disableInput, setDisableInput] = useState(disable)
     const [isLoading, setIsLoading] = useState(false)
     const router = useRouter()
+    const { data: clientId } = useGenerateNewClientIdQuery()
 
     const [filteredParentCompany, setFilteredParentCompany] = useState<{ _id: string, name: string }[]>([])
     const [parentCompanyInput, setParentCompanyInput] = useState({ show: false, value: "" })
@@ -77,7 +78,7 @@ const ClientDetail: React.FC<IProps> = ({ handler, disable = false, defaultValue
             gst_number: "",
             industry: "",
             vendor_id: "",
-            client_id: "",
+            client_id: clientId?.data || "",
             point_of_contacts: [{ name: '', email: '', phone: '', designation: '', opt_for_email_reminder: false }],
             address: "",
             amc_frequency_in_months: 12
@@ -165,6 +166,7 @@ const ClientDetail: React.FC<IProps> = ({ handler, disable = false, defaultValue
                     <div className="md:flex items-end gap-4 w-full">
                         {renderFormField("name", "Name", "Client name")}
                         {renderFormField("client_id", "Client ID", "Client ID")}
+
                     </div>
                     <div className="md:flex items-center gap-4 w-full !mt-4">
                         {renderFormField("pan_number", "Pan Number", "Company Pan Number")}
@@ -301,15 +303,6 @@ const ClientDetail: React.FC<IProps> = ({ handler, disable = false, defaultValue
                                 {renderFormField(`point_of_contacts.${index}.email`, "Email", "Email", "email")}
                                 {renderFormField(`point_of_contacts.${index}.phone`, "Phone", "Phone")}
                                 {renderFormField(`point_of_contacts.${index}.designation`, "Designation", "Designation")}
-                                {/* <Button
-                                    type='button'
-                                    onClick={() => toggleReminder(index)}
-                                    className={`bg-[#1D0259] text-white hover:bg-[#2A037A] transition-colors duration-200 ${form.watch(`point_of_contacts.${index}.opt_for_email_reminder`) ? 'ring-2 ring-offset-2 ring-[#1D0259]' : ''
-                                        }`}
-                                    disabled={disableInput}
-                                >
-                                    <Bell />
-                                </Button> */}
 
                                 {index > 0 && !disableInput && (
                                     <Button

@@ -3,7 +3,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input'
 import Typography from '@/components/ui/Typography'
 import { useGetPurchasedProductsByClientQuery } from '@/redux/api/client'
-import { CircleCheck, CircleX, Eye, Pencil } from 'lucide-react'
+import { CircleCheck, CircleX, File, Pencil } from 'lucide-react'
 import React, { HTMLInputTypeAttribute, useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import {
@@ -39,48 +39,47 @@ export interface IAdditionalServiceInputs {
     cost: number;
     payment_receive_date?: Date;
     payment_status?: PAYMENT_STATUS_ENUM;
-    purchase_order_document: string;
-    service_document: string;
+    purchase_order_document?: string;
+    purchase_order_number: string;
+    service_document?: string;
     invoice_document?: string;
+    invoice_number: string;
+    invoice_date: Date;
 }
 
 const AdditionalServiceForm: React.FC<IAdditionalServiceProps> = ({ clientId, label, handler, isLoading, defaultValue, disable }) => {
     const { data: productsList } = useGetPurchasedProductsByClientQuery(clientId)
-    const { uploadFile } = useFileUpload()
+    const { uploadFile, getFileNameFromUrl } = useFileUpload()
     const [disableInput, setDisableInput] = useState(disable)
 
-    const values = defaultValue && {
-        product_id: defaultValue.product_id,
-        name: defaultValue.name,
+    const defaultValues: IAdditionalServiceInputs = {
+        product_id: defaultValue?.product_id ?? '',
+        name: defaultValue?.name ?? '',
         date: {
-            start: new Date(defaultValue.date.start),
-            end: new Date(defaultValue.date.end)
+            start: defaultValue?.date?.start ? new Date(defaultValue.date.start) : new Date(),
+            end: defaultValue?.date?.end ? new Date(defaultValue.date.end) : new Date()
         },
-        cost: defaultValue.cost,
-        purchase_order_document: defaultValue.purchase_order_document || '',
-        service_document: defaultValue.service_document || '',
-        invoice_document: defaultValue.invoice_document || ""
-    }
-
-    const defaultValues = {
-        product_id: defaultValue?._id || '',
-        name: defaultValue?.name || '',
-        date: {
-            start: defaultValue?.date.start || undefined,
-            end: defaultValue?.date.end || undefined
-        },
-        cost: defaultValue?.cost || 0,
-        purchase_order_document: defaultValue?.purchase_order_document || '',
-        service_document: defaultValue?.service_document || '',
-        invoice_document: defaultValue?.invoice_document || ""
+        cost: defaultValue?.cost ?? 0,
+        purchase_order_document: defaultValue?.purchase_order_document ?? '',
+        purchase_order_number: defaultValue?.purchase_order_number ?? '',
+        service_document: defaultValue?.service_document ?? '',
+        invoice_document: defaultValue?.invoice_document ?? '',
+        invoice_number: defaultValue?.invoice_number ?? '',
+        invoice_date: defaultValue?.invoice_date ? new Date(defaultValue.invoice_date) : new Date(),
+        payment_status: defaultValue?.payment_status ?? PAYMENT_STATUS_ENUM.PENDING,
+        payment_receive_date: defaultValue?.payment_receive_date ? new Date(defaultValue.payment_receive_date) : undefined
     }
 
     const form = useForm<IAdditionalServiceInputs>({
         defaultValues,
-        ...(defaultValue && {
-            values
-        })
+        mode: 'onChange'
     })
+
+    useEffect(() => {
+        if (defaultValue) {
+            form.reset(defaultValues)
+        }
+    }, [defaultValue])
 
     useEffect(() => {
         if (disable !== undefined) setDisableInput(disable)
@@ -92,27 +91,34 @@ const AdditionalServiceForm: React.FC<IAdditionalServiceProps> = ({ clientId, la
     }
 
     const renderFormField = (name: keyof IAdditionalServiceInputs | 'date.start' | 'date.end', label: string, placeholder: string, type: HTMLInputTypeAttribute = "text") => {
-        const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, field: any) => {
+        const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
             const file = e.target.files?.[0];
             if (file) {
-                await getSignedUrl(file, field.name as keyof IAdditionalServiceInputs);
+                const filename = await uploadFile(file);
+                form.setValue(name as keyof IAdditionalServiceInputs, filename);
             }
         };
 
-        const renderFilePreview = (field: any) => (
-            <div className="flex items-center gap-2">
-                <Link href={field.value as string} target='_blank' passHref>
-                    <Button variant={disableInput ? 'default' : 'outline'} type='button' className={!disableInput ? 'rounded-full w-8 h-8 ml-2 absolute -top-3 -right-10' : ''}>
-                        {disableInput ? 'View' : <Eye className='w-1' />}
-                    </Button>
-                </Link>
-            </div>
-        );
+        const renderFilePreview = (field: any) => {
+            if (!field.value) return null;
+            return (
+                <div className="flex items-center gap-2">
+                    <Link href={field.value} target='_blank' passHref>
+                        <Button variant={disableInput ? 'default' : 'outline'} type='button' className={!disableInput ? 'rounded-full w-8 h-8 ml-2 absolute -top-3 -right-10' : ''}>
+                            {disableInput ? 'View' : <File className='w-1' />}
+                        </Button>
+                    </Link>
+                    {disableInput && (
+                        <span className='text-sm text-gray-500'>{getFileNameFromUrl(field.value)}</span>
+                    )}
+                </div>
+            )
+        };
 
         return (
             <FormField
                 control={form.control}
-                name={name}
+                name={name as any}
                 render={({ field }) => (
                     <FormItem className='w-full mb-4 md:mb-0'>
                         {label && (
@@ -124,7 +130,7 @@ const AdditionalServiceForm: React.FC<IAdditionalServiceProps> = ({ clientId, la
                                             <TooltipTrigger asChild>
                                                 {renderFilePreview(field)}
                                             </TooltipTrigger>
-                                            <TooltipContent>View File</TooltipContent>
+                                            <TooltipContent>{getFileNameFromUrl(field.value) || 'View File'}</TooltipContent>
                                         </Tooltip>
                                     </TooltipProvider>
                                 )}
@@ -137,9 +143,9 @@ const AdditionalServiceForm: React.FC<IAdditionalServiceProps> = ({ clientId, la
                                 <Input
                                     type={type}
                                     {...field}
+                                    onChange={type === 'file' ? handleFileChange : field.onChange}
+                                    value={type === 'file' ? undefined : field.value ?? ''}
                                     disabled={disableInput}
-                                    onChange={type === 'file' ? (e) => handleFileChange(e, field) : field.onChange}
-                                    value={(type === 'number' && field.value === 0) ? '' : (type === 'file' ? undefined : field.value as string)}
                                     className='bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none'
                                     placeholder={placeholder}
                                 />
@@ -158,10 +164,7 @@ const AdditionalServiceForm: React.FC<IAdditionalServiceProps> = ({ clientId, la
             !data.name && 'Service Name',
             !data.date.start && 'Start Date',
             !data.date.end && 'End Date',
-            !data.cost && 'Cost',
-            !data.service_document && 'Service Document',
-            !data.purchase_order_document && 'Purchase Order Document',
-            !data.invoice_document && 'Invoice Document'
+            !data.cost && 'Cost'
         ].filter(Boolean);
 
         if (missingFields.length > 0) {
@@ -279,9 +282,34 @@ const AdditionalServiceForm: React.FC<IAdditionalServiceProps> = ({ clientId, la
                     </div>
 
                     <div className="md:flex items-center gap-4 w-full">
+                        {renderFormField('purchase_order_number', 'Purchase Order Number', 'Enter purchase order number', 'text')}
                         {renderFormField('purchase_order_document', 'Purchase Order Document', 'Upload purchase order document', 'file')}
-                        {renderFormField('invoice_document', 'Invoice Document', 'Upload invoice document', 'file')}
                     </div>
+
+                    <div className="md:flex items-end gap-4 w-full">
+                        {renderFormField('invoice_document', 'Invoice Document', 'Upload invoice document', 'file')}
+                        <div className="md:flex items-end gap-4 w-full">
+                            {renderFormField('invoice_number', 'Invoice Number', 'Enter invoice number', 'text')}
+                            <FormField
+                                control={form.control}
+                                name="invoice_date"
+                                render={({ field }) => (
+                                    <FormItem className='w-full mb-4 md:mb-0'>
+                                        <FormLabel className='text-gray-500'>Invoice Date</FormLabel>
+                                        <FormControl>
+                                            <DatePicker
+                                                date={field.value}
+                                                onDateChange={field.onChange}
+                                                disabled={disableInput}
+                                            />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </div>
+                    </div>
+
 
                     <div className="flex justify-end">
                         <Button type="submit" className='md:w-48 w-full py-5 md:py-2' disabled={isLoading || disableInput} loading={{ isLoading, loader: "tailspin" }}>

@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import {
     Card,
     CardContent,
@@ -12,13 +13,12 @@ import {
     ChartTooltip,
 } from "@/components/ui/chart";
 import {
-    RadialBarChart,
-    RadialBar,
-    PolarRadiusAxis,
-    PolarGrid,
-    Label,
+    PieChart,
+    Pie,
+    Cell,
+    Label
 } from "recharts";
-import millify from "millify";
+import { formatCurrency } from "@/lib/utils";
 
 interface IProps {
     data: { [key: string]: number };
@@ -52,21 +52,22 @@ const RadialChart = ({ data, title, valueToDisplay }: IProps) => {
             <CardContent>
                 <ChartContainer
                     config={chartConfig}
-                    className="h-[110px] mt-2 mx-auto"
+                    className="h-[200px] mt-2 mx-auto"
                 >
-                    <RadialBarChart
-                        data={chartData}
-                        innerRadius={40}
-                        outerRadius={60}
-                        startAngle={180}
-                        endAngle={-180}
-                    >
-                        <PolarGrid gridType="circle" radialLines={false} stroke="none" />
-                        <PolarRadiusAxis axisLine={false} tick={false}>
+                    <PieChart width={200} height={200}>
+                        <Pie
+                            data={chartData}
+                            dataKey="value"
+                            innerRadius={40}
+                            outerRadius={80}
+                            paddingAngle={2}
+                        >
+                            {chartData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.fill} />
+                            ))}
                             <Label
                                 content={({ viewBox }) => {
                                     if (viewBox && "cx" in viewBox && "cy" in viewBox) {
-                                        const total = data[valueToDisplay];
                                         return (
                                             <text
                                                 x={viewBox.cx}
@@ -79,16 +80,15 @@ const RadialChart = ({ data, title, valueToDisplay }: IProps) => {
                                                     y={viewBox.cy}
                                                     className="fill-foreground text-xs font-bold"
                                                 >
-                                                    ₹{millify(total, { precision: 2 })}
+                                                    {formatCurrency(data[valueToDisplay])}
                                                 </tspan>
                                             </text>
-                                        );
+                                        )
                                     }
                                     return null;
                                 }}
                             />
-                        </PolarRadiusAxis>
-                        <RadialBar dataKey="value" cornerRadius={10} background fill="fill" />
+                        </Pie>
                         <ChartTooltip
                             content={({ payload }) => {
                                 if (payload && payload.length) {
@@ -96,14 +96,14 @@ const RadialChart = ({ data, title, valueToDisplay }: IProps) => {
                                     return (
                                         <div className="bg-background border border-border p-2 rounded-md shadow-md">
                                             <p className="font-medium capitalize !text-xs">{data.name}</p>
-                                            <p>{millify(data.value, { precision: 2 })}</p>
+                                            <p>{formatCurrency(data.value)}</p>
                                         </div>
                                     );
                                 }
                                 return null;
                             }}
                         />
-                    </RadialBarChart>
+                    </PieChart>
                 </ChartContainer>
             </CardContent>
         </Card>

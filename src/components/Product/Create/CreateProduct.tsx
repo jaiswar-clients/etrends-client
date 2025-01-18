@@ -43,7 +43,8 @@ const CreateProduct: React.FC<IProps> = ({ handler, disable = false, defaultValu
             does_have_license: false,
             description: "",
             modules: [],
-            reports: []
+            reports: [],
+            default_number_of_licenses: 0
         },
         ...(defaultValue && {
             values: {
@@ -52,7 +53,8 @@ const CreateProduct: React.FC<IProps> = ({ handler, disable = false, defaultValu
                 does_have_license: defaultValue.does_have_license,
                 description: defaultValue.description,
                 modules: defaultValue.modules || [],
-                reports: defaultValue.reports || []
+                reports: defaultValue.reports || [],
+                default_number_of_licenses: defaultValue.default_number_of_licenses || 0
             }
         })
     })
@@ -88,6 +90,16 @@ const CreateProduct: React.FC<IProps> = ({ handler, disable = false, defaultValu
             return mod
         })
 
+        // Add keys to the reports array ifs its name is present, key is small letter name and if any space the  - is added
+        data.reports = data.reports.map(mod => {
+            if (mod.name) {
+                mod.key = mod.name.toLowerCase().replace(" ", "-")
+            }
+            return mod
+        })
+
+        data.default_number_of_licenses = Number(data.default_number_of_licenses) || 0
+
         try {
             await handler(data)
             setIsLoading(false)
@@ -97,7 +109,7 @@ const CreateProduct: React.FC<IProps> = ({ handler, disable = false, defaultValu
         }
     }
 
-    const renderFormField = (name: "name" | "short_name" | "description", label: string, placeholder: string) => (
+    const renderFormField = (name: "name" | "short_name" | "description" | "default_number_of_licenses", label: string, placeholder: string) => (
         <FormField
             control={form.control}
             name={name}
@@ -160,6 +172,12 @@ const CreateProduct: React.FC<IProps> = ({ handler, disable = false, defaultValu
                             </FormItem>
                         )}
                     />
+
+                    {
+                        form.watch("does_have_license") && <div className='md:w-1/2 '>
+                            {renderFormField("default_number_of_licenses", "Default Number of Licenses", "Enter default number of licenses")}
+                        </div>
+                    }
 
                     <FormField
                         control={form.control}

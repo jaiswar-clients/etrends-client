@@ -92,6 +92,7 @@ export const clientApi = createApi({
             amount: number;
           };
           total_cost: number;
+          cost_per_license: number;
         })[]
       >,
       string
@@ -108,6 +109,11 @@ export const clientApi = createApi({
     getProfitFromClient: builder.query<IResponse<IClientProfit>, string>({
       query: (clientId) => `/${clientId}/profit`,
     }),
+    generateNewClientId: builder.query<IResponse, void>({
+      query: () => ({
+        url: "/generate-client-id",
+      }),
+    }),
   }),
 });
 
@@ -119,4 +125,5 @@ export const {
   useGetPurchasedProductsByClientQuery,
   useGetAllParentCompaniesQuery,
   useGetProfitFromClientQuery,
+  useGenerateNewClientIdQuery,
 } = clientApi;

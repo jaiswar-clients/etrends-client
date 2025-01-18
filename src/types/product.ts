@@ -9,6 +9,7 @@ export interface IProduct {
   short_name: string;
   does_have_license: boolean;
   description: string;
+  default_number_of_licenses: number;
   modules: IProductModule[];
   reports: IProductModule[];
 }

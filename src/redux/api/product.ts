@@ -21,7 +21,7 @@ export const productApi = createApi({
       return headers;
     },
   }),
-  tagTypes: ["Products"],
+  tagTypes: ["Products", "SINGLE_PRODUCT"],
   endpoints: (builder) => ({
     getAllProducts: builder.query<IGetAllProductResponse, void>({
       query: () => ({
@@ -47,6 +47,7 @@ export const productApi = createApi({
     }),
     getProductById: builder.query<IResponse<IProduct>, string>({
       query: (id) => `/${id}`,
+      providesTags: ["SINGLE_PRODUCT"],
     }),
     updateProductById: builder.mutation<
       IResponse,
@@ -57,7 +58,7 @@ export const productApi = createApi({
         method: HTTP_REQUEST.PATCH,
         body: data,
       }),
-      invalidatesTags: ["Products"],
+      invalidatesTags: ["Products", "SINGLE_PRODUCT"],
     }),
   }),
 });

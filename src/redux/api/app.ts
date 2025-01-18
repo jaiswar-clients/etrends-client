@@ -16,16 +16,20 @@ export const appApi = createApi({
     },
   }),
   endpoints: (builder) => ({
-    getUrlForUpload: builder.mutation<IResponse, string>({
-      query: (filename: string) => ({
-        url: `/url-for-upload`,
-        method: HTTP_REQUEST.POST,
-        body: {
-          filename,
-        },
-      }),
+    uploadFile: builder.mutation<IResponse, { file: File; filename: string }>({
+      query: ({ file, filename }) => {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("filename", filename);
+
+        return {
+          url: `/upload`,
+          method: HTTP_REQUEST.POST,
+          body: formData,
+        };
+      },
     }),
   }),
 });
 
-export const { useGetUrlForUploadMutation } = appApi;
+export const { useUploadFileMutation } = appApi;

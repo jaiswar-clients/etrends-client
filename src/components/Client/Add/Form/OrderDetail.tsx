@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useEffect, useState } from 'react'
+import React, { ChangeEvent, memo, useCallback, useEffect, useMemo, useState } from 'react'
 import { Button } from "@/components/ui/button"
 import {
     Form,
@@ -22,14 +22,11 @@ import ProductDropdown from '@/components/common/ProductDropdown'
 import { AmountInput } from '@/components/ui/AmountInput'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import DatePicker from '@/components/ui/datepicker'
-import { CircleCheck, CirclePlus, CircleX, Edit, Eye, IndianRupee, Wrench, X } from 'lucide-react'
+import { CircleCheck, CirclePlus, CircleX, Edit, File, IndianRupee, Wrench, X } from 'lucide-react'
 import { Separator } from '@radix-ui/react-separator'
 import { Switch } from '@/components/ui/switch'
-import { useGetUrlForUploadMutation } from '@/redux/api/app'
-import axios from "axios"
-import { v4 } from "uuid"
 import { useToast } from '@/hooks/use-toast'
-import { CustomizationType, LicenseDetails, OrderDetailInputs } from '@/types/order'
+import { CustomizationType, IPaymentTerm, LicenseDetails, OrderDetailInputs } from '@/types/order'
 import { useAppSelector } from '@/redux/hook'
 import { IOrderObject, PAYMENT_STATUS_ENUM } from '@/redux/api/order'
 import {
@@ -45,7 +42,9 @@ import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from '@/components/ui/dialog'
 import { useUpdateProductByIdMutation } from '@/redux/api/product'
 import { Card, CardContent } from '@/components/ui/card'
-import millify from 'millify'
+import { useFileUpload } from '@/hooks/useFileUpload'
+import { formatCurrency } from '@/lib/utils'
+import ShowMultipleFilesModal from '@/components/common/ShowMultipleFiles'
 
 interface OrderProps {
     title?: string
@@ -83,7 +82,7 @@ type RenderFormFieldNameType = keyof OrderDetailInputs | keyof LicenseDetails |
     `payment_terms.${number}.${keyof OrderDetailInputs['payment_terms'][number]}` |
     `agreements.${number}.${keyof OrderDetailInputs['agreements'][number]}` |
     `base_cost_seperation.${number}.${'product_id' | 'percentage' | 'amount'}`
-    | 'customization.cost' | `customization.modules.${number}` | "other_document.url"
+    | 'customization.cost' | `customization.modules.${number}` | `other_documents.${number}.url` | `other_documents.${number}.title`
 
 
 const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updateHandler, removeAccordion, defaultOpen = false, isLoading = false }) => {
@@ -92,7 +91,7 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
     const [enableCustomization, setEnableCustomization] = useState(true)
     const [addNewModule, setAddNewModule] = useState<{ add: boolean, value: string, type?: "report" | "module", description: string, product?: string }>({ add: false, value: '', type: 'module', description: '' })
 
-    const [getUrlForUploadApi] = useGetUrlForUploadMutation()
+    const { uploadFile, getFileNameFromUrl } = useFileUpload()
 
     const { toast } = useToast()
     const { products } = useAppSelector(state => state.user)
@@ -116,13 +115,16 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
         payment_terms: defaultValue?.payment_terms ?
             defaultValue.payment_terms.map(term => ({
                 ...term,
-                date: new Date(term.date)
+                payment_receive_date: term.payment_receive_date ? new Date(term.payment_receive_date) : undefined,
+                invoice_date: term.invoice_date ? new Date(term.invoice_date) : undefined,
             })) : [
                 {
                     name: "Deployment",
                     percentage_from_base_cost: 0,
                     calculated_amount: 0,
-                    date: undefined,
+                    invoice_document: "",
+                    invoice_number: "",
+                    invoice_date: undefined,
                     status: PAYMENT_STATUS_ENUM.PENDING,
                     payment_receive_date: undefined
                 },
@@ -130,7 +132,9 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
                     name: "UAT Sign off",
                     percentage_from_base_cost: 0,
                     calculated_amount: 0,
-                    date: undefined,
+                    invoice_document: "",
+                    invoice_number: "",
+                    invoice_date: undefined,
                     status: PAYMENT_STATUS_ENUM.PENDING,
                     payment_receive_date: undefined
                 },
@@ -138,7 +142,9 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
                     name: "Production Live Instance",
                     percentage_from_base_cost: 0,
                     calculated_amount: 0,
-                    date: undefined,
+                    invoice_document: "",
+                    invoice_number: "",
+                    invoice_date: undefined,
                     status: PAYMENT_STATUS_ENUM.PENDING,
                     payment_receive_date: undefined
                 },
@@ -149,6 +155,7 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
         cost_per_license: 0,
         invoice_document: "",
         total_license: 0,
+        licenses_with_base_price: 0,
         customization: {
             cost: 0,
             amc_rate: {
@@ -163,15 +170,15 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
         base_cost_seperation: [],
     }
 
-    const values = defaultValue && {
+    const values = useMemo(() => defaultValue ? {
         products: defaultValue.products || [],
         base_cost: defaultValue.base_cost,
         amc_rate: defaultValue.amc_rate,
         status: defaultValue.status as ORDER_STATUS_ENUM,
-        payment_terms: defaultValue.payment_terms.map(term => ({ ...term, date: new Date(term.date), payment_receive_date: term.payment_receive_date ? new Date(term.payment_receive_date) : undefined })),
+        payment_terms: defaultValue.payment_terms.map(term => ({ ...term, invoice_date: term.invoice_date ? new Date(term.invoice_date) : undefined, payment_receive_date: term.payment_receive_date ? new Date(term.payment_receive_date) : undefined })),
         agreements: defaultValue.agreements,
-        cost_per_license: defaultValue.license?.rate.amount || 0,
-        total_license: defaultValue.license?.total_license || 0,
+        cost_per_license: defaultValue.cost_per_license || 0,
+        licenses_with_base_price: defaultValue.licenses_with_base_price || 0,
         customization: {
             cost: defaultValue?.customization?.cost || 0,
             modules: defaultValue?.customization?.modules || [],
@@ -179,12 +186,11 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
             type: defaultValue?.customization?.type || ("module" as CustomizationType),
         },
         amc_start_date: new Date(defaultValue.amc_start_date),
-        other_document: defaultValue?.other_document || { title: "", url: "" },
+        other_documents: defaultValue?.other_documents || [],
         purchase_order_document: defaultValue.purchase_order_document || "",
-        invoice_document: defaultValue.invoice_document || "",
         purchased_date: new Date(defaultValue.purchased_date || new Date()),
         base_cost_seperation: defaultValue.base_cost_seperation || []
-    }
+    } : undefined, [defaultValue])
 
 
     const form = useForm<OrderDetailInputs & LicenseDetails>({
@@ -231,7 +237,10 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
             name: "",
             percentage_from_base_cost: 0,
             calculated_amount: 0,
-            date: new Date()
+            payment_receive_date: undefined,
+            invoice_date: undefined,
+            invoice_document: "",
+            invoice_number: "",
         });
     };
 
@@ -275,12 +284,10 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
     const recalculateAMCRateBasedOnBaseCost = (baseCost: number) => {
         const currentAmcRate = form.getValues("amc_rate");
         const amcPercentage = currentAmcRate.percentage || 0;
-        const licenseCostPerUnit = form.getValues("cost_per_license") || 0;
-        const totalLicenses = form.getValues("total_license") || 0;
+
         const customizationCost = form.getValues("customization.cost") || 0;
 
-        const licenseTotalCost = licenseCostPerUnit * totalLicenses;
-        const amcTotalCost = (customizationCost + licenseTotalCost || 0) + baseCost;
+        const amcTotalCost = (customizationCost || 0) + baseCost;
         const calculatedAmount = (amcTotalCost / 100) * amcPercentage;
 
         form.setValue("amc_rate.amount", calculatedAmount);
@@ -288,17 +295,14 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
 
     const recalculateAMCRate = (value: number, field: 'percentage' | 'amount') => {
         const baseCost = form.getValues("base_cost");
-        const licenseCostPerUnit = form.getValues("cost_per_license") || 0;
-        const totalLicenses = form.getValues("total_license") || 0;
+
         const customizationCost = form.getValues("customization.cost") || 0;
 
         if (!baseCost) return;
 
-        // Calculate total license cost
-        const licenseTotalCost = licenseCostPerUnit * totalLicenses;
 
         // Calculate total cost including base cost, license cost and customization
-        const amcTotalCost = (customizationCost + licenseTotalCost || 0) + baseCost;
+        const amcTotalCost = (customizationCost || 0) + baseCost;
 
         if (field === 'percentage') {
             const percentage = value || 0;
@@ -316,22 +320,15 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
     const calculateTotalCost = () => {
         // Use parseFloat to handle string inputs and ensure numeric values
         const baseCost = parseFloat(form.getValues("base_cost")?.toString() || "0");
-
-        const licenseCost = parseFloat(form.getValues("cost_per_license")?.toString() || "0");
-        const totalLicense = parseFloat(form.getValues("total_license")?.toString() || "0");
         const customizationCost = parseFloat(form.getValues("customization.cost")?.toString() || "0");
 
         // Handle negative values by using Math.max
         const sanitizedBaseCost = Math.max(0, baseCost);
-        const sanitizedLicenseCost = Math.max(0, licenseCost);
-        const sanitizedTotalLicense = Math.max(0, totalLicense);
+
         const sanitizedCustomizationCost = Math.max(0, customizationCost);
 
-        // Calculate total cost with checks for NaN
-        const licenseTotalCost = sanitizedLicenseCost * sanitizedTotalLicense;
-        const totalCost = sanitizedBaseCost +
-            (isNaN(licenseTotalCost) ? 0 : licenseTotalCost) +
-            sanitizedCustomizationCost;
+
+        const totalCost = sanitizedBaseCost + sanitizedCustomizationCost;
 
         // Return 0 if calculation results in NaN or negative value
         return isNaN(totalCost) ? 0 : Math.max(0, totalCost);
@@ -340,12 +337,11 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
     const amcRateAfterCustomization = () => {
         const baseCost = parseFloat(form.getValues("base_cost")?.toString() || "0");
         const customizationCost = parseFloat(form.getValues("customization.cost")?.toString() || "0");
-        const licenseCostPerUnit = parseFloat(form.getValues("cost_per_license")?.toString() || "0");
-        const totalLicenses = parseFloat(form.getValues("total_license")?.toString() || "0");
+
         const amcRate = form.getValues("amc_rate");
 
-        const licenseTotalCost = licenseCostPerUnit * totalLicenses;
-        const amcTotalCost = (customizationCost + licenseTotalCost || 0) + baseCost;
+
+        const amcTotalCost = (customizationCost || 0) + baseCost;
         const amcRateAfterCustomization = (amcTotalCost * amcRate.percentage) / 100;
 
         return isNaN(amcRateAfterCustomization) ? 0 : Math.max(0, amcRateAfterCustomization);
@@ -356,23 +352,13 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
         form.setValue("amc_rate.amount", amcRateAfterCustomization());
     }, [
         form.watch("base_cost"),
-        form.watch("cost_per_license"),
-        form.watch("total_license"),
         form.watch("customization.cost")
     ]);
 
     const getSignedUrl = async (file: File, field: keyof OrderDetailInputs) => {
         try {
-            const ext = file.name.split('.').pop();
-            const filename = `${v4()}.${ext}`;
-            const { data: uploadUri } = await getUrlForUploadApi(filename).unwrap()
-
-            await axios.put(uploadUri, file, {
-                headers: {
-                    'Content-Type': file.type
-                }
-            })
-            form.setValue(field, filename)
+            const filename = await uploadFile(file);
+            form.setValue(field, filename as string)
 
             toast({
                 variant: "success",
@@ -461,11 +447,17 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
             <div className="flex items-center gap-2">
                 <Link href={field.value as string} target='_blank' passHref>
                     <Button variant={disableInput ? 'default' : 'outline'} type='button' className={!disableInput ? 'rounded-full w-8 h-8 ml-2 absolute -top-3 -right-10' : ''}>
-                        {disableInput ? 'View' : <Eye className='w-1' />}
+                        {disableInput ? 'View' : <File className='w-1' />}
                     </Button>
                 </Link>
+                {
+                    disableInput && (
+                        <span className='text-sm text-gray-500'>{getFileNameFromUrl(field.value as string)}</span>
+                    )
+                }
             </div>
-        );
+        )
+
 
         return (
             <FormField
@@ -516,7 +508,7 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
         );
     };
 
-    const transformFormData = (data: any) => {
+    const transformFormData = (data: OrderDetailInputs & LicenseDetails) => {
         // Check required fields
         if (!data.products || data.products.length === 0) {
             toast({
@@ -574,16 +566,10 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
                 });
                 return;
             }
-        }
-
-        // Validate Invoice Document
-        if (!data.invoice_document) {
-            toast({
-                variant: "destructive",
-                title: "Validation Error",
-                description: "Invoice Document is required"
-            });
-            return;
+            // Clear payment receive date if status is pending
+            if (term.status === PAYMENT_STATUS_ENUM.PENDING && term.payment_receive_date) {
+                term.payment_receive_date = undefined;
+            }
         }
 
         // Transform the data
@@ -594,11 +580,12 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
                 percentage: Number(data.amc_rate?.percentage) || 0,
                 amount: Number(data.amc_rate?.amount) || 0
             },
-            payment_terms: data.payment_terms.map((term: any) => ({
+            payment_terms: data.payment_terms.map((term: IPaymentTerm) => ({
                 ...term,
                 percentage_from_base_cost: Number(term.percentage_from_base_cost) || 0,
                 calculated_amount: Number(term.calculated_amount) || 0,
-                date: term.date ? new Date(term.date) : new Date()
+                invoice_date: term.invoice_date ? new Date(term.invoice_date) : undefined,
+                payment_receive_date: term.payment_receive_date ? new Date(term.payment_receive_date) : undefined
             })),
             agreements: data.agreements.map((date: any) => ({
                 start: date.start ? new Date(date.start) : new Date(),
@@ -608,22 +595,16 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
             amc_start_date: data.amc_start_date ? new Date(data.amc_start_date) : undefined,
             customization: {
                 cost: Number(data.customization?.cost) || 0,
-                amc_rate: {
-                    percentage: Number(data.customization?.amc_rate?.percentage) || 0,
-                    amount: Number(data.customization?.amc_rate?.amount) || 0
-                },
                 modules: data.customization?.modules || []
             },
-            license_details: {
-                cost_per_license: Number(data.cost_per_license) || 0,
-                total_license: Number(data.total_license) || 0
-            },
+            cost_per_license: Number(data.cost_per_license) || 0,
+            licenses_with_base_price: Number(data.licenses_with_base_price) || 0
         };
 
         return transformedData;
     };
 
-    const onSubmit: SubmitHandler<OrderDetailInputs> = async (data) => {
+    const onSubmit: SubmitHandler<OrderDetailInputs & LicenseDetails> = async (data) => {
         const transformedData = transformFormData(data);
 
         if (!transformedData) return;
@@ -681,6 +662,11 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
                 removebaseCostSeparation(index);
             }
         });
+
+        // if license is selected then add the license details
+        if (selectedProducts.some(product => product.does_have_license)) {
+            form.setValue("licenses_with_base_price", selectedProducts.find(product => product.does_have_license)?.default_number_of_licenses || 0)
+        }
     }
 
     const createCustomizationModuleComboboxData = () => {
@@ -767,6 +753,23 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
 
     if (!products) return null
 
+    const onOtherDocumentChange = async (e: ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (!files) return;
+        const otherDocuments: { title: string, url: string }[] = []
+        for (const file of files) {
+            const filename = await uploadFile(file, false);
+            if (!filename) continue;
+            otherDocuments.push({ title: file.name, url: filename })
+        }
+        toast({
+            variant: "success",
+            title: "File Upload Successful",
+            description: `The files has been uploaded successfully.`,
+        })
+        form.setValue("other_documents", otherDocuments)
+    }
+
     const finalJSX = (
         <div className="mt-1 p-2">
             {defaultValue?._id && (
@@ -846,7 +849,7 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
                                     name="amc_rate"
                                     render={({ field }) => (
                                         <FormItem className='w-full relative mb-4 md:mb-0'>
-                                            <FormLabel className='text-gray-500'>AMC Rate (₹{form.watch("amc_rate.amount")})</FormLabel>
+                                            <FormLabel className='text-gray-500'>AMC Rate ({formatCurrency(form.watch("amc_rate.amount"))})</FormLabel>
                                             <FormControl>
                                                 <AmountInput
                                                     className='bg-white'
@@ -864,6 +867,7 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
                                                             const percentage = parseFloat(value.toString()) || 0;
                                                             const calculatedAmount = (baseCost * percentage) / 100;
                                                             field.onChange({
+
                                                                 percentage: percentage,
                                                                 amount: calculatedAmount.toString()
                                                             });
@@ -944,44 +948,15 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
                                 <div className="">
                                     <div className="flex justify-between items-center">
                                         <Typography variant='h3'>Licenses</Typography>
-
-
                                     </div>
                                     <div className="flex items-end md:flex-nowrap flex-wrap gap-4 w-full mt-2">
-                                        {
-                                            form.watch("products").length > 1 && (
-                                                <FormField
-                                                    control={form.control}
-                                                    name="license"
-                                                    render={({ field }) => (
-                                                        <FormItem className='w-full relative'>
-                                                            <FormLabel className='text-gray-500'>Select Product</FormLabel>
-                                                            <FormControl>
-                                                                <ProductDropdown
-                                                                    filterProducts={(product) => product.does_have_license}
-                                                                    onSelectionChange={(selectedProducts) => selectedProducts.length && selectedProducts[0] ? field.onChange(selectedProducts[0]._id) : null}
-                                                                    isMultiSelect={false}
-                                                                    disabled={disableInput}
-                                                                    values={
-                                                                        defaultValue?.license ?
-                                                                            [defaultValue.products.find(product => product === defaultValue.license.product_id)]
-                                                                                .filter((product): product is string => product !== undefined)
-                                                                            :
-                                                                            []
-                                                                    }
-                                                                />
-                                                            </FormControl>
-                                                            <FormMessage />
-                                                        </FormItem>
-                                                    )}
-                                                />
-                                            )
-                                        }
-                                        {renderFormField("cost_per_license", "Cost Per Licencse", "Cost Per Licencse", "number")}
-                                        {renderFormField("total_license", "Enter Total Number of License", "Total number of Licenses ", "number")}
-
+                                        {renderFormField("licenses_with_base_price", "Auditor Licenses with Base Price", "Total number of Licenses ", "number")}
+                                        {renderFormField("cost_per_license", "Additional Cost Per Licencse", "Additional Cost Per Licencse", "number")}
                                     </div>
-                                    <div className="flex justify-end mt-4">
+                                    {/* <div className="mt-4">
+                                        {renderFormField("licenses_with_base_price", "Licenses with Base Price", "Licenses with Base Price", "number")}
+                                    </div> */}
+                                    {/* <div className="flex justify-end mt-4">
                                         <Card className='items-center'>
                                             <CardContent className="flex items-center gap-2 justify-center p-3">
                                                 <Typography variant='h3'>Total Cost</Typography>
@@ -991,7 +966,7 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
                                                 </Typography>
                                             </CardContent>
                                         </Card>
-                                    </div>
+                                    </div> */}
                                 </div>
 
                             </CardContent>
@@ -1127,104 +1102,120 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
                         <div className="">
                             <Card>
                                 <CardContent className='p-6'>
-                                    <Typography variant='h3'>Payment Terms</Typography>
+                                    <Typography variant='h3' className="mb-6">Payment Terms</Typography>
                                     {paymentTermsFields.map((paymentTerm, index) => (
-                                        <div key={paymentTerm.id} className="md:flex items-center relative gap-4 w-full mb-7 md:mb-4">
-                                            {renderFormField(`payment_terms.${index}.name`, null, "Name of the Payment Term")}
-                                            {renderFormField(`payment_terms.${index}.percentage_from_base_cost`, null, "Percentage from Base Cost", "number")}
-                                            {renderFormField(`payment_terms.${index}.calculated_amount`, null, "Amount(Auto Calculated)", "number")}
-                                            <FormField
-                                                control={form.control}
-                                                name={`payment_terms.${index}.date`}
-                                                render={({ field }) => (
-                                                    <FormItem className='w-full relative'>
-                                                        <FormControl>
-                                                            <DatePicker date={field.value} onDateChange={field.onChange} placeholder='Date' disabled={disableInput} />
-                                                        </FormControl>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
-                                            <FormField
-                                                control={form.control}
-                                                name={`payment_terms.${index}.status`}
-                                                render={({ field }) => (
-                                                    <FormItem className='w-full mb-4 md:mb-0'>
-                                                        <FormControl>
-                                                            <Select onValueChange={field.onChange}>
-                                                                <SelectTrigger className="w-full bg-white" disabled={disableInput}>
-                                                                    <SelectValue className="capitalize" placeholder=
-                                                                        {
-                                                                            field.value === PAYMENT_STATUS_ENUM.PAID ? (
-                                                                                <div className="flex items-center">
-                                                                                    <div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div>
-                                                                                    {PAYMENT_STATUS_ENUM.PAID}
-                                                                                </div>
-                                                                            ) : (
-                                                                                <div className="flex items-center">
-                                                                                    <div className="w-2 h-2 rounded-full bg-red-500 mr-2"></div>
-                                                                                    <span className="capitalize">{PAYMENT_STATUS_ENUM.PENDING}</span>
-                                                                                </div>
-                                                                            )
-                                                                        }
-                                                                    >
-
-                                                                    </SelectValue>
-                                                                </SelectTrigger>
-                                                                <SelectContent className='bg-white'>
-                                                                    {
-                                                                        Object.entries(PAYMENT_STATUS_ENUM)
-                                                                            .filter(([key]) => isNaN(Number(key)))
-                                                                            .map(([key, value]) => (
-                                                                                <SelectItem value={value} key={key} className='capitalize'>
-                                                                                    {value === PAYMENT_STATUS_ENUM.PAID ? (
+                                        <Card key={paymentTerm.id} className="mb-6 last:mb-0 relative">
+                                            <CardContent className="p-4">
+                                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4 items-end">
+                                                    {renderFormField(`payment_terms.${index}.name`, "Name", "Name of the Payment Term")}
+                                                    {renderFormField(`payment_terms.${index}.percentage_from_base_cost`, "Percentage from Base Cost", "Percentage", "number")}
+                                                    {renderFormField(`payment_terms.${index}.calculated_amount`, "Amount (Auto Calculated)", "Amount", "number")}
+                                                    {renderFormField(`payment_terms.${index}.invoice_number`, "Invoice Number", "Invoice Number")}
+                                                    <FormField
+                                                        control={form.control}
+                                                        name={`payment_terms.${index}.invoice_date`}
+                                                        render={({ field }) => (
+                                                            <FormItem className='w-full'>
+                                                                <FormLabel className="text-gray-500">Invoice Date</FormLabel>
+                                                                <FormControl>
+                                                                    <div className="relative">
+                                                                        <DatePicker date={field.value} onDateChange={field.onChange} placeholder='Date' disabled={disableInput} />
+                                                                    </div>
+                                                                </FormControl>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                    {renderFormField(`payment_terms.${index}.invoice_document`, "Invoice Document", "Upload Invoice Document", "file")}
+                                                    <FormField
+                                                        control={form.control}
+                                                        name={`payment_terms.${index}.status`}
+                                                        render={({ field }) => (
+                                                            <FormItem className='w-full mb-4 md:mb-0'>
+                                                                <FormLabel className="text-gray-500">Payment Status</FormLabel>
+                                                                <FormControl>
+                                                                    <Select onValueChange={field.onChange}>
+                                                                        <SelectTrigger className="w-full bg-white" disabled={disableInput}>
+                                                                            <SelectValue className="capitalize" placeholder=
+                                                                                {
+                                                                                    field.value === PAYMENT_STATUS_ENUM.PAID ? (
                                                                                         <div className="flex items-center">
                                                                                             <div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div>
-                                                                                            {value}
+                                                                                            {PAYMENT_STATUS_ENUM.PAID}
                                                                                         </div>
                                                                                     ) : (
                                                                                         <div className="flex items-center">
                                                                                             <div className="w-2 h-2 rounded-full bg-red-500 mr-2"></div>
-                                                                                            <span className="capitalize">{value}</span>
+                                                                                            <span className="capitalize">{PAYMENT_STATUS_ENUM.PENDING}</span>
                                                                                         </div>
-                                                                                    )}
-                                                                                </SelectItem>
-                                                                            ))
-                                                                    }
-                                                                </SelectContent>
-                                                            </Select>
-                                                        </FormControl>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
-                                            <FormField
-                                                control={form.control}
-                                                name={`payment_terms.${index}.payment_receive_date`}
-                                                render={({ field }) => (
-                                                    <FormItem className='w-full relative'>
-                                                        <FormControl>
-                                                            <DatePicker date={field.value} onDateChange={field.onChange} placeholder='Payment Receive Date' disabled={disableInput} />
-                                                        </FormControl>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
-                                            <Button variant='destructive' onClick={() => removePaymentTerm(index)} className='w-full mt-2 md:mt-2 md:rounded-full md:w-8 md:h-8 ' disabled={disableInput}>
-                                                <X />
-                                                <span className='md:hidden block'>Delete</span>
-                                            </Button>
-                                        </div>
+                                                                                    )
+                                                                                }
+                                                                            >
+
+                                                                            </SelectValue>
+                                                                        </SelectTrigger>
+                                                                        <SelectContent className='bg-white'>
+                                                                            {
+                                                                                Object.entries(PAYMENT_STATUS_ENUM)
+                                                                                    .filter(([key]) => isNaN(Number(key)))
+                                                                                    .map(([key, value]) => (
+                                                                                        <SelectItem value={value} key={key} className='capitalize'>
+                                                                                            {value === PAYMENT_STATUS_ENUM.PAID ? (
+                                                                                                <div className="flex items-center">
+                                                                                                    <div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div>
+                                                                                                    {value}
+                                                                                                </div>
+                                                                                            ) : (
+                                                                                                <div className="flex items-center">
+                                                                                                    <div className="w-2 h-2 rounded-full bg-red-500 mr-2"></div>
+                                                                                                    <span className="capitalize">{value}</span>
+                                                                                                </div>
+                                                                                            )}
+                                                                                        </SelectItem>
+                                                                                    ))
+                                                                            }
+                                                                        </SelectContent>
+                                                                    </Select>
+                                                                </FormControl>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                    <FormField
+                                                        control={form.control}
+                                                        name={`payment_terms.${index}.payment_receive_date`}
+                                                        render={({ field }) => (
+                                                            <FormItem className='w-full'>
+                                                                <FormLabel className="text-gray-500">Payment Receive Date</FormLabel>
+                                                                <FormControl>
+                                                                    <div className="relative">
+                                                                        <DatePicker date={field.value} onDateChange={field.onChange} placeholder='Payment Receive Date' disabled={disableInput} />
+                                                                    </div>
+                                                                </FormControl>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                        )}
+                                                    />
+
+                                                </div>
+                                                <div className="flex items-center justify-between mt-4 absolute -top-6 -right-3">
+                                                    <Button variant='destructive' onClick={() => removePaymentTerm(index)} className='flex-shrink-0 w-8 h-8 rounded-full' disabled={disableInput}>
+                                                        <X size={16} />
+                                                        <span className="sr-only">Delete</span>
+                                                    </Button>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
                                     ))}
-                                    <div className="flex justify-center mt-4">
+                                    <div className="flex justify-center mt-6">
                                         <Button
                                             type='button'
                                             disabled={disableInput}
                                             onClick={addPaymentTerm}
-                                            className="flex items-center justify-center gap-2 py-5 md:w-72 bg-[#E6E6E6] text-black hover:bg-black hover:text-white group"
+                                            className="flex items-center justify-center gap-2 py-5 px-6 bg-[#E6E6E6] text-black hover:bg-black hover:text-white transition-colors duration-200"
                                         >
-                                            <CirclePlus className='!w-6 !h-6' />
-                                            <Typography variant='p' className='text-black group-hover:text-white'>Add more terms</Typography>
+                                            <CirclePlus className='w-5 h-5' />
+                                            <span>Add more terms</span>
                                         </Button>
                                     </div>
                                 </CardContent>
@@ -1237,7 +1228,7 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
                                             <IndianRupee className="w-6 h-6 text-green-500" />
                                         </div>
                                         <p className="text-3xl font-bold text-gray-800">
-                                            ₹{millify(calculateTotalCost(), { precision: 2 })}
+                                            {formatCurrency(calculateTotalCost())}
                                         </p>
                                     </CardContent>
                                 </Card>
@@ -1248,7 +1239,7 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
                                             <Wrench className="w-6 h-6 text-blue-500" />
                                         </div>
                                         <p className="text-3xl font-bold text-gray-800">
-                                            ₹{millify(form.watch("amc_rate.amount"), { precision: 2 })}
+                                            {formatCurrency(form.watch("amc_rate.amount"))}
                                         </p>
                                     </CardContent>
                                 </Card>
@@ -1257,6 +1248,10 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
                         </div>
                         <Card className='mt-4'>
                             <CardContent className='p-6'>
+                                <div className="md:flex items-end gap-4 w-full mt-6">
+                                    {renderFormField("purchase_order_number", "PO Number", "", "text", true)}
+                                    {renderFormField("purchase_order_document", "PO Document", "", "file", true)}
+                                </div>
                                 <div className="md:flex items-end gap-4 w-full mt-6">
                                     <FormField
                                         control={form.control}
@@ -1271,11 +1266,27 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
                                             </FormItem>
                                         )}
                                     />
-                                    {renderFormField("purchase_order_document", "PO Document", "", "file", true)}
-                                </div>
-                                <div className="md:flex items-end gap-4 w-full mt-6">
-                                    {renderFormField("invoice_document", "Invoice Document", "", "file")}
-                                    {renderFormField("other_document.url", "Other Document", "", "file", true)}
+                                    {/* Add a Form Field for other documents which accepts multiple files */}
+                                    <FormField
+                                        control={form.control}
+                                        name="other_documents"
+                                        render={({ field }) => (
+                                            <FormItem className='w-full relative mb-4 md:mb-0'>
+                                                <div className="flex items-center gap-2">
+                                                    <FormLabel className='text-gray-500'>Other Documents</FormLabel>
+                                                    {
+                                                        field.value?.length ? (
+                                                            <ShowMultipleFilesModal files={field.value.length ? field.value.map(file => file.url) : []} getFileNameFromUrl={getFileNameFromUrl} />
+                                                        ) : null
+                                                    }
+                                                </div>
+                                                <FormControl>
+                                                    <Input type="file" multiple onChange={onOtherDocumentChange} disabled={disableInput} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
                                 </div>
                                 <div className=" mt-6">
                                     <Typography variant='h3' className='mb-3'>Agreement <span className='text-xs text-gray-400 ml-1'>Optional</span> </Typography>

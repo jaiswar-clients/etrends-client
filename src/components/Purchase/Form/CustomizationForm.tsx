@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input'
 import Typography from '@/components/ui/Typography'
 import { useGetPurchasedProductsByClientQuery } from '@/redux/api/client'
 import { CustomizationDetails, CustomizationType } from '@/types/order'
-import { ChevronsUpDown, CircleCheck, CirclePlus, CircleX, Eye, Pencil, Plus, X } from 'lucide-react'
+import { ChevronsUpDown, CircleCheck, CirclePlus, CircleX, File, Pencil, Plus, X } from 'lucide-react'
 import React, { HTMLInputTypeAttribute, useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import {
@@ -55,9 +55,12 @@ interface ICustomationProps {
 }
 
 export interface ICustomizationInputs extends CustomizationDetails {
-    product_id: string
-    invoice_document: string
-    title?: string
+    product_id: string;
+    invoice_document: string;
+    invoice_number: string;
+    invoice_date?: Date;
+    purchase_order_number: string;
+    title?: string;
 }
 
 export interface ModuleData {
@@ -184,7 +187,7 @@ export function ModulesCombobox({
 const CustomizationForm: React.FC<ICustomationProps> = ({ clientId, handler, isLoading = false, label, disable = false, defaultValue }) => {
     const [amcRate, setAmcRate] = useState({ percentage: 0, amount: 0, total_amount: 0 })
     const { data: productsList } = useGetPurchasedProductsByClientQuery(clientId)
-    const { uploadFile } = useFileUpload()
+    const { uploadFile, getFileNameFromUrl } = useFileUpload()
     const [selectedProduct, setSelectedProduct] = useState<IProduct | null>()
     const [addNewModule, setAddNewModule] = useState<{ add: boolean, value: string, type?: "report" | "module", description: string }>({ add: false, value: '', description: '' })
 
@@ -198,9 +201,12 @@ const CustomizationForm: React.FC<ICustomationProps> = ({ clientId, handler, isL
         cost: defaultValue.cost,
         modules: defaultValue.modules,
         purchase_order_document: defaultValue.purchase_order_document,
+        purchase_order_number: defaultValue.purchase_order_number,
         purchased_date: defaultValue.purchased_date ? new Date(defaultValue.purchased_date) : undefined,
         type: defaultValue.type,
         invoice_document: defaultValue.invoice_document,
+        invoice_number: defaultValue.invoice_number,
+        invoice_date: defaultValue.invoice_date ? new Date(defaultValue.invoice_date) : undefined,
         title: defaultValue?.title || "",
         reports: defaultValue?.reports || [],
         payment_status: defaultValue?.payment_status || PAYMENT_STATUS_ENUM.PENDING,
@@ -212,9 +218,12 @@ const CustomizationForm: React.FC<ICustomationProps> = ({ clientId, handler, isL
         cost: defaultValue?.cost || 0,
         modules: defaultValue?.modules || [],
         purchase_order_document: defaultValue?.purchase_order_document || '',
+        purchase_order_number: defaultValue?.purchase_order_number || '',
         purchased_date: defaultValue?.purchased_date ? new Date(defaultValue.purchased_date) : undefined,
         type: defaultValue?.type || CustomizationType.MODULE,
         invoice_document: defaultValue?.invoice_document || '',
+        invoice_number: defaultValue?.invoice_number || '',
+        invoice_date: defaultValue?.invoice_date ? new Date(defaultValue.invoice_date) : undefined,
         title: defaultValue?.title || "",
         reports: defaultValue?.reports || [],
         payment_status: defaultValue?.payment_status || PAYMENT_STATUS_ENUM.PENDING,
@@ -270,15 +279,22 @@ const CustomizationForm: React.FC<ICustomationProps> = ({ clientId, handler, isL
             }
         };
 
-        const renderFilePreview = (field: any) => (
-            <div className="flex items-center gap-2">
-                <Link href={field.value as string} target='_blank' passHref>
-                    <Button variant={disableInput ? 'default' : 'outline'} type='button' className={!disableInput ? 'rounded-full w-8 h-8 ml-2 absolute -top-3 -right-10' : ''}>
-                        {disableInput ? 'View' : <Eye className='w-1' />}
-                    </Button>
-                </Link>
-            </div>
-        );
+        const renderFilePreview = (field: any) => {
+            return (
+                <div className="flex items-center gap-2">
+                    <Link href={field.value as string} target='_blank' passHref>
+                        <Button variant={disableInput ? 'default' : 'outline'} type='button' className={!disableInput ? 'rounded-full w-8 h-8 ml-2 absolute -top-3 -right-10' : ''}>
+                            {disableInput ? 'View' : <File className='w-1' />}
+                        </Button>
+                    </Link>
+                    {
+                        disableInput && (
+                            <span className='text-sm text-gray-500'>{getFileNameFromUrl(field.value as string)}</span>
+                        )
+                    }
+                </div>
+            )
+        };
 
         const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
             form.setValue(name, e.target.value)
@@ -300,7 +316,7 @@ const CustomizationForm: React.FC<ICustomationProps> = ({ clientId, handler, isL
                                             <TooltipTrigger asChild>
                                                 {renderFilePreview(field)}
                                             </TooltipTrigger>
-                                            <TooltipContent>View File</TooltipContent>
+                                            <TooltipContent>{getFileNameFromUrl(field.value as string) || 'View File'}</TooltipContent>
                                         </Tooltip>
                                     </TooltipProvider>
                                 )}
@@ -598,10 +614,33 @@ const CustomizationForm: React.FC<ICustomationProps> = ({ clientId, handler, isL
                         />
 
 
-                        {renderFormField('purchase_order_document', 'Purchase Order Document', 'Upload Purchase Order Document', 'file')}
-                        {renderFormField('invoice_document', 'Invoice Document', 'Upload Invoice Document', 'file')}
-
-
+                        <div className="md:flex items-center gap-4 w-full">
+                            {renderFormField('purchase_order_document', 'Purchase Order Document', 'Upload Purchase Order Document', 'file')}
+                            {renderFormField('invoice_document', 'Invoice Document', 'Upload Invoice Document', 'file')}
+                        </div>
+                        <div className="md:flex items-end gap-4 w-full">
+                            {renderFormField('purchase_order_number', 'Purchase Order Number', 'Enter purchase order number', 'text')}
+                            {renderFormField('invoice_number', 'Invoice Number', 'Enter invoice number', 'text')}
+                        </div>
+                        <div className="md:flex items-end gap-4 w-full">
+                            <FormField
+                                control={form.control}
+                                name="invoice_date"
+                                render={({ field }) => (
+                                    <FormItem className='w-full mb-4 md:mb-0'>
+                                        <FormLabel className='text-gray-500'>Invoice Date</FormLabel>
+                                        <FormControl>
+                                            <DatePicker
+                                                date={field.value}
+                                                onDateChange={field.onChange}
+                                                disabled={disableInput}
+                                            />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </div>
 
                         <FormField
                             control={form.control}

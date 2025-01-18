@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import Typography from '@/components/ui/Typography'
-import { CircleCheck, CircleX, Eye, Pencil } from 'lucide-react'
+import { CircleCheck, CircleX, File, Pencil } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { useGetPurchasedProductsByClientQuery } from '@/redux/api/client'
 import {
@@ -20,6 +20,8 @@ import { ILicenceObject, PAYMENT_STATUS_ENUM } from '@/redux/api/order'
 import Link from 'next/link'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { renderDisabledInput } from '@/components/ui/disabledInput'
+import { Card, CardContent } from '@/components/ui/card'
+import { formatCurrency } from '@/lib/utils'
 
 interface ILicenseProps {
     clientId: string
@@ -34,17 +36,20 @@ export interface ILicenseInputs {
     cost_per_license: number;
     total_license: number;
     product_id: string;
-    purchase_date: Date
-    purchase_order_document: string
+    purchase_date: Date;
+    purchase_order_document: string;
+    purchase_order_number: string;
     payment_receive_date?: Date;
     payment_status?: PAYMENT_STATUS_ENUM;
-    invoice: string
+    invoice_document: string;
+    invoice_number: string;
+    invoice_date?: Date;
 }
 
 const LicenseForm: React.FC<ILicenseProps> = ({ clientId, handler, isLoading, label, defaultValue, disable = false }) => {
     const { data: productsList } = useGetPurchasedProductsByClientQuery(clientId)
     const [amcRate, setAmcRate] = useState({ percentage: 0, amount: 0, total_amount: 0 })
-    const { uploadFile } = useFileUpload()
+    const { uploadFile, getFileNameFromUrl } = useFileUpload()
 
     const [disableInput, setDisableInput] = useState(disable)
 
@@ -54,11 +59,13 @@ const LicenseForm: React.FC<ILicenseProps> = ({ clientId, handler, isLoading, la
         product_id: defaultValue?.product_id || '',
         purchase_date: defaultValue?.purchase_date ? new Date(defaultValue?.purchase_date) : undefined,
         purchase_order_document: defaultValue?.purchase_order_document || "",
-        invoice: defaultValue?.invoice || "",
+        purchase_order_number: defaultValue?.purchase_order_number || "",
+        invoice_document: defaultValue?.invoice_document || "",
+        invoice_number: defaultValue?.invoice_number || "",
+        invoice_date: defaultValue?.invoice_date ? new Date(defaultValue?.invoice_date) : undefined,
         payment_status: defaultValue?.payment_status || PAYMENT_STATUS_ENUM.PENDING,
         payment_receive_date: defaultValue?.payment_receive_date ? new Date(defaultValue?.payment_receive_date) : undefined
     }
-
 
     const form = useForm<ILicenseInputs>({ defaultValues })
 
@@ -70,7 +77,10 @@ const LicenseForm: React.FC<ILicenseProps> = ({ clientId, handler, isLoading, la
             form.setValue('product_id', defaultValue.product_id)
             form.setValue('purchase_date', defaultValue.purchase_date ? new Date(defaultValue.purchase_date) : new Date())
             form.setValue('purchase_order_document', defaultValue.purchase_order_document)
-            form.setValue('invoice', defaultValue.invoice)
+            form.setValue('purchase_order_number', defaultValue.purchase_order_number)
+            form.setValue('invoice_document', defaultValue.invoice_document)
+            form.setValue('invoice_number', defaultValue.invoice_number)
+            form.setValue('invoice_date', defaultValue.invoice_date ? new Date(defaultValue.invoice_date) : undefined)
             form.setValue('payment_status', defaultValue.payment_status)
             form.setValue('payment_receive_date', defaultValue.payment_receive_date ? new Date(defaultValue.payment_receive_date) : undefined)
         }
@@ -93,15 +103,22 @@ const LicenseForm: React.FC<ILicenseProps> = ({ clientId, handler, isLoading, la
             }
         };
 
-        const renderFilePreview = (field: any) => (
-            <div className="flex items-center gap-2">
-                <Link href={field.value as string} target='_blank' passHref>
-                    <Button variant={disableInput ? 'default' : 'outline'} type='button' className={!disableInput ? 'rounded-full w-8 h-8 ml-2 absolute -top-3 -right-10' : ''}>
-                        {disableInput ? 'View' : <Eye className='w-1' />}
-                    </Button>
-                </Link>
-            </div>
-        );
+        const renderFilePreview = (field: any) => {
+            return (
+                <div className="flex items-center gap-2">
+                    <Link href={field.value as string} target='_blank' passHref>
+                        <Button variant={disableInput ? 'default' : 'outline'} type='button' className={!disableInput ? 'rounded-full w-8 h-8 ml-2 absolute -top-3 -right-10' : ''}>
+                            {disableInput ? 'View' : <File className='w-1' />}
+                        </Button>
+                    </Link>
+                    {
+                        disableInput && (
+                            <span className='text-sm text-gray-500'>{getFileNameFromUrl(field.value as string)}</span>
+                        )
+                    }
+                </div>
+            )
+        };
 
         const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
             form.setValue(name, e.target.value)
@@ -123,7 +140,7 @@ const LicenseForm: React.FC<ILicenseProps> = ({ clientId, handler, isLoading, la
                                             <TooltipTrigger asChild>
                                                 {renderFilePreview(field)}
                                             </TooltipTrigger>
-                                            <TooltipContent>View File</TooltipContent>
+                                            <TooltipContent>{getFileNameFromUrl(field.value as string) || 'View File'}</TooltipContent>
                                         </Tooltip>
                                     </TooltipProvider>
                                 )}
@@ -157,7 +174,6 @@ const LicenseForm: React.FC<ILicenseProps> = ({ clientId, handler, isLoading, la
             total_license: 'Total License',
             product_id: 'Product',
             purchase_date: 'Purchase Date',
-            invoice: 'Invoice Document'
         };
 
         const missingFields = Object.entries(requiredFields)
@@ -218,11 +234,23 @@ const LicenseForm: React.FC<ILicenseProps> = ({ clientId, handler, isLoading, la
     }
 
     return (
-        <div className="bg-custom-gray bg-opacity-75 rounded p-4">
+        <div className="bg-custom-gray bg-opacity-75 rounded p-4 relative">
             <div className="flex items-center justify-between">
-                <Typography variant='h1'>{label}</Typography>
+                <div className="flex justify-between w-full items-center mt-5">
+                    <Typography variant='h1'>{label}</Typography>
+                    <div className="flex justify-end mt-4">
+                        <Card className='items-center'>
+                            <CardContent className="flex items-center gap-2 justify-center p-3">
+                                <Typography variant='h3'>Total Cost</Typography>
+                                <Typography variant='p' className='flex items-center '>
+                                    <span className="font-bold">{formatCurrency((form.watch("cost_per_license") || 0) * (form.watch("total_license") || 0))}</span>
+                                </Typography>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
                 {defaultValue?._id && (
-                    <div className="mb-2 flex justify-end">
+                    <div className="mb-2 flex justify-end absolute top-0 right-0">
                         <Button className={`w-36 justify-between ${!disableInput ? "bg-destructive hover:bg-destructive" : ""}`}
                             onClick={() => setDisableInput(prev => !prev)}>
                             {disableInput ? (
@@ -254,6 +282,7 @@ const LicenseForm: React.FC<ILicenseProps> = ({ clientId, handler, isLoading, la
                                             field.onChange(value)
                                             const product = productsList?.data.find((product) => product._id === value)
                                             if (product) {
+                                                form.setValue('cost_per_license', product.cost_per_license)
                                                 setAmcRate({ percentage: product.amc_rate.percentage, amount: product.amc_rate.amount, total_amount: product.total_cost })
                                             }
                                         }}>
@@ -296,8 +325,71 @@ const LicenseForm: React.FC<ILicenseProps> = ({ clientId, handler, isLoading, la
                         />
                         <div className="md:flex items-center gap-4 w-full">
                             {renderFormField('purchase_order_document', 'Purchase Order Document', 'Upload Purchase Order Document', 'file')}
-                            {renderFormField('invoice', 'Invoice', 'Upload Invoice', 'file')}
+                            {renderFormField('invoice_document', 'Invoice Document', 'Upload Invoice Document', 'file')}
                         </div>
+                    </div>
+                    <div className="md:flex items-end gap-4 w-full">
+                        <FormField
+                            control={form.control}
+                            name="purchase_order_number"
+                            render={({ field }) => (
+                                <FormItem className='w-full mb-4 md:mb-0'>
+                                    <FormLabel className='text-gray-500'>Purchase Order Number</FormLabel>
+                                    <FormControl>
+                                        <Input
+                                            type="text"
+                                            {...field}
+                                            onChange={field.onChange}
+                                            value={field.value}
+                                            disabled={disableInput}
+                                            className='bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none'
+                                            placeholder='Enter purchase order number'
+                                        />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="invoice_number"
+                            render={({ field }) => (
+                                <FormItem className='w-full mb-4 md:mb-0'>
+                                    <FormLabel className='text-gray-500'>Invoice Number</FormLabel>
+                                    <FormControl>
+                                        <Input
+                                            type="text"
+                                            {...field}
+                                            onChange={field.onChange}
+                                            value={field.value}
+                                            disabled={disableInput}
+                                            className='bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none'
+                                            placeholder='Enter invoice number'
+                                        />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </div>
+                    <div className="md:flex items-end gap-4 w-full">
+                        <FormField
+                            control={form.control}
+                            name="invoice_date"
+                            render={({ field }) => (
+                                <FormItem className='w-full mb-4 md:mb-0'>
+                                    <FormLabel className='text-gray-500'>Invoice Date</FormLabel>
+                                    <FormControl>
+                                        <DatePicker
+                                            date={field.value}
+                                            onDateChange={field.onChange}
+                                            disabled={disableInput}
+                                        />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
                     </div>
                     <div className="md:flex items-end gap-4 w-full">
                         <FormField

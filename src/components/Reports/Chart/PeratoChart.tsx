@@ -5,8 +5,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart"
 import Typography from "@/components/ui/Typography"
 import Loading from "@/components/ui/loading"
-import { cn } from "@/lib/utils"
-import millify from "millify"
+import { cn, formatCurrency } from "@/lib/utils"
 
 const renderLegend = (props: any) => {
     const { payload } = props;
@@ -78,7 +77,7 @@ const ParetoChart: React.FC<ParetoChartProps> = ({
                                     <ComposedChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                                         <CartesianGrid strokeDasharray="3 3" />
                                         <XAxis dataKey="name" />
-                                        <YAxis yAxisId="left" orientation="left" stroke="var(--color-revenue)" tickFormatter={(value) => `₹${millify(value)}`}>
+                                        <YAxis yAxisId="left" orientation="left" stroke="var(--color-revenue)" tickFormatter={(value) => `${formatCurrency(value)}`}>
                                             <Label value="Revenue" angle={-90} position="insideLeft" style={{ textAnchor: 'middle' }} />
                                         </YAxis>
                                         <YAxis yAxisId="right" orientation="right" stroke="var(--color-cumulativePercentage)" tickFormatter={(value) => `${value}%`}>

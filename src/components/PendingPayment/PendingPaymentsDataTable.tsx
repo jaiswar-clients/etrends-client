@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import {
     Table,
     TableBody,
@@ -11,26 +11,34 @@ import {
 } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react'
 import {
     Pagination,
     PaginationContent,
     PaginationItem,
 } from "@/components/ui/pagination"
 import { IPendingPayment, IPendingPaymentPagination, IPendingPaymentType, IUpdatePendingPaymentRequest, PAYMENT_STATUS_ENUM, useUpdatePendingPaymentMutation } from "@/redux/api/order"
-import millify from "millify"
 import { useForm } from "react-hook-form"
 import { Form, FormControl, FormField, FormItem, FormLabel } from "../ui/form"
 import { Input } from "../ui/input"
 import DatePicker from "../ui/datepicker"
 import { toast } from "@/hooks/use-toast"
+import {
+    DropdownMenu,
+    DropdownMenuCheckboxItem,
+    DropdownMenuContent,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { formatCurrency } from "@/lib/utils"
 
 interface IProps {
     data: IPendingPayment[]
     pagination: IPendingPaymentPagination
+    page: number
+    handlePagination: (page: number) => void
 }
 
-export default function DataTableWithModalAndPagination({ data, pagination }: IProps) {
+export default function DataTableWithModalAndPagination({ data, pagination, page, handlePagination }: IProps) {
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [updatePayment, setUpdatePayment] = useState<{ modal: boolean, data: IUpdatePendingPaymentRequest }>({
         modal: false, data: {
@@ -61,7 +69,7 @@ export default function DataTableWithModalAndPagination({ data, pagination }: IP
     } = form
 
     const [selectedItem, setSelectedItem] = useState<IPendingPayment | null>(null)
-    const [currentPage, setCurrentPage] = useState(1)
+    const [currentPage, setCurrentPage] = useState(Number(page))
     const itemsPerPage = 4
 
     const handleRowClick: (item: IPendingPayment) => void = (item) => {
@@ -123,13 +131,109 @@ export default function DataTableWithModalAndPagination({ data, pagination }: IP
         }
     }
 
+    const [columnFilters, setColumnFilters] = useState<{
+        client_name?: string;
+        type?: string;
+        status?: string;
+    }>({})
+
+    const uniqueClients = useMemo(
+        () => Array.from(new Set(data.map((d) => d.client_name))),
+        [data]
+    )
+    
+    const uniqueTypes = useMemo(
+        () => Array.from(new Set(data.map((d) => d.type))),
+        [data]
+    )
+    const uniqueStatuses = useMemo(
+        () => Array.from(new Set(data.map((d) => d.status))),
+        [data]
+    )
+
+    const filteredData = useMemo(() => {
+        return data.filter(item => {
+            const matchesClientName = !columnFilters.client_name ||
+                item.client_name.toLowerCase().includes(columnFilters.client_name.toLowerCase())
+            const matchesType = !columnFilters.type ||
+                item.type === columnFilters.type
+            const matchesStatus = !columnFilters.status ||
+                item.status === columnFilters.status
+            return matchesClientName && matchesType && matchesStatus
+        })
+    }, [data, columnFilters])
+
+    const renderFilters = () => (
+        <div className="flex items-center justify-between py-4">
+            <Input
+                placeholder="Filter clients..."
+                value={columnFilters.client_name || ''}
+                onChange={(e) => setColumnFilters(prev => ({ ...prev, client_name: e.target.value }))}
+                className="max-w-sm"
+            />
+            <div className="flex items-center gap-4">
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="outline" className="ml-auto capitalize">
+                            {columnFilters.type || 'Type'} <ChevronDown className="ml-2 h-4 w-4" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        {uniqueTypes.map((type) => (
+                            <DropdownMenuCheckboxItem
+                                key={type}
+                                className="capitalize"
+                                checked={columnFilters.type === type}
+                                onCheckedChange={(checked) => {
+                                    setColumnFilters(prev => ({
+                                        ...prev,
+                                        type: checked ? type : undefined
+                                    }))
+                                }}
+                            >
+                                {type}
+                            </DropdownMenuCheckboxItem>
+                        ))}
+                    </DropdownMenuContent>
+                </DropdownMenu>
+
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="outline" className="ml-auto capitalize">
+                            {columnFilters.status || 'Status'} <ChevronDown className="ml-2 h-4 w-4" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        {uniqueStatuses.map((status) => (
+                            <DropdownMenuCheckboxItem
+                                key={status}
+                                className="capitalize"
+                                checked={columnFilters.status === status}
+                                onCheckedChange={(checked) => {
+                                    setColumnFilters(prev => ({
+                                        ...prev,
+                                        status: checked ? status : undefined
+                                    }))
+                                }}
+                            >
+                                {status}
+                            </DropdownMenuCheckboxItem>
+                        ))}
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
+        </div>
+    )
+
     return (
         <div className="container">
+            {renderFilters()}
             <div className="overflow-x-auto rounded-md border">
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead>Name</TableHead>
+                            <TableHead>Client Name</TableHead>
+                            <TableHead>Product Name</TableHead>
                             <TableHead>Type</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead>Pending Amount</TableHead>
@@ -137,16 +241,17 @@ export default function DataTableWithModalAndPagination({ data, pagination }: IP
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {currentItems.map((item) => (
+                        {filteredData.map((item) => (
                             <TableRow
                                 key={item._id}
                                 onClick={() => handleRowClick(item)}
                                 className="cursor-pointer hover:bg-muted/50"
                             >
-                                <TableCell className="font-medium">{item.name}</TableCell>
+                                <TableCell className="font-medium">{item.client_name}</TableCell>
+                                <TableCell>{item.product_name}</TableCell>
                                 <TableCell>{item.type}</TableCell>
                                 <TableCell>{item.status}</TableCell>
-                                <TableCell>₹{millify(item.pending_amount, { precision: 2 })}</TableCell>
+                                <TableCell>{formatCurrency(item.pending_amount)}</TableCell>
                                 <TableCell>{formatDate(item.payment_date)}</TableCell>
                             </TableRow>
                         ))}
@@ -171,9 +276,9 @@ export default function DataTableWithModalAndPagination({ data, pagination }: IP
                         {[...Array(pagination.totalPages)].map((_, index) => (
                             <PaginationItem key={index + 1}>
                                 <Button
-                                    variant={pagination.currentPage === index + 1 ? "default" : "outline"}
+                                    variant={page === index + 1 ? "default" : "outline"}
                                     size="sm"
-                                    onClick={() => setCurrentPage(index + 1)}
+                                    onClick={() => handlePagination(index + 1)}
                                 >
                                     {index + 1}
                                 </Button>
@@ -217,7 +322,7 @@ export default function DataTableWithModalAndPagination({ data, pagination }: IP
                                     </TableRow>
                                     <TableRow>
                                         <TableCell className="font-medium">Pending Amount</TableCell>
-                                        <TableCell>₹{millify(selectedItem.pending_amount, { precision: 2 })}</TableCell>
+                                        <TableCell>{formatCurrency(selectedItem.pending_amount)}</TableCell>
                                     </TableRow>
                                     <TableRow>
                                         <TableCell className="font-medium">Payment Date</TableCell>

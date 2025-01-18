@@ -21,9 +21,8 @@ import {
     ChartLegendContent,
 } from "@/components/ui/chart";
 import Typography from "@/components/ui/Typography";
-import { capitalizeFirstLetter, cn } from "@/lib/utils";
+import { capitalizeFirstLetter, cn, formatCurrency } from "@/lib/utils";
 import Loading from "@/components/ui/loading";
-import millify from "millify";
 
 interface MultipleStackedChartProps {
     data: any[];
@@ -45,12 +44,12 @@ const CustomTooltip = memo(({ active, payload, label }: any) => {
                             <div className="size-2 rounded-full" style={{ background: entry.color }}>
                             </div>
                             <p>
-                                {`${entry.name}: ${millify(entry.value)}`}
+                                {`${entry.name}: ${formatCurrency(entry.value)}`}
                             </p>
                         </div>
                     ))}
                 </div>
-                <p className="font-bold">{`Total: ${millify(total)}`}</p>
+                <p className="font-bold">{`Total: ${formatCurrency(total)}`}</p>
             </div>
         );
     }
@@ -112,7 +111,7 @@ const MultipleStackedChart: React.FC<MultipleStackedChartProps> = ({ data, heade
                                         <YAxis
                                             tickLine={false}
                                             tick={{ fill: "hsl(var(--foreground))" }}
-                                            tickFormatter={(value) => millify(value)}
+                                            tickFormatter={(value) => formatCurrency(value)}
                                         />
                                         <Tooltip content={<CustomTooltip />} />
                                         <Legend content={<ChartLegendContent />} />

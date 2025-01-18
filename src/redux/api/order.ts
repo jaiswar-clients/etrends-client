@@ -25,9 +25,12 @@ export interface ILicenceObject {
   total_license: number;
   purchase_date: string;
   purchase_order_document: string;
+  purchase_order_number: string;
   payment_receive_date?: Date;
   payment_status?: PAYMENT_STATUS_ENUM;
-  invoice: string;
+  invoice_document: string;
+  invoice_number: string;
+  invoice_date: Date;
   deleted: boolean;
   createdAt: string;
   updatedAt: string;
@@ -42,8 +45,11 @@ export interface ICustomizationObject {
   payment_receive_date?: Date;
   payment_status?: PAYMENT_STATUS_ENUM;
   purchase_order_document: string;
+  purchase_order_number: string;
   purchased_date: string;
   invoice_document: string;
+  invoice_number: string;
+  invoice_date: Date;
   type: CustomizationType;
   title?: string;
   deleted: boolean;
@@ -61,9 +67,12 @@ export interface IAdditionalServiceObject {
   };
   cost: number;
   purchase_order_document?: string;
+  purchase_order_number: string;
   payment_receive_date?: Date;
   payment_status?: PAYMENT_STATUS_ENUM;
   invoice_document?: string;
+  invoice_number: string;
+  invoice_date: Date;
   service_document?: string;
   order_id: string;
 }
@@ -80,7 +89,9 @@ export interface IOrderObject {
     name: string;
     percentage_from_base_cost: number;
     calculated_amount: number;
-    date: string;
+    invoice_document: string; // cdn url
+    invoice_number?: string;
+    invoice_date?: Date;
     payment_receive_date?: Date;
     status?: PAYMENT_STATUS_ENUM;
   }[];
@@ -90,27 +101,28 @@ export interface IOrderObject {
     document: string;
   }[];
   purchase_order_document: string;
-  invoice_document: string;
+  purchase_order_number?: string;
+  cost_per_license: number;
+  licenses_with_base_price: number;
   base_cost_seperation?: {
     product_id: string;
     amount: number;
     percentage: number;
   }[];
-  other_document: {
+  other_documents: {
     title: string;
     url: string;
-  };
+  }[];
   amc_start_date: string;
   purchased_date: Date;
   deleted: boolean;
   createdAt: string;
   updatedAt: string;
-  license: ILicenceObject;
   customization: ICustomizationObject;
   customizations?: ICustomizationObject[];
   licenses?: ILicenceObject[];
   is_purchased_with_order: {
-    customization: boolean; // if customization is purchased with order than it always the first elemenet of the customizations array
+    customization: boolean;
     license: boolean;
   };
   additional_services?: IAdditionalServiceObject[];
@@ -134,16 +146,18 @@ export interface IAMCPayment {
   to_date: Date;
   status: PAYMENT_STATUS_ENUM;
   received_date: Date;
+  purchase_order_number: string;
+  purchase_order_document: string;
+  invoice_number: string;
+  invoice_date?: Date;
+  invoice_document?: string;
 }
 
 export interface IAMCObject {
   order_id: string;
   client: IClientDataObject;
   total_cost: number;
-  purchase_order_number?: string;
   amc_frequency_in_months: IAMCFrequency;
-  purchase_order_document?: string;
-  invoice_document?: string;
   last_payment?: IAMCPayment;
   amount: number;
   start_date: Date;
@@ -177,6 +191,8 @@ export interface IPendingPayment {
   payment_identifier?: string | number;
   name: string;
   payment_date: string;
+  client_name: string;
+  product_name: string;
   [key: string]: any;
 }
 

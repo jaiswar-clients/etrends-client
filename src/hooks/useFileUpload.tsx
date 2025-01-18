@@ -1,44 +1,44 @@
 import { useState } from 'react'
-import axios from 'axios'
 import { v4 } from 'uuid'
 import { toast } from "./use-toast"
-import { useGetUrlForUploadMutation } from '@/redux/api/app'
+import { useUploadFileMutation } from '@/redux/api/app'
 
 interface FileUploadReturn {
     uploading: boolean
-    uploadFile: (file: File) => Promise<string | undefined>
+    uploadFile: (file: File, showToast?: boolean) => Promise<string | undefined>
+    getFileNameFromUrl: (url: string) => string
 }
 
 export function useFileUpload(): FileUploadReturn {
     const [uploading, setUploading] = useState(false)
-    const [getUrlForUploadApi] = useGetUrlForUploadMutation()
+    const [uploadFileApi] = useUploadFileMutation()
 
-    const uploadFile = async (file: File): Promise<string | undefined> => {
+    const getFileNameFromUrl = (url: string): string => {
+        if (!url) return ''
+        const urlParts = url.split('/')
+        const fullFileName = urlParts[urlParts.length - 1]
+        const [_, ...fileNameParts] = fullFileName.split('___')
+        return fileNameParts.join('___') // Return everything after the first delimiter
+    }
+
+    const uploadFile = async (file: File, showToast: boolean = true): Promise<string | undefined> => {
         setUploading(true)
         try {
             const ext = file.name.split('.').pop()
             const fileNameWithoutExt = file.name.split('.').slice(0, -1).join('.')
-            const filename = `${v4()}-${fileNameWithoutExt.replace(/\s+/g, '-')}.${ext}`
+            // Add delimiter '___' to easily split filename later
+            const filename = `${v4()}___${fileNameWithoutExt.replace(/\s+/g, '-')}.${ext}`
 
-            // Get signed URL for upload using the mutation
-            const { data: uploadUri } = await getUrlForUploadApi(filename).unwrap()
+            // Upload file directly to backend
+            await uploadFileApi({ file, filename }).unwrap()
 
-            if (!uploadUri) {
-                throw new Error('Failed to get upload URL')
+            if (showToast) {
+                toast({
+                    variant: "success",
+                    title: "File Upload Successful",
+                    description: `The file ${file.name} has been uploaded successfully.`,
+                })
             }
-
-            // Upload file to signed URL
-            await axios.put(uploadUri, file, {
-                headers: {
-                    'Content-Type': file.type
-                }
-            })
-
-            toast({
-                variant: "success",
-                title: "File Upload Successful",
-                description: `The file ${file.name} has been uploaded successfully.`,
-            })
 
             return filename
         } catch (error) {
@@ -57,6 +57,8 @@ export function useFileUpload(): FileUploadReturn {
 
     return {
         uploading,
-        uploadFile
+        uploadFile,
+        getFileNameFromUrl,
+
     }
 }

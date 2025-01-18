@@ -264,7 +264,7 @@ const AMCList: React.FC<IProps> = ({ data, changeFilter }) => {
                             <SelectValue placeholder="Select Filter" />
                         </SelectTrigger>
                         <SelectContent>
-                            {Object.values(AMC_FILTER).map((filter) => (
+                            {Object.values(AMC_FILTER).map((filter) => filter !== AMC_FILTER.OVERDUE && (
                                 <SelectItem key={filter} className="cursor-pointer capitalize" value={filter}>
                                     {filter} AMC
                                 </SelectItem>
