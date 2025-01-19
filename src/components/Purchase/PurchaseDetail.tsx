@@ -1,6 +1,5 @@
 "use client"
 import {
-    PURCHASE_TYPE,
     useGetAdditionalServiceByIdQuery,
     useGetCustomizationByIdQuery,
     useGetLicenceByIdQuery,
@@ -10,10 +9,11 @@ import {
     useUpdateLicenseByIdMutation,
     useUpdateOrderMutation
 } from '@/redux/api/order'
+
 import React from 'react'
 import OrderDetail from '../Client/Add/Form/OrderDetail'
 import { toast } from '@/hooks/use-toast'
-import { OrderDetailInputs } from '@/types/order'
+import { OrderDetailInputs, PURCHASE_TYPE } from '@/types/order'
 import CustomizationForm, { ICustomizationInputs } from './Form/CustomizationForm'
 import LicenseForm, { ILicenseInputs } from './Form/LicenseForm'
 import { useRouter } from 'next/navigation'

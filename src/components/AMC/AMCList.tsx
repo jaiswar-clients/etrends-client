@@ -37,7 +37,8 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { useAppSelector } from '@/redux/hook'
 import { AMC_FILTER } from './AMC'
-
+import { DatePickerWithRange } from '../ui/daterangepicker'
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover'
 
 const upcomingMonths = [
     {
@@ -59,7 +60,7 @@ const upcomingMonths = [
 
 interface IProps {
     data: TransformedAMCObject[]
-    changeFilter: (filter: AMC_FILTER, options?: { upcoming: number }) => void
+    changeFilter: (filter: AMC_FILTER, options?: { upcoming: number, startDate?: string, endDate?: string }) => void
 }
 
 type TableData = {
@@ -108,6 +109,7 @@ const AMCList: React.FC<IProps> = ({ data, changeFilter }) => {
     const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
     const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
     const [rowSelection, setRowSelection] = useState({})
+    const [dateRangeSelector, setDateRangeSelector] = useState({ show: false, startDate: new Date(), endDate: new Date() })
 
     const [showUpcomingMonthsFilter, setShowUpcomingMonthsFilter] = useState(true)
 
@@ -227,26 +229,62 @@ const AMCList: React.FC<IProps> = ({ data, changeFilter }) => {
                     {
                         // Upcoming Months Selector
                         showUpcomingMonthsFilter &&
-                        <Select defaultValue={'1'} onValueChange={(value: string) => {
-                            changeFilter(AMC_FILTER.UPCOMING, { upcoming: Number(value) })
-                        }}>
-                            <SelectTrigger className="w-[180px] capitalize">
-                                <SelectValue placeholder="Select Months" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {upcomingMonths.map((month) => (
+                        <div className="flex items-center gap-2">
+                            <Select defaultValue={'1'} onValueChange={(value: string) => {
+                                changeFilter(AMC_FILTER.UPCOMING, { upcoming: Number(value) })
+                                if (value === 'custom') {
+                                    setDateRangeSelector({ show: true, startDate: new Date(new Date().setFullYear(new Date().getFullYear() - 1)), endDate: new Date() })
+                                } else {
+                                    setDateRangeSelector({ show: false, startDate: new Date(), endDate: new Date() })
+                                }
+                            }}>
+                                <SelectTrigger className="w-[180px] capitalize">
+                                    <SelectValue placeholder="Select Months" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {upcomingMonths.map((month) => (
+                                        <SelectItem
+                                            key={month.id}
+                                            className="cursor-pointer capitalize"
+                                            value={month.value.toString()}
+                                            onClick={() => changeFilter(AMC_FILTER.UPCOMING, { upcoming: month.value })}
+                                        >
+                                            {month.name}
+                                        </SelectItem>
+                                    ))}
                                     <SelectItem
-                                        key={month.id}
                                         className="cursor-pointer capitalize"
-                                        value={month.value.toString()}
-                                        onClick={() => changeFilter(AMC_FILTER.UPCOMING, { upcoming: month.value })}
+                                        value="custom"
+                                        onClick={() => setDateRangeSelector({ show: true, startDate: new Date(new Date().setFullYear(new Date().getFullYear() - 1)), endDate: new Date() })}
                                     >
-                                        {month.name}
+                                        Custom
                                     </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                                </SelectContent>
+                            </Select>
+                            {
+                                dateRangeSelector.show &&
+                                <DatePickerWithRange
+                                    dateRange={{ from: dateRangeSelector.startDate, to: dateRangeSelector.endDate }}
+                                    onDateRangeChange={(date) => { 
+                                        setDateRangeSelector({
+                                            ...dateRangeSelector,
+                                            startDate: date?.from ?? new Date(),
+                                            endDate: date?.to ?? new Date()
+                                        })
+
+                                        if (date?.from && date?.to) {
+                                            changeFilter(AMC_FILTER.UPCOMING, { 
+                                                upcoming: 0, 
+                                                startDate: date.from.toISOString(),
+                                                endDate: date.to.toISOString()
+                                            })
+                                        }
+                                    }}
+                                />
+                            }
+                        </div>
                     }
+
                     <Select
                         defaultValue={AMC_FILTER.UPCOMING}
                         onValueChange={(value: AMC_FILTER) => {
@@ -317,6 +355,7 @@ const AMCList: React.FC<IProps> = ({ data, changeFilter }) => {
                     </TableBody>
                 </Table>
             </div>
+
             <div className="flex items-center justify-end space-x-2 py-4">
                 <div className="space-x-2">
                     <Button

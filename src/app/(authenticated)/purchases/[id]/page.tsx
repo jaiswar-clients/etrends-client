@@ -1,5 +1,5 @@
 import PurchaseDetail from '@/components/Purchase/PurchaseDetail'
-import { PURCHASE_TYPE } from '@/redux/api/order'
+import { PURCHASE_TYPE } from '@/types/order'
 import React, { use } from 'react'
 
 const Page = ({ params, searchParams }: { params: Promise<{ id: string }>, searchParams: Promise<{ type: string, client: string }> }) => {

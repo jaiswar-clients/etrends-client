@@ -17,7 +17,7 @@ import {
 import { useFileUpload } from '@/hooks/useFileUpload'
 import DatePicker from '@/components/ui/datepicker'
 import { useToast } from '@/hooks/use-toast'
-import { ICustomizationObject, PAYMENT_STATUS_ENUM } from '@/redux/api/order'
+import { ICustomizationObject, PAYMENT_STATUS_ENUM } from '@/types/order'
 import Link from 'next/link'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { renderDisabledInput } from '@/components/ui/disabledInput'

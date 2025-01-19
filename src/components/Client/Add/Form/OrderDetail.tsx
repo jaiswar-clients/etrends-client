@@ -1068,7 +1068,9 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
                                                                                 <SelectContent>
                                                                                     {
                                                                                         products?.map((product) => (
-                                                                                            <SelectItem value={product._id} key={product._id}>{product.name}</SelectItem>
+                                                                                            <SelectItem value={String(product._id)} key={product._id}>
+                                                                                                {String(product.name)}
+                                                                                            </SelectItem>
                                                                                         ))
                                                                                     }
                                                                                 </SelectContent>
