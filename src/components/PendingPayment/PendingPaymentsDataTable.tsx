@@ -69,8 +69,6 @@ export default function DataTableWithModalAndPagination({ data, pagination, page
     } = form
 
     const [selectedItem, setSelectedItem] = useState<IPendingPayment | null>(null)
-    const [currentPage, setCurrentPage] = useState(Number(page))
-    const itemsPerPage = 4
 
     const handleRowClick: (item: IPendingPayment) => void = (item) => {
         const payment_identifier = (item.type === "order" || item.type === "amc") ? item.payment_identifier : item._id
@@ -81,16 +79,6 @@ export default function DataTableWithModalAndPagination({ data, pagination, page
     const formatDate = (dateString: string) => {
         const date = new Date(dateString)
         return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-    }
-
-    const totalPages = Math.ceil(data.length / itemsPerPage)
-
-    const nextPage = () => {
-        setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-    }
-
-    const prevPage = () => {
-        setCurrentPage((prev) => Math.max(prev - 1, 1))
     }
 
     const onSubmit = async (data: { payment_receive_date: Date, status: PAYMENT_STATUS_ENUM }) => {
@@ -257,7 +245,7 @@ export default function DataTableWithModalAndPagination({ data, pagination, page
                             <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={prevPage}
+                                onClick={() => handlePagination(pagination.currentPage - 1)}
                                 disabled={pagination.currentPage === 1}
                             >
                                 <ChevronLeft className="h-4 w-4" />
@@ -279,7 +267,7 @@ export default function DataTableWithModalAndPagination({ data, pagination, page
                             <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={nextPage}
+                                onClick={() => handlePagination(pagination.currentPage + 1)}
                                 disabled={pagination.currentPage === pagination.totalPages}
                             >
                                 Next
