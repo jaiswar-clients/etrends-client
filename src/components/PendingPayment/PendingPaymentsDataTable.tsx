@@ -83,9 +83,6 @@ export default function DataTableWithModalAndPagination({ data, pagination, page
         return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
     }
 
-    const indexOfLastItem = currentPage * itemsPerPage
-    const indexOfFirstItem = indexOfLastItem - itemsPerPage
-
     const totalPages = Math.ceil(data.length / itemsPerPage)
 
     const nextPage = () => {
