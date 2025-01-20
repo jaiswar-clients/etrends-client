@@ -17,7 +17,8 @@ export function useFileUpload(): FileUploadReturn {
         if (!url) return ''
         const urlParts = url.split('/')
         const fullFileName = urlParts[urlParts.length - 1]
-        const [_, ...fileNameParts] = fullFileName.split('___')
+        const [timestamp, ...fileNameParts] = fullFileName.split('___')
+        console.log(timestamp)
         return fileNameParts.join('___') // Return everything after the first delimiter
     }
 

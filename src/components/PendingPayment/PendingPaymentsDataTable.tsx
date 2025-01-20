@@ -85,7 +85,6 @@ export default function DataTableWithModalAndPagination({ data, pagination, page
 
     const indexOfLastItem = currentPage * itemsPerPage
     const indexOfFirstItem = indexOfLastItem - itemsPerPage
-    const currentItems = data.slice(indexOfFirstItem, indexOfLastItem)
 
     const totalPages = Math.ceil(data.length / itemsPerPage)
 
@@ -137,11 +136,6 @@ export default function DataTableWithModalAndPagination({ data, pagination, page
         status?: string;
     }>({})
 
-    const uniqueClients = useMemo(
-        () => Array.from(new Set(data.map((d) => d.client_name))),
-        [data]
-    )
-    
     const uniqueTypes = useMemo(
         () => Array.from(new Set(data.map((d) => d.type))),
         [data]

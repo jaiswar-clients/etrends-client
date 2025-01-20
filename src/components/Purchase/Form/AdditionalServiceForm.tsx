@@ -85,11 +85,6 @@ const AdditionalServiceForm: React.FC<IAdditionalServiceProps> = ({ clientId, la
         if (disable !== undefined) setDisableInput(disable)
     }, [disable])
 
-    const getSignedUrl = async (file: File, field: keyof IAdditionalServiceInputs) => {
-        const filename = await uploadFile(file);
-        form.setValue(field, filename as string)
-    }
-
     const renderFormField = (name: keyof IAdditionalServiceInputs | 'date.start' | 'date.end', label: string, placeholder: string, type: HTMLInputTypeAttribute = "text") => {
         const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
             const file = e.target.files?.[0];

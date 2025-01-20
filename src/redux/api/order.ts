@@ -3,7 +3,6 @@ import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import { IResponse } from "./auth";
 import { RootState } from "../store";
 import { 
-  OrderDetailInputs, 
   IOrderObject, 
   CreateOrderRequest, 
   ILicenceObject,
@@ -16,7 +15,6 @@ import {
   IPendingPaymentResponse,
   IUpdatePendingPaymentRequest,
   IPurchase,
-  CustomizationType,
   IPendingPayment,
   IPendingPaymentPagination,
   IPendingPaymentType
