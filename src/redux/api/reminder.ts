@@ -2,7 +2,7 @@ import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import { IResponse } from "./auth";
 import { RootState } from "../store";
 import { IClientDataObject } from "./client";
-import { IAMCObject, IOrderObject } from "./order";
+import { IAMCObject, IOrderObject } from "@/types/order";
 import { IEmailInputProps } from "@/components/Reminder/ReminderEmail";
 import { HTTP_REQUEST } from "@/contants/request";
 
