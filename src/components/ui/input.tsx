@@ -16,7 +16,7 @@ const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLI
           {...props}
         />
         {
-          props.value && (
+          type === 'number' && props.value && (
             <span className="text-xs text-gray-500 ml-3 absolute right-2 top-1/2 -translate-y-1/2">{formatNumber(props?.value.toString())}</span>
           )
         }

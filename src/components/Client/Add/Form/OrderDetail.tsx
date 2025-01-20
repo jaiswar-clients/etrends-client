@@ -210,10 +210,17 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
         name: "payment_terms"
     });
 
-    const { fields: agreementDateFields, append: appendAgreementDateFields, remove: removeAgreementDateField } = useFieldArray({
-        control: form.control,
-        name: "agreements"
-    })
+    const appendAgreementDateFields = (newAgreement: { start: Date, end: Date, document: string }) => {
+        const currentAgreements = form.getValues("agreements") || [];
+        form.setValue("agreements", [...currentAgreements, newAgreement]);
+    }
+
+    const removeAgreementDateField = (indexToRemove: number) => {
+        const currentAgreements = form.getValues("agreements") || [];
+        form.setValue("agreements", currentAgreements.filter((_, index) => index !== indexToRemove));
+    }
+
+    const agreementsData = form.watch("agreements")
 
     // Create useFieldArray for customization modules
     const customizationModulesFields = form.watch("customization.modules") || []
@@ -774,7 +781,7 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
         <div className="mt-1 p-2">
             {defaultValue?._id && (
                 <div className="mb-2 flex justify-end">
-                    <Button className={`w-36 justify-between ${!disableInput ? "bg-destructive hover:bg-destructive" : ""}`} onClick={() => setDisableInput(prev => !prev)}>
+                    <Button type='button' className={`w-36 justify-between ${!disableInput ? "bg-destructive hover:bg-destructive" : ""}`} onClick={() => setDisableInput(prev => !prev)}>
                         {disableInput ? (
                             <>
                                 <Edit />
@@ -1201,7 +1208,7 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
 
                                                 </div>
                                                 <div className="flex items-center justify-between mt-4 absolute -top-6 -right-3">
-                                                    <Button variant='destructive' onClick={() => removePaymentTerm(index)} className='flex-shrink-0 w-8 h-8 rounded-full' disabled={disableInput}>
+                                                    <Button type='button' variant='destructive' onClick={() => removePaymentTerm(index)} className='flex-shrink-0 w-8 h-8 rounded-full' disabled={disableInput}>
                                                         <X size={16} />
                                                         <span className="sr-only">Delete</span>
                                                     </Button>
@@ -1293,7 +1300,7 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
                                 <div className=" mt-6">
                                     <Typography variant='h3' className='mb-3'>Agreement <span className='text-xs text-gray-400 ml-1'>Optional</span> </Typography>
                                     {
-                                        agreementDateFields.map((_, index: number) => (
+                                        agreementsData.map((_, index: number) => (
                                             <div className="md:flex items-end mb-4 justify-between gap-4 w-full" key={index}>
                                                 <FormField
                                                     control={form.control}
@@ -1322,7 +1329,7 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
                                                     )}
                                                 />
                                                 {renderFormField(`agreements.${index}.document`, "Agreement Document", "", "file")}
-                                                <Button variant='destructive' onClick={() => removeAgreementDateField(index)} className='w-full mt-2 md:mt-2 md:rounded-full md:w-8 md:h-8 ' disabled={disableInput}>
+                                                <Button type="button" variant='destructive' onClick={() => removeAgreementDateField(index)} className='w-full mt-2 md:mt-2 md:rounded-full md:w-8 md:h-8 ' disabled={disableInput}>
                                                     <X />
                                                     <span className='md:hidden block'>Delete</span>
                                                 </Button>

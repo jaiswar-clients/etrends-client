@@ -128,7 +128,7 @@ const CreateProduct: React.FC<IProps> = ({ handler, disable = false, defaultValu
     const finalJSX = (
         <div className="mt-1 p-2 w-full">
             <div className="flex items-center justify-between w-full mb-4">
-                <Typography variant='h2'>Product Details</Typography>
+                <div className=""></div>
                 <Button className={`w-36 justify-between ${!disableInput ? "bg-destructive hover:bg-destructive" : ""}`} onClick={() => setDisableInput(prev => !prev)}>
                     {disableInput ? (
                         <>

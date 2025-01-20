@@ -86,7 +86,7 @@ const Auth: React.FC<IAuth> = ({ isLogin = true }) => {
                                     <FormItem>
                                         <FormLabel>Password</FormLabel>
                                         <FormControl>
-                                            <Input type='password' {...field} />
+                                            <Input type='password' {...field}  />
                                         </FormControl>
                                     </FormItem>
                                 )}
