@@ -289,10 +289,11 @@ export default function DataTableWithModalAndPagination({ data, pagination, page
                                 <TableBody>
                                     <TableRow>
                                         <TableCell className="font-medium">Name</TableCell>
-                                        <TableCell>{selectedItem.name}</TableCell>
+                                        <TableCell>{selectedItem.client_name}</TableCell>
                                     </TableRow>
                                     <TableRow>
                                         <TableCell className="font-medium">Type</TableCell>
+
                                         <TableCell>{selectedItem.type}</TableCell>
                                     </TableRow>
                                     <TableRow>

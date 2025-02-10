@@ -39,3 +39,14 @@ export function formatCurrency(value: number, precision?: number) {
     currency: "INR",
   });
 }
+
+export function formatIndianNumber(num: number): string {
+    if (num >= 10000000) { // 1 Crore
+        return `₹${(num / 10000000).toFixed(2)}Cr`;
+    } else if (num >= 100000) { // 1 Lakh
+        return `₹${(num / 100000).toFixed(2)}L`;
+    } else if (num >= 1000) { // 1 Thousand
+        return `₹${(num / 1000).toFixed(2)}K`;
+    }
+    return `₹${num.toFixed(2)}`;
+}

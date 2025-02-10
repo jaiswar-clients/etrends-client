@@ -2,9 +2,9 @@ import { HTTP_REQUEST } from "@/contants/request";
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import { IResponse } from "./auth";
 import { RootState } from "../store";
-import { 
-  IOrderObject, 
-  CreateOrderRequest, 
+import {
+  IOrderObject,
+  CreateOrderRequest,
   ILicenceObject,
   ICustomizationObject,
   IAdditionalServiceObject,
@@ -17,7 +17,9 @@ import {
   IPurchase,
   IPendingPayment,
   IPendingPaymentPagination,
-  IPendingPaymentType
+  IPendingPaymentType,
+  IAMCPayment,
+  IAMCPaymentReview,
 } from "@/types/order";
 
 // Re-export types that are used by other components
@@ -27,7 +29,7 @@ export type {
   IPendingPayment,
   IPendingPaymentPagination,
   IPendingPaymentType,
-  IUpdatePendingPaymentRequest
+  IUpdatePendingPaymentRequest,
 };
 export { PAYMENT_STATUS_ENUM };
 
@@ -35,7 +37,6 @@ import { clientApi } from "./client";
 import { ILicenseInputs } from "@/components/Purchase/Form/LicenseForm";
 import { IAdditionalServiceInputs } from "@/components/Purchase/Form/AdditionalServiceForm";
 import { ICustomizationInputs } from "@/components/Purchase/Form/CustomizationForm";
-import { IAmcInputs } from "@/components/AMC/AMCDetail";
 import { AMC_FILTER } from "@/components/AMC/AMC";
 
 const orderUrl = `${process.env.NEXT_PUBLIC_API_URL}/orders`;
@@ -58,6 +59,7 @@ export const orderApi = createApi({
     "CUSTOMIZATION_DATA",
     "LICENSE_DATA",
     "ADDITIONAL_SERVICE_DATA",
+    "AMC_PAYMENT_REVIEW",
     "AMC_LIST",
     "PENDING_PAYMENTS_LIST",
   ],
@@ -150,17 +152,6 @@ export const orderApi = createApi({
       query: (orderId) => `/${orderId}/amc`,
       providesTags: ["AMC_DATA"],
     }),
-    updateAMCByOrderId: builder.mutation<
-      IResponse,
-      { orderId: string; data: IAmcInputs }
-    >({
-      query: ({ orderId, data }) => ({
-        url: `/${orderId}/amc`,
-        method: HTTP_REQUEST.PATCH,
-        body: data,
-      }),
-      invalidatesTags: ["AMC_DATA", "AMC_LIST"],
-    }),
     getLicenceById: builder.query<IResponse<ILicenceObject>, string>({
       query: (licenceId) => `/license/${licenceId}`,
       providesTags: ["LICENSE_DATA"],
@@ -214,7 +205,15 @@ export const orderApi = createApi({
       invalidatesTags: ["ORDERS_LIST", "ADDITIONAL_SERVICE_DATA"],
     }),
     getAllAMC: builder.query<
-      IResponse<TransformedAMCObject[]>,
+      IResponse<{
+        pagination: {
+          total: number;
+          limit: number;
+          page: number;
+          pages: number;
+        };
+        data: TransformedAMCObject[];
+      }>,
       {
         page?: number;
         limit?: number;
@@ -225,7 +224,9 @@ export const orderApi = createApi({
       query: (body) =>
         `/all-amc?page=${body.page || 1}&limit=${10}&filter=${
           body.filter
-        }&upcoming=${body.options.upcoming}&startDate=${body.options.startDate}&endDate=${body.options.endDate}`,
+        }&upcoming=${body.options.upcoming}&startDate=${
+          body.options.startDate
+        }&endDate=${body.options.endDate}`,
       providesTags: ["AMC_LIST"],
     }),
     getAllPendingPayments: builder.query<
@@ -247,6 +248,41 @@ export const orderApi = createApi({
       }),
       invalidatesTags: ["PENDING_PAYMENTS_LIST"],
     }),
+    updateAMCPaymentById: builder.mutation<
+      IResponse,
+      {
+        id: string;
+        paymentId: string;
+        data: Partial<IAMCPayment>;
+      }
+    >({
+      query: ({ id, paymentId, data }) => ({
+        url: `/amc/${id}/payment/${paymentId}`,
+        method: HTTP_REQUEST.PATCH,
+        body: data,
+      }),
+      invalidatesTags: ["AMC_PAYMENT_REVIEW", "AMC_DATA"],
+    }),
+    getAMCPaymentReview: builder.mutation<
+      IResponse<IAMCPaymentReview[]>,
+      string
+    >({
+      query: (orderId) => ({
+        url: `/amc-payments-review/${orderId}`,
+        method: HTTP_REQUEST.GET,
+      }),
+    }),
+    addAmcPayments: builder.mutation<
+      IResponse,
+      { amcId: string; payments: IAMCPaymentReview[] }
+    >({
+      query: (body) => ({
+        url: `/amc/${body.amcId}/payments`,
+        method: HTTP_REQUEST.PATCH,
+        body: body.payments,
+      }),
+      invalidatesTags: ["AMC_PAYMENT_REVIEW", "AMC_DATA"],
+    }),
   }),
 });
 
@@ -260,7 +296,6 @@ export const {
   useAddCustomizationMutation,
   useGetAllOrdersWithAttributesQuery,
   useGetAmcByOrderIdQuery,
-  useUpdateAMCByOrderIdMutation,
   useGetAdditionalServiceByIdQuery,
   useGetCustomizationByIdQuery,
   useGetLicenceByIdQuery,
@@ -270,4 +305,7 @@ export const {
   useGetAllAMCQuery,
   useGetAllPendingPaymentsQuery,
   useUpdatePendingPaymentMutation,
+  useUpdateAMCPaymentByIdMutation,
+  useGetAMCPaymentReviewMutation,
+  useAddAmcPaymentsMutation,
 } = orderApi;

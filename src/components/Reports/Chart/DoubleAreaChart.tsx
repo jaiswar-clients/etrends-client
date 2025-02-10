@@ -18,11 +18,10 @@ import {
 import {
     ChartContainer,
     ChartTooltip,
-    ChartTooltipContent,
 } from "@/components/ui/chart";
 import Typography from "@/components/ui/Typography";
 import Loading from "@/components/ui/loading";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency, formatIndianNumber } from "@/lib/utils";
 
 const chartConfig = {
     area1: {
@@ -48,6 +47,35 @@ interface DoubleAreaChartProps {
     area2Label: string;
     chartConfigClassName?: string;
 }
+
+const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+        return (
+            <div className="bg-background border rounded p-2 shadow-md">
+                <p className="font-bold mb-2">{label}</p>
+                <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                        <div className="bg-chart-2 rounded-sm size-2"></div>
+                        <div>
+                            <p className="text-xs text-muted-foreground">{payload[0].name}</p>
+                            <p className="text-sm font-medium">{formatCurrency(payload[0].value)}</p>
+                            <p className="text-xs text-muted-foreground">({formatIndianNumber(payload[0].value)})</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className="bg-chart-1 rounded-sm size-2"></div>
+                        <div>
+                            <p className="text-xs text-muted-foreground">{payload[1].name}</p>
+                            <p className="text-sm font-medium">{formatCurrency(payload[1].value)}</p>
+                            <p className="text-xs text-muted-foreground">({formatIndianNumber(payload[1].value)})</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+    return null;
+};
 
 const DoubleAreaChart: React.FC<DoubleAreaChartProps> = ({
     data,
@@ -104,7 +132,8 @@ const DoubleAreaChart: React.FC<DoubleAreaChartProps> = ({
                                     axisLine={false}
                                     tickLine={false}
                                     tick={{ fill: "hsl(var(--foreground))" }}
-                                    tickFormatter={(value) => `₹${value / 1000}k`}
+                                    tickFormatter={(value) => formatIndianNumber(value).replace('₹', '')}
+                                    width={60}
                                 />
                                 <Legend />
                                 <Area
@@ -114,7 +143,6 @@ const DoubleAreaChart: React.FC<DoubleAreaChartProps> = ({
                                     stroke="hsl(var(--chart-2))"
                                     fill="url(#fillArea2)"
                                     fillOpacity={0.4}
-                                // stackId="a"
                                 />
                                 <Area
                                     name={area2Label}
@@ -123,12 +151,10 @@ const DoubleAreaChart: React.FC<DoubleAreaChartProps> = ({
                                     stroke="hsl(var(--chart-1))"
                                     fill="url(#fillArea1)"
                                     fillOpacity={0.4}
-                                // stackId="a"
                                 />
-
                                 <ChartTooltip
                                     cursor={false}
-                                    content={<ChartTooltipContent />}
+                                    content={<CustomTooltip />}
                                 />
                             </AreaChart>
                         </ResponsiveContainer>

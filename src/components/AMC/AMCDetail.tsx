@@ -1,451 +1,444 @@
 "use client"
-import { Button } from '@/components/ui/button'
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
-import { useFieldArray, useForm } from 'react-hook-form'
-import { CircleCheck, CircleX, File, Pencil } from 'lucide-react'
-import { toast } from '@/hooks/use-toast'
-import { renderDisabledInput } from '@/components/ui/disabledInput'
-import { PAYMENT_STATUS_ENUM, useGetAmcByOrderIdQuery, useGetOrderByIdQuery, useUpdateAMCByOrderIdMutation, useUpdateOrderMutation } from '@/redux/api/order'
-import Typography from '../ui/Typography'
-import OrderDetail from '../Client/Add/Form/OrderDetail'
-import { HTMLInputTypeAttribute, useEffect, useState } from 'react'
+import { Button } from "@/components/ui/button"
+import { File, Pencil, Info, ArrowUp } from "lucide-react"
+import { toast } from "@/hooks/use-toast"
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
-import { useFileUpload } from '@/hooks/useFileUpload'
+    PAYMENT_STATUS_ENUM,
+    useGetAmcByOrderIdQuery,
+    useGetAMCPaymentReviewMutation,
+    useGetOrderByIdQuery,
+    useUpdateOrderMutation,
+} from "@/redux/api/order"
+import Typography from "../ui/Typography"
+import OrderDetail from "../Client/Add/Form/OrderDetail"
+import { useEffect, useState } from "react"
+import Link from "next/link"
+import type { IAMCPayment, OrderDetailInputs } from "@/types/order"
+import { Badge } from "../ui/badge"
+import { Dialog, DialogContent, DialogTitle } from "../ui/dialog"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import AMCPayment from "./AMCPayment"
+import AmcPaymentReview from "./AmcPaymentReview"
 import {
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
-} from "@/components/ui/tooltip"
-import Link from 'next/link'
-import DatePicker from '../ui/datepicker'
-import { OrderDetailInputs } from '@/types/order'
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
-import { Badge } from '../ui/badge'
+    ColumnDef,
+    ColumnFiltersState,
+    flexRender,
+    getCoreRowModel,
+    getFilteredRowModel,
+    useReactTable,
+} from "@tanstack/react-table"
+import React from "react"
 
 interface IProps {
     orderId: string
 }
 
-export interface IAmcInputs {
-    start_date: Date | undefined
-    payments?: {
-        from_date: Date;
-        to_date: Date;
-        status: PAYMENT_STATUS_ENUM;
-        received_date: Date;
-        purchase_order_number: string;
-        purchase_order_document: string;
-        purchase_order_date?: Date;
-        invoice_document?: string;
-        invoice_number: string;
-        invoice_date?: Date;
-    }[];
-}
-
 interface IDefaultValues {
+    _id: string
     client: string
     total_cost: number
     amc_percentage: number
     amc_amount: number
     status: string
-    payments?: {
-        from_date: Date;
-        to_date: Date;
-        status: PAYMENT_STATUS_ENUM;
-        received_date: Date;
-        purchase_order_number: string;
-        purchase_order_document: string;
-        purchase_order_date?: Date;
-        invoice_document?: string;
-        invoice_number: string;
-        invoice_date?: Date;
-    }[];
+    payments?: IAMCPayment[]
     start_date: Date | undefined
 }
 
-type PaymentFieldName = `payments.${number}.status` |
-    `payments.${number}.from_date` |
-    `payments.${number}.to_date` |
-    `payments.${number}.received_date` |
-    `payments.${number}.purchase_order_number` |
-    `payments.${number}.purchase_order_document` |
-    `payments.${number}.purchase_order_date` |
-    `payments.${number}.invoice_document` |
-    `payments.${number}.invoice_number` |
-    `payments.${number}.invoice_date`
+interface DataTableProps {
+    data: IAMCPayment[]
+    onEdit: (payment: IAMCPayment) => void
+    onInfo: (payment: IAMCPayment, initialAmcRate: number) => void
+    initialAmcRate: number
+}
 
-const AmcForm: React.FC<{ orderId: string, defaultValue?: IDefaultValues }> = ({ orderId, defaultValue }) => {
-    const [updateAMCApi, { isLoading }] = useUpdateAMCByOrderIdMutation()
-    const [enableEdit, setEnableEdit] = useState(false)
-    const { uploadFile, getFileNameFromUrl } = useFileUpload()
 
-    const defaultValues: IAmcInputs = {
-        start_date: defaultValue?.start_date || undefined,
-        payments: defaultValue?.payments?.map(payment => ({
-            ...payment,
-            invoice_document: payment.invoice_document || '',
-            invoice_date: payment.invoice_date || new Date()
-        })) || []
-    }
+const columns = (onEdit: (payment: IAMCPayment) => void, onInfo: (payment: IAMCPayment, initialAmcRate: number) => void, initialAmcRate: number): ColumnDef<IAMCPayment>[] => [
+    {
+        accessorKey: "_id",
+        header: "Sr No.",
+        cell: ({ row, table }) => {
+            const index = table.getRowModel().rows.findIndex(r => r.id === row.id)
+            const is_free_amc = row.original.is_free_amc
 
-    const form = useForm<IAmcInputs>({
-        defaultValues,
-        mode: 'onChange'
-    })
-    const {
-        fields: paymentsFields,
-    } = useFieldArray({ control: form.control, name: 'payments', })
-
-    const onSubmit = async (data: IAmcInputs) => {
-        // check if payments status is changed but received date is not selected
-        const isPaymentStatusChanged = data?.payments?.filter((_, index) => index !== 0)?.some((payment, index) => {
-            return payment.status !== defaultValue?.payments?.[index].status
-        })
-
-        if (isPaymentStatusChanged) {
-            const isReceivedDateNotSelected = data?.payments?.some((payment) => payment.status === PAYMENT_STATUS_ENUM.PAID && !payment.received_date)
-            if (isReceivedDateNotSelected) {
-                toast({
-                    variant: 'destructive',
-                    title: 'Error',
-                    description: 'Please select received date for the payment'
-                })
-                return
-            }
+            return (
+                <div className="flex items-center gap-2">
+                    {index + 1}
+                    {is_free_amc && (
+                        <Badge variant={"default"}>
+                            {index === 0 ? "Free AMC" : "Subsequent Payment"}
+                        </Badge>
+                    )}
+                </div>
+            )
         }
-
-        try {
-            await updateAMCApi({ orderId, data }).unwrap()
-            toast({
-                variant: 'success',
-                title: 'AMC Created Successfully',
-                description: 'AMC has been created successfully'
-            })
-            setEnableEdit(false)
-        } catch (error: any) {
-            toast({
-                variant: 'destructive',
-                title: 'Error',
-                description: error.message || 'Something went wrong'
-            })
+    },
+    {
+        accessorKey: "from_date",
+        header: "From Date",
+        cell: ({ row }) => new Date(row.getValue("from_date")).toLocaleDateString()
+    },
+    {
+        accessorKey: "to_date",
+        header: "To Date",
+        cell: ({ row }) => new Date(row.getValue("to_date")).toLocaleDateString()
+    },
+    {
+        accessorKey: "status",
+        header: "Status",
+        cell: ({ row }) => {
+            const status = row.getValue("status") as PAYMENT_STATUS_ENUM
+            return (
+                <Badge variant={status === PAYMENT_STATUS_ENUM.PAID ? "success" : "destructive"}>
+                    {status}
+                </Badge>
+            )
+        },
+        filterFn: (row, id, value) => {
+            return value === "ALL" || row.getValue(id) === value
         }
-    }
-
-    const getSignedUrl = async (file: File, name: PaymentFieldName) => {
-        const filename = await uploadFile(file);
-        form.setValue(name, filename as string)
-    }
-
-    const renderInput = (name: PaymentFieldName, label: string, placeholder: string, type: HTMLInputTypeAttribute = "text") => {
-        const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-            const file = e.target.files?.[0];
-            if (file) {
-                await getSignedUrl(file, name);
-            }
-        };
-
-        const renderFilePreview = (field: any) => (
-            <div className="flex items-center gap-2">
-                <Link href={field.value as string} target='_blank' passHref>
-                    <Button variant={!enableEdit ? 'default' : 'outline'} type='button' className={enableEdit ? 'rounded-full w-8 h-8 ml-2 absolute -top-3 -right-10' : ''}>
-                        {!enableEdit ? 'View' : <File className='w-1' />}
+    },
+    {
+        accessorKey: "received_date",
+        header: "Received Date",
+        cell: ({ row }) => {
+            const date = row.getValue("received_date") as Date
+            return date ? new Date(date).toLocaleDateString() : '-'
+        }
+    },
+    {
+        accessorKey: "amc_rate_applied",
+        header: "AMC Rate (%)",
+        cell: ({ row }) => {
+            const rate = row.getValue("amc_rate_applied") as number | undefined
+            if (!rate) return '-'
+            return (
+                <div className="flex items-center gap-1">
+                    {rate}%
+                    {rate > initialAmcRate && (
+                        <Badge variant="outline" className="bg-green-50">
+                            <ArrowUp className="w-3 h-3 text-green-600 mr-1" />
+                            {(rate - initialAmcRate)}%
+                        </Badge>
+                    )}
+                </div>
+            )
+        }
+    },
+    {
+        accessorKey: "amc_rate_amount",
+        header: "AMC Amount",
+        cell: ({ row }) => {
+            const amount = row.getValue("amc_rate_amount") as number | undefined
+            return amount ? `₹${amount.toLocaleString()}` : '-'
+        }
+    },
+    {
+        accessorKey: "total_cost",
+        header: "Total Cost",
+        cell: ({ row }) => {
+            const amount = row.getValue("total_cost") as number | undefined
+            return amount ? `₹${amount.toLocaleString()}` : '-'
+        }
+    },
+    {
+        id: "actions",
+        header: "Actions",
+        cell: ({ row }) => {
+            const payment = row.original
+            return (
+                <div className="flex gap-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onEdit(payment)}
+                    >
+                        <Pencil className="w-4 h-4 mr-2" />
+                        Edit
                     </Button>
-                </Link>
-                {
-                    !enableEdit && (
-                        <span className='text-sm text-gray-500'>{getFileNameFromUrl(field.value as string)}</span>
-                    )
-                }
+                    <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => onInfo(payment, initialAmcRate)}
+                    >
+                        <Info className="w-4 h-4 mr-2" />
+                        Info
+                    </Button>
+                </div>
+            )
+        }
+    }
+]
+
+const DataTable = ({ data, onEdit, onInfo, initialAmcRate }: DataTableProps) => {
+    const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
+
+    const table = useReactTable({
+        data,
+        columns: columns(onEdit, onInfo, initialAmcRate),
+        getCoreRowModel: getCoreRowModel(),
+        getFilteredRowModel: getFilteredRowModel(),
+        onColumnFiltersChange: setColumnFilters,
+        state: {
+            columnFilters,
+        },
+    })
+
+    return (
+        <div className="space-y-4">
+            <div className="flex items-center gap-2">
+                <Button
+                    type="button"
+                    variant={!table.getColumn("status")?.getFilterValue() ? "default" : "outline"}
+                    onClick={() => table.getColumn("status")?.setFilterValue("ALL")}
+                >
+                    All
+                </Button>
+                <Button
+                    type="button"
+                    variant={table.getColumn("status")?.getFilterValue() === PAYMENT_STATUS_ENUM.PENDING ? "default" : "outline"}
+                    onClick={() => table.getColumn("status")?.setFilterValue(PAYMENT_STATUS_ENUM.PENDING)}
+                >
+                    Pending
+                </Button>
+                <Button
+                    type="button"
+                    variant={table.getColumn("status")?.getFilterValue() === PAYMENT_STATUS_ENUM.PAID ? "default" : "outline"}
+                    onClick={() => table.getColumn("status")?.setFilterValue(PAYMENT_STATUS_ENUM.PAID)}
+                >
+                    Paid
+                </Button>
             </div>
-        );
 
+            <div className="rounded-md border">
+                <Table>
+                    <TableHeader>
+                        {table.getHeaderGroups().map((headerGroup) => (
+                            <TableRow key={headerGroup.id}>
+                                {headerGroup.headers.map((header) => (
+                                    <TableHead key={header.id}>
+                                        {header.isPlaceholder
+                                            ? null
+                                            : flexRender(
+                                                header.column.columnDef.header,
+                                                header.getContext()
+                                            )}
+                                    </TableHead>
+                                ))}
+                            </TableRow>
+                        ))}
+                    </TableHeader>
+                    <TableBody>
+                        {table.getRowModel().rows?.length ? (
+                            table.getRowModel().rows.map((row) => (
+                                <TableRow key={row.id}>
+                                    {row.getVisibleCells().map((cell) => (
+                                        <TableCell key={cell.id}>
+                                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                        </TableCell>
+                                    ))}
+                                </TableRow>
+                            ))
+                        ) : (
+                            <TableRow>
+                                <TableCell colSpan={columns.length} className="h-24 text-center">
+                                    No results.
+                                </TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            </div>
+        </div>
+    )
+}
 
-        return (
-            <FormField
-                control={form.control}
-                name={name}
-                render={({ field }) => (
-                    <FormItem className='w-full relative mb-4 md:mb-0'>
-                        <FormLabel className='text-gray-500 relative block w-fit'>
-                            {label}
-                            {(type === "file" && field.value && enableEdit) && (
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            {renderFilePreview(field)}
-                                        </TooltipTrigger>
-                                        <TooltipContent>{getFileNameFromUrl(field.value as string) || 'View File'}</TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                            )}
-                        </FormLabel>
+const AmcForm: React.FC<{ orderId: string; defaultValue?: IDefaultValues, amcStartDate?: string }> = ({ orderId, defaultValue, amcStartDate }) => {
+    const [getAMCPaymentReviewApi, { isLoading: isGetAMCPaymentReviewLoading, data: amcPaymentReviewData }] = useGetAMCPaymentReviewMutation()
+    const [enablePaymentEdit, setEnablePaymentEdit] = useState<{ payment: IAMCPayment | null, editing: boolean } | null>({ payment: null, editing: false })
+    const [selectedPaymentInfo, setSelectedPaymentInfo] = useState<{ payment: IAMCPayment | null, initialAmcRate: number, show: boolean }>({ payment: null, initialAmcRate: 0, show: false })
+    const [showPaymentReview, setShowPaymentReview] = useState(false)
 
-                        <FormControl>
-                            {(type === "file" && field.value && !enableEdit) ? (
-                                renderFilePreview(field)
-                            ) : (
-                                <Input
-                                    type={type}
-                                    {...field}
-                                    disabled={!enableEdit}
-                                    onChange={type === 'file' ? (e) => handleFileChange(e) : field.onChange}
-                                    value={type === 'file' ? undefined : typeof field.value === 'string' || typeof field.value === 'number' ? field.value : undefined}
-                                    className='bg-white'
-                                    placeholder={placeholder}
-                                />
-                            )}
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
-                )}
-            />
-        );
+    const handleEdit = (payment: IAMCPayment) => {
+        setEnablePaymentEdit({ payment, editing: true })
+    }
+
+    const handleInfo = (payment: IAMCPayment, initialAmcRate: number) => {
+        setSelectedPaymentInfo({
+            payment,
+            initialAmcRate,
+            show: true
+        })
     }
 
     return (
         <div className="p-4 mt-4">
             <div className="flex items-center justify-between">
-                <Typography variant='h2'>AMC Details</Typography>
-                <div className="mb-2 flex justify-end">
-                    <Button className={`w-36 justify-between ${enableEdit ? "bg-destructive hover:bg-destructive" : ""}`} onClick={() => setEnableEdit(prev => !prev)}>
-                        {!enableEdit ? (
-                            <>
-                                <Pencil />
-                                <span>Start Editing</span>
-                            </>
-                        ) : (
-                            <>
-                                <CircleX />
-                                <span>Close Editing</span>
-                            </>
-                        )}
-                    </Button>
+                <Typography variant="h2">AMC Details</Typography>
+            </div>
+
+            <div className="space-y-8 mt-5">
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <Typography variant="h4" className="text-gray-500">AMC Start Date</Typography>
+                        <Typography variant="p">{amcStartDate ? new Date(amcStartDate).toLocaleDateString() : '-'}</Typography>
+                    </div>
+                    <div>
+                        <Typography variant="h4" className="text-gray-500">Total Cost</Typography>
+                        <Typography variant="p">₹{defaultValue?.total_cost.toLocaleString()}</Typography>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <Typography variant="h4" className="text-gray-500">AMC Percentage</Typography>
+                        <Typography variant="p">{defaultValue?.amc_percentage}%</Typography>
+                    </div>
+                    <div>
+                        <Typography variant="h4" className="text-gray-500">AMC Amount</Typography>
+                        <Typography variant="p">₹{defaultValue?.amc_amount.toLocaleString()}</Typography>
+                    </div>
+                </div>
+
+                <div className="space-y-6">
+                    <Typography variant="h2" className="mb-4">Payments</Typography>
+
+                    {defaultValue?.payments?.length ? (
+                        <DataTable
+                            data={defaultValue.payments}
+                            onEdit={handleEdit}
+                            onInfo={handleInfo}
+                            initialAmcRate={defaultValue?.amc_percentage || 0}
+                        />
+                    ) : (
+                        <Button variant="outline" onClick={async () => {
+                            await getAMCPaymentReviewApi(orderId).unwrap()
+                            setShowPaymentReview(true)
+                        }} loading={{ isLoading: isGetAMCPaymentReviewLoading, loader: "tailspin" }}>
+                            Review and Add Payments
+                        </Button>
+                    )}
                 </div>
             </div>
 
-            <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 mt-5">
-                    <div className="md:flex items-start gap-4 w-full">
-                        <FormField
-                            control={form.control}
-                            name="start_date"
-                            render={({ field }) => (
-                                <FormItem className='w-full mb-4 md:mb-0'>
-                                    <FormLabel className='text-gray-500'>AMC Start Date</FormLabel>
-                                    <FormControl>
-                                        <DatePicker onDateChange={field.onChange} date={field.value} disabled={!enableEdit} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        {renderDisabledInput("Total Cost", defaultValue?.total_cost)}
-                    </div>
-                    <div className="md:flex items-center gap-4 w-full">
-                        {renderDisabledInput("AMC Percentage", defaultValue?.amc_percentage)}
-                        {renderDisabledInput("AMC Amount(auto-calculated)", defaultValue?.amc_amount)}
-                    </div>
+            {showPaymentReview && (
+                <Dialog open={showPaymentReview} onOpenChange={setShowPaymentReview}>
+                    <DialogContent className="max-w-screen-lg overflow-y-auto max-h-[90vh]" >
+                        <DialogTitle>Payment Review</DialogTitle>
+                        {
+                            amcPaymentReviewData?.data && (
+                                <AmcPaymentReview amcId={defaultValue?._id || ""} data={amcPaymentReviewData.data} handler={() => {
+                                    setShowPaymentReview(false)
+                                }} />
+                            )
+                        }
+                    </DialogContent>
+                </Dialog>
+            )}
 
-                    <div className="space-y-6">
-                        <Typography variant="h2" className="mb-4">Payments</Typography>
-                        {paymentsFields.map((payment, index) => (
-                            <Card key={payment.id} className="overflow-hidden">
-                                <CardHeader className='flex flex-row justify-between items-center'>
-                                    <CardTitle>Year {index + 1}</CardTitle>
-                                    {
-                                        index === 0 &&
-                                        <Badge variant={"default"} className=''>{index === 0 ? "Free AMC" : "Subsequent Payment"}</Badge>
-                                    }
-                                </CardHeader>
-                                <CardContent className="">
-                                    <div className="flex gap-4 ">
-                                        <FormField
-                                            control={form.control}
-                                            name={`payments.${index}.from_date`}
-                                            render={({ field }) => (
-                                                <FormItem className='w-full'>
-                                                    <FormLabel className="text-gray-500">From</FormLabel>
-                                                    <FormControl>
-                                                        <div className="relative">
-                                                            <DatePicker onDateChange={field.onChange} date={field.value} disabled={true} />
-                                                        </div>
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                        <FormField
-                                            control={form.control}
-                                            name={`payments.${index}.to_date`}
-                                            render={({ field }) => (
-                                                <FormItem className='w-full'>
-                                                    <FormLabel className="text-gray-500">To</FormLabel>
-                                                    <FormControl>
-                                                        <div className="relative">
-                                                            <DatePicker onDateChange={field.onChange} date={field.value} disabled={true} />
-                                                        </div>
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
+            {enablePaymentEdit && enablePaymentEdit.payment && (
+                <Dialog open={enablePaymentEdit.editing} onOpenChange={(open) => setEnablePaymentEdit({ payment: null, editing: open })}>
+                    <DialogContent className="max-w-screen-lg overflow-y-auto max-h-[90vh]">
+                        <DialogTitle>Update Payment</DialogTitle>
+                        <AMCPayment payment={enablePaymentEdit.payment} amcId={defaultValue?._id || ""} onClose={() => setEnablePaymentEdit({ payment: null, editing: false })} />
+                    </DialogContent>
+                </Dialog>
+            )}
+
+            {selectedPaymentInfo.show && selectedPaymentInfo.payment && (
+                <Dialog open={selectedPaymentInfo.show} onOpenChange={(open) => setSelectedPaymentInfo({ payment: null, initialAmcRate: 0, show: open })}>
+                    <DialogContent className="max-w-md">
+                        <DialogTitle>Payment Information</DialogTitle>
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <Typography variant="p" className="text-sm text-gray-500">Current AMC Rate</Typography>
+                                    <div className="flex items-center gap-2">
+                                        <Typography variant="p" className="text-lg font-semibold">{selectedPaymentInfo.payment.amc_rate_applied}%</Typography>
                                     </div>
-                                    <div className="flex gap-4 mt-4 items-end">
-                                        <FormField
-                                            control={form.control}
-                                            name={`payments.${index}.status`}
-                                            render={({ field }) => (
-                                                <FormItem className='w-full mb-4 md:mb-0'>
-                                                    <FormLabel className='text-gray-500'>Status</FormLabel>
-                                                    <FormControl>
-                                                        <Select onValueChange={field.onChange}>
-                                                            <SelectTrigger className="w-full bg-white" disabled={!enableEdit}>
-                                                                <SelectValue placeholder={field.value} className="capitalize" />
-                                                            </SelectTrigger>
-                                                            <SelectContent className='bg-white'>
-                                                                {
-                                                                    Object.entries(PAYMENT_STATUS_ENUM)
-                                                                        .filter(([key]) => isNaN(Number(key)))
-                                                                        .map(([key, value]: [string, PAYMENT_STATUS_ENUM]) => (
-                                                                            <SelectItem value={value} key={key} className='capitalize'>
-                                                                                {value === PAYMENT_STATUS_ENUM.PAID ? (
-                                                                                    <div className="flex items-center">
-                                                                                        <div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div>
-                                                                                        {value}
-                                                                                    </div>
-                                                                                ) : (
-                                                                                    <div className="flex items-center">
-                                                                                        <div className="w-2 h-2 rounded-full bg-red-500 mr-2"></div>
-                                                                                        <span className="capitalize">{value}</span>
-                                                                                    </div>
-                                                                                )}
-                                                                            </SelectItem>
-                                                                        ))
-                                                                }
-                                                            </SelectContent>
-                                                        </Select>
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                        <FormField
-                                            control={form.control}
-                                            name={`payments.${index}.received_date`}
-                                            render={({ field }) => (
-                                                <FormItem className='w-full'>
-                                                    <FormLabel className="text-gray-500">Payment Receive Date</FormLabel>
-                                                    <FormControl>
-                                                        <div className="relative">
-                                                            <DatePicker date={field.value} onDateChange={field.onChange} placeholder="Pick a Date" disabled={!enableEdit} />
-                                                        </div>
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                    </div>
-                                    <div className="flex gap-4 mt-4 items-end">
-                                        <div className="w-full flex gap-4 mt-4 items-end">
-                                            {renderInput(`payments.${index}.purchase_order_number`, "Purchase Order Number", "Enter Purchase Order Number")}
-                                            {renderInput(`payments.${index}.purchase_order_document`, "Purchase Order Document", "Upload Purchase Order Document", "file")}
-                                            <FormField
-                                                control={form.control}
-                                                name={`payments.${index}.purchase_order_date`}
-                                                render={({ field }) => (
-                                                    <FormItem className='w-full'>
-                                                        <FormLabel className="text-gray-500">Purchase Order Date</FormLabel>
-                                                        <FormControl>
-                                                            <div className="relative">
-                                                                <DatePicker date={field.value} onDateChange={field.onChange} placeholder="Pick a Date" disabled={!enableEdit} />
-                                                            </div>
-                                                        </FormControl>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <Typography variant="p" className="text-sm text-gray-500">Total Cost</Typography>
+                                    <Typography variant="p" className="text-lg font-semibold">₹{defaultValue?.total_cost.toLocaleString()}</Typography>
+                                </div>
+                                <div>
+                                    <Typography variant="p" className="text-sm text-gray-500">AMC Amount</Typography>
+                                    <Typography variant="p" className="text-lg font-semibold">₹{defaultValue?.amc_amount.toLocaleString()}</Typography>
+                                </div>
+                            </div>
+
+                            <div>
+                                <Typography variant="p" className="text-sm text-gray-500">Payment Period</Typography>
+                                <Typography variant="p" className="text-base">
+                                    {new Date(selectedPaymentInfo.payment.from_date).toLocaleDateString()} - {new Date(selectedPaymentInfo.payment.to_date).toLocaleDateString()}
+                                </Typography>
+                            </div>
+
+                            <div>
+                                <Typography variant="p" className="text-sm text-gray-500">Documents</Typography>
+                                <div className="space-y-2 mt-2">
+                                    {selectedPaymentInfo.payment.purchase_order_document && (
+                                        <div className="flex items-center gap-2">
+                                            <Link href={selectedPaymentInfo.payment.purchase_order_document} target="_blank">
+                                                <Button variant="outline" size="sm">
+                                                    <File className="w-4 h-4 mr-2" />
+                                                    Purchase Order
+                                                </Button>
+                                            </Link>
                                         </div>
-                                    </div>
-
-                                    <div className="flex gap-4 mt-4 items-end">
-                                        <div className="w-full flex gap-4 mt-4 items-end">
-                                            {renderInput(`payments.${index}.invoice_document`, "Invoice Document", "Upload Invoice Document", "file")}
-                                            {renderInput(`payments.${index}.invoice_number`, "Invoice Number", "Enter Invoice Number")}
-                                            <FormField
-                                                control={form.control}
-                                                name={`payments.${index}.invoice_date`}
-                                                render={({ field }) => (
-                                                    <FormItem className='w-full'>
-                                                        <FormLabel className="text-gray-500">Invoice Date</FormLabel>
-                                                        <FormControl>
-                                                            <div className="relative">
-                                                                <DatePicker date={field.value} onDateChange={field.onChange} placeholder="Pick a Date" disabled={!enableEdit} />
-                                                            </div>
-                                                        </FormControl>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
+                                    )}
+                                    {selectedPaymentInfo.payment.invoice_document && (
+                                        <div className="flex items-center gap-2">
+                                            <Link href={selectedPaymentInfo.payment.invoice_document} target="_blank">
+                                                <Button variant="outline" size="sm">
+                                                    <File className="w-4 h-4 mr-2" />
+                                                    Invoice
+                                                </Button>
+                                            </Link>
                                         </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        ))}
-                    </div>
-
-                    {
-                        enableEdit &&
-                        <div className="flex justify-end">
-                            <Button type="submit" className='md:w-36 w-full py-5 md:py-2' disabled={isLoading || !form.formState.isDirty} loading={{ isLoading, loader: "tailspin" }}>
-                                <CircleCheck />
-                                <span className='text-white'>Save AMC</span>
-                            </Button>
+                                    )}
+                                </div>
+                            </div>
                         </div>
-                    }
-                </form>
-            </Form>
+                    </DialogContent>
+                </Dialog>
+            )}
         </div>
     )
 }
-
-
 
 const AMCDetail: React.FC<IProps> = ({ orderId }) => {
     const { data } = useGetAmcByOrderIdQuery(orderId)
     const { data: orderData } = useGetOrderByIdQuery(orderId)
 
     const [defaultValues, setDefaultValues] = useState<IDefaultValues>({
-        client: '',
+        _id: "",
+        client: "",
         total_cost: 0,
         amc_percentage: 0,
         amc_amount: 0,
-        status: '',
+        status: "",
         start_date: undefined,
     })
 
     useEffect(() => {
         if (data?.data && orderData?.data) {
             setDefaultValues({
+                _id: data?.data._id || "",
                 client: data?.data.client.name,
                 total_cost: data?.data.total_cost,
                 amc_percentage: orderData?.data.amc_rate.percentage,
                 amc_amount: data?.data.amount,
                 status: orderData?.data.status,
                 start_date: data?.data.start_date,
-                payments: data?.data.payments
+                payments: data?.data.payments,
             })
         }
     }, [data, orderData])
 
-    const productsName = data?.data.products.map((product) => product.name).join(', ')
+    const productsName = data?.data.products.map((product) => product.name).join(", ")
 
     const [updateFirstOrderApi, { isLoading: isUpdateOrderLoading }] = useUpdateOrderMutation()
 
@@ -454,7 +447,7 @@ const AMCDetail: React.FC<IProps> = ({ orderId }) => {
             toast({
                 variant: "destructive",
                 title: "Error Occured while updating a client",
-                description: "Please create a first order before updating"
+                description: "Please create a first order before updating",
             })
             return
         }
@@ -469,28 +462,38 @@ const AMCDetail: React.FC<IProps> = ({ orderId }) => {
             toast({
                 variant: "destructive",
                 title: "Error Occured while adding a client",
-                description: error?.message || `Please try again and if error still persist contact the developer`
+                description: error?.message || `Please try again and if error still persist contact the developer`,
             })
         }
     }
 
     return (
         <>
-            <div className='flex items-center'>
-                <Typography variant='h1' className='md:text-3xl text-2xl'>{data?.data.client.name} Of {productsName}</Typography>
-                {
-                    orderData?.data.status === "active" ?
-                        <div className={`md:w-4 md:h-4 w-2.5 h-2.5 rounded-full bg-green-500 ml-2`}></div> :
-                        <div className={`md:w-4 md:h-4 w-2.5 h-2.5 rounded-full bg-red-500 ml-2`}></div>
-                }
+            <div className="flex items-center">
+                <Typography variant="h1" className="md:text-3xl text-2xl">
+                    {data?.data.client.name} Of {productsName}
+                </Typography>
+                {orderData?.data.status === "active" ? (
+                    <div className={`md:w-4 md:h-4 w-2.5 h-2.5 rounded-full bg-green-500 ml-2`}></div>
+                ) : (
+                    <div className={`md:w-4 md:h-4 w-2.5 h-2.5 rounded-full bg-red-500 ml-2`}></div>
+                )}
             </div>
 
             <br />
-            <OrderDetail isLoading={isUpdateOrderLoading} title="Order Detail" handler={async () => { }} defaultValue={orderData?.data} updateHandler={updateOrderHandler} defaultOpen={false} />
+            <OrderDetail
+                isLoading={isUpdateOrderLoading}
+                title="Order Detail"
+                handler={async () => { }}
+                defaultValue={orderData?.data}
+                updateHandler={updateOrderHandler}
+                defaultOpen={false}
+            />
 
-            <AmcForm orderId={orderId} defaultValue={defaultValues} />
+            <AmcForm orderId={orderId} defaultValue={defaultValues} amcStartDate={orderData?.data.amc_start_date} />
         </>
     )
 }
 
 export default AMCDetail
+

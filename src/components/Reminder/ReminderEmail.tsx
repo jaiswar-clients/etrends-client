@@ -28,6 +28,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import { useGetInternalTeamEmailQuery } from '@/redux/api/app'
 
 
 interface IProps {
@@ -59,16 +60,10 @@ export interface IEmailInputProps {
   email_template_id: string;
 }
 
-const internalEmails = [
-  {
-    name: "Nilesh Jaiswar",
-    email: "jaiswarnilesh2002@gmail.com"
-  },
-]
-
 const Email: React.FC<IProps> = ({ id, emailIndex }) => {
   const { data } = useGetReminderByIdQuery(id)
   const { data: emailTemplateApiRes } = useGetEmailTemplatesQuery()
+  const { data: internalEmailsApiRes } = useGetInternalTeamEmailQuery()
 
   const products = useAppSelector((state) => state.user.products)
 
@@ -146,15 +141,19 @@ const Email: React.FC<IProps> = ({ id, emailIndex }) => {
   useEffect(() => {
     if (data?.data) {
       form.setValue("to", data.data.client.point_of_contacts[emailIndex].email)
-      form.setValue("from", internalEmails[0].email)
-      form.setValue("subject", data.data.subject)
+      form.setValue("subject", data.data.subject || "")
       const template = emailTemplateApiRes?.data.find((template) => template.key === data.data.template)
       if (template) {
         emailBody(template)
         setSelectedTemplate(template)
       }
     }
-  }, [data?.data])
+    if (internalEmailsApiRes?.data) {
+      form.setValue("from", internalEmailsApiRes?.data[0].email)
+    }
+
+  }, [data?.data, internalEmailsApiRes])
+
 
   if (!data?.data) return <Loading />
 
@@ -301,7 +300,7 @@ const Email: React.FC<IProps> = ({ id, emailIndex }) => {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectGroup>
-                          {internalEmails.map((email) => (
+                          {internalEmailsApiRes?.data?.map((email) => (
                             <SelectItem key={email.email} value={email.email}>
                               {email.name} ({email.email})
                             </SelectItem>

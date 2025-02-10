@@ -75,7 +75,18 @@ export interface IOrderObject {
     percentage: number;
     amount: number;
   };
+  amc_rate_history: {
+    percentage: number;
+    amount: number;
+    date: Date;
+  }[];
   status: string;
+  status_logs?: {
+    from: ORDER_STATUS_ENUM;
+    to: ORDER_STATUS_ENUM;
+    date: Date;
+    user: string;
+  }[];
   payment_terms: {
     name: string;
     percentage_from_base_cost: number;
@@ -131,6 +142,7 @@ export enum PAYMENT_STATUS_ENUM {
 }
 
 export interface IAMCPayment {
+  _id?: string;
   from_date: Date;
   to_date: Date;
   status: PAYMENT_STATUS_ENUM;
@@ -139,10 +151,15 @@ export interface IAMCPayment {
   purchase_order_document: string;
   invoice_number: string;
   invoice_date?: Date;
+  is_free_amc?: boolean;
   invoice_document?: string;
+  amc_rate_applied?: number;
+  amc_rate_amount?: number;
+  total_cost?: number;
 }
 
 export interface IAMCObject {
+  _id?: string;
   order_id: string;
   client: IClientDataObject;
   total_cost: number;
@@ -165,7 +182,12 @@ export enum PURCHASE_TYPE {
   ORDER = "order",
 }
 
-export type IPendingPaymentType = "amc" | "order" | "license" | "customization" | "additional_service";
+export type IPendingPaymentType =
+  | "amc"
+  | "order"
+  | "license"
+  | "customization"
+  | "additional_service";
 
 export interface IPendingPayment {
   _id: string;
@@ -240,6 +262,12 @@ export interface OrderDetailInputs {
     end: Date;
     document: string;
   }[];
+  status_logs?: {
+    from: ORDER_STATUS_ENUM;
+    to: ORDER_STATUS_ENUM;
+    date: Date;
+    user: string;
+  }[];
   purchase_order_document?: string;
   purchase_order_number?: string;
   purchased_date: Date;
@@ -247,6 +275,11 @@ export interface OrderDetailInputs {
     product_id: string;
     amount: number;
     percentage: number;
+  }[];
+  amc_rate_history: {
+    percentage: number;
+    amount: number;
+    date: Date;
   }[];
   other_documents: {
     title: string;
@@ -275,4 +308,15 @@ export interface CustomizationDetails {
   payment_receive_date?: Date;
   payment_status?: PAYMENT_STATUS_ENUM;
   type?: CustomizationType;
+}
+
+export interface IAMCPaymentReview {
+  from_date: Date;
+  is_free_amc: boolean;
+  to_date: Date;
+  status: PAYMENT_STATUS_ENUM;
+  amc_rate_applied: number;
+  amc_rate_amount: number;
+  amc_frequency: number;
+  total_cost: number;
 }

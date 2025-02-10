@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart"
 import Typography from "@/components/ui/Typography"
 import Loading from "@/components/ui/loading"
-import { cn, formatCurrency } from "@/lib/utils"
+import { cn, formatIndianNumber } from "@/lib/utils"
 
 const renderLegend = (props: any) => {
     const { payload } = props;
@@ -74,14 +74,26 @@ const ParetoChart: React.FC<ParetoChartProps> = ({
                                 className={cn(`h-[300px] w-full mt-4`, chartConfigClassName)}
                             >
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <ComposedChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                                    <ComposedChart data={data} margin={{ top: 20, right: 50, left: 50, bottom: 20 }}>
                                         <CartesianGrid strokeDasharray="3 3" />
                                         <XAxis dataKey="name" />
-                                        <YAxis yAxisId="left" orientation="left" stroke="var(--color-revenue)" tickFormatter={(value) => `${formatCurrency(value)}`}>
-                                            <Label value="Revenue" angle={-90} position="insideLeft" style={{ textAnchor: 'middle' }} />
+                                        <YAxis
+                                            yAxisId="left"
+                                            orientation="left"
+                                            stroke="var(--color-revenue)"
+                                            tickFormatter={(value) => formatIndianNumber(value).replace('₹', '')}
+                                            width={60}
+                                        >
+                                            <Label value="Revenue" angle={-90} position="insideLeft" offset={-35} style={{ textAnchor: 'middle' }} />
                                         </YAxis>
-                                        <YAxis yAxisId="right" orientation="right" stroke="var(--color-cumulativePercentage)" tickFormatter={(value) => `${value}%`}>
-                                            <Label value="Cumulative %" angle={90} position="insideRight" style={{ textAnchor: 'middle' }} />
+                                        <YAxis
+                                            yAxisId="right"
+                                            orientation="right"
+                                            stroke="var(--color-cumulativePercentage)"
+                                            tickFormatter={(value) => `${value}%`}
+                                            width={40}
+                                        >
+                                            <Label value="Cumulative %" angle={90} position="insideRight" offset={-30} style={{ textAnchor: 'middle' }} />
                                         </YAxis>
                                         <ChartTooltip content={<CustomTooltip />} />
                                         <Legend content={renderLegend} />

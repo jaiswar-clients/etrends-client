@@ -35,8 +35,6 @@ const NewCustomization: React.FC<IProps> = ({ clientId }) => {
         }
     }
 
-
-
     return <CustomizationForm label='New Customization' clientId={clientId} handler={onSubmit} isLoading={isLoading} />
 }
 

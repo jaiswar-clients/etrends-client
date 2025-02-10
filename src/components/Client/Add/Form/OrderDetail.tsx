@@ -90,24 +90,44 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
     const [isPercentage, setIsPercentage] = useState({ amc_rate: true, customization_amc_rate: true })
     const [enableCustomization, setEnableCustomization] = useState(true)
     const [addNewModule, setAddNewModule] = useState<{ add: boolean, value: string, type?: "report" | "module", description: string, product?: string }>({ add: false, value: '', type: 'module', description: '' })
+    const [showAmcHistoryModal, setShowAmcHistoryModal] = useState(false);
+    const [amcHistoryDate, setAmcHistoryDate] = useState<Date>(new Date());
+    const [initialAmcRate, setInitialAmcRate] = useState<{ percentage: number; amount: number } | null>(null);
+    const [initialStatus, setInitialStatus] = useState<ORDER_STATUS_ENUM | null>(null);
+    const [showStatusChangeModal, setShowStatusChangeModal] = useState(false);
+    const [statusChangeDate, setStatusChangeDate] = useState<Date>(new Date());
 
     const { uploadFile, getFileNameFromUrl } = useFileUpload()
 
     const { toast } = useToast()
     const { products } = useAppSelector(state => state.user)
+    const { user } = useAppSelector(state => state.user)
+
+    const amcHistoryForm = useForm({
+        defaultValues: {
+            change_date: amcHistoryDate
+        }
+    });
+
+    const statusChangeForm = useForm({
+        defaultValues: {
+            change_date: statusChangeDate
+        }
+    });
 
     useEffect(() => {
         if (defaultValue?._id) {
             setDisableInput(true)
-
             setEnableCustomization(!!defaultValue?.is_purchased_with_order?.customization)
+            setInitialAmcRate(defaultValue.amc_rate);
+            setInitialStatus(defaultValue.status as ORDER_STATUS_ENUM);
         }
     }, [defaultValue])
 
     const defaultValues = {
         products: [],
         base_cost: 0,
-        amc_rate: {
+        amc_rate: defaultValue?.amc_rate || {
             percentage: 20,
             amount: 0,
         },
@@ -168,6 +188,8 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
         },
         purchased_date: new Date(),
         base_cost_seperation: [],
+        amc_rate_history: [],
+        status_logs: []
     }
 
     const values = useMemo(() => defaultValue ? {
@@ -189,7 +211,9 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
         other_documents: defaultValue?.other_documents || [],
         purchase_order_document: defaultValue.purchase_order_document || "",
         purchased_date: new Date(defaultValue.purchased_date || new Date()),
-        base_cost_seperation: defaultValue.base_cost_seperation || []
+        base_cost_seperation: defaultValue.base_cost_seperation || [],
+        amc_rate_history: defaultValue.amc_rate_history || [],
+        status_logs: defaultValue.status_logs || []
     } : undefined, [defaultValue])
 
 
@@ -611,9 +635,32 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
         return transformedData;
     };
 
-    const onSubmit: SubmitHandler<OrderDetailInputs & LicenseDetails> = async (data) => {
-        const transformedData = transformFormData(data);
+    const hasAmcRateChanged = () => {
+        if (!initialAmcRate) return false;
+        const currentAmcRate = form.getValues("amc_rate");
+        return initialAmcRate.percentage !== currentAmcRate.percentage ||
+            initialAmcRate.amount !== currentAmcRate.amount;
+    };
 
+    const hasStatusChanged = () => {
+        if (!initialStatus) return false;
+        const currentStatus = form.getValues("status");
+        return initialStatus !== currentStatus;
+    };
+
+    const onSubmit: SubmitHandler<OrderDetailInputs & LicenseDetails> = async (data) => {
+        if (defaultValue?._id) {
+            if (hasAmcRateChanged()) {
+                setShowAmcHistoryModal(true);
+                return;
+            }
+            if (hasStatusChanged()) {
+                setShowStatusChangeModal(true);
+                return;
+            }
+        }
+
+        const transformedData = transformFormData(data);
         if (!transformedData) return;
 
         try {
@@ -641,6 +688,213 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
             })
         }
     }
+
+    const handleAmcHistorySubmit = async () => {
+        const data = form.getValues();
+
+        // Store the old AMC rate in history
+        const transformedData = transformFormData({
+            ...data,
+            amc_rate_history: [
+                ...(data.amc_rate_history || []),
+                {
+                    percentage: initialAmcRate?.percentage || 0,
+                    amount: initialAmcRate?.amount || 0,
+                    date: amcHistoryDate
+                }
+            ]
+        });
+
+        if (!transformedData) return;
+
+        try {
+            if (defaultValue?._id && updateHandler) {
+                await updateHandler({ ...transformedData });
+                toast({
+                    variant: "success",
+                    title: "Order Updated",
+                });
+                setShowAmcHistoryModal(false);
+                setDisableInput(true);
+                // Update the initialAmcRate to the new value for future changes
+                setInitialAmcRate(data.amc_rate);
+            }
+        } catch (error: any) {
+            toast({
+                variant: "destructive",
+                title: "Error Occurred while updating the order",
+                description: error?.message || `Please try again and if error still persists contact the developer`
+            });
+        }
+    };
+
+    const handleStatusChangeSubmit = async () => {
+        const data = form.getValues();
+
+        // Store the old status in status_logs
+        const transformedData = transformFormData({
+            ...data,
+            status_logs: [
+                ...(data.status_logs || []),
+                {
+                    from: initialStatus as ORDER_STATUS_ENUM,
+                    to: data.status as ORDER_STATUS_ENUM,
+                    date: statusChangeDate,
+                    user: user?._id || ''
+                }
+            ]
+        });
+
+        if (!transformedData) return;
+
+        try {
+            if (defaultValue?._id && updateHandler) {
+                await updateHandler({ ...transformedData });
+                toast({
+                    variant: "success",
+                    title: "Order Updated",
+                });
+                setShowStatusChangeModal(false);
+                setDisableInput(true);
+                // Update the initialStatus to the new value for future changes
+                setInitialStatus(data.status as ORDER_STATUS_ENUM);
+            }
+        } catch (error: any) {
+            toast({
+                variant: "destructive",
+                title: "Error Occurred while updating the order",
+                description: error?.message || `Please try again and if error still persists contact the developer`
+            });
+        }
+    };
+
+    const AmcHistoryModal = () => (
+        <Dialog open={showAmcHistoryModal} onOpenChange={(val) => !val && setShowAmcHistoryModal(false)}>
+            <DialogContent>
+                <DialogTitle>AMC Rate Change History</DialogTitle>
+                <DialogDescription>
+                    Please specify when this AMC rate was changed from {initialAmcRate?.percentage}% to {form.getValues("amc_rate.percentage")}%
+                </DialogDescription>
+                <Form {...amcHistoryForm}>
+                    <form onSubmit={amcHistoryForm.handleSubmit(() => handleAmcHistorySubmit())}>
+                        <div className="mt-4">
+                            <FormField
+                                control={amcHistoryForm.control}
+                                name="change_date"
+                                render={({ field }) => (
+                                    <FormItem className='w-full'>
+                                        <FormLabel className="text-gray-500">Change Date</FormLabel>
+                                        <FormControl>
+                                            <DatePicker
+                                                date={field.value}
+                                                onDateChange={(date: Date | undefined) => {
+                                                    if (date) {
+                                                        setAmcHistoryDate(date);
+                                                        field.onChange(date);
+                                                    }
+                                                }}
+                                                placeholder='Select date of change'
+                                            />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <div className="mt-4">
+                                <Typography variant="h4" className="mb-2">AMC Rate Change Details:</Typography>
+                                <div className="space-y-2 text-sm">
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-medium">Old Rate:</span>
+                                        <p>Percentage: {initialAmcRate?.percentage}%</p>
+                                        <p>Amount: {formatCurrency(initialAmcRate?.amount || 0)}</p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-medium">New Rate:</span>
+                                        <p>Percentage: {form.getValues("amc_rate.percentage")}%</p>
+                                        <p>Amount: {formatCurrency(form.getValues("amc_rate.amount"))}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <DialogFooter className="mt-4">
+                            <Button type="button" variant="outline" onClick={() => setShowAmcHistoryModal(false)}>
+                                Cancel
+                            </Button>
+                            <Button type="submit">
+                                Save Changes
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </Form>
+            </DialogContent>
+        </Dialog>
+    );
+
+    const StatusChangeModal = () => (
+        <Dialog open={showStatusChangeModal} onOpenChange={(val) => !val && setShowStatusChangeModal(false)}>
+            <DialogContent>
+                <DialogTitle>Status Change History</DialogTitle>
+                <DialogDescription>
+                    Please specify when the status was changed from {initialStatus} to {form.getValues("status")}
+                </DialogDescription>
+                <Form {...statusChangeForm}>
+                    <form onSubmit={statusChangeForm.handleSubmit(() => handleStatusChangeSubmit())}>
+                        <div className="mt-4">
+                            <FormField
+                                control={statusChangeForm.control}
+                                name="change_date"
+                                render={({ field }) => (
+                                    <FormItem className='w-full'>
+                                        <FormLabel className="text-gray-500">Change Date</FormLabel>
+                                        <FormControl>
+                                            <DatePicker
+                                                date={field.value}
+                                                onDateChange={(date: Date | undefined) => {
+                                                    if (date) {
+                                                        setStatusChangeDate(date);
+                                                        field.onChange(date);
+                                                    }
+                                                }}
+                                                placeholder='Select date of change'
+                                            />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <div className="mt-4">
+                                <Typography variant="h4" className="mb-2">Status Change Details:</Typography>
+                                <div className="space-y-2 text-sm">
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-medium">Old Status:</span>
+                                        <div className='flex justify-start items-center gap-2'>
+                                            <span className={`bg-${initialStatus === ORDER_STATUS_ENUM.ACTIVE ? 'green' : 'red'}-500 w-2.5 h-2.5 rounded-full`}></span>
+                                            <span>{initialStatus}</span>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-medium">New Status:</span>
+                                        <div className='flex justify-start items-center gap-2'>
+                                            <span className={`bg-${form.getValues("status") === ORDER_STATUS_ENUM.ACTIVE ? 'green' : 'red'}-500 w-2.5 h-2.5 rounded-full`}></span>
+                                            <span>{form.getValues("status")}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <DialogFooter className="mt-4">
+                            <Button type="button" variant="outline" onClick={() => setShowStatusChangeModal(false)}>
+                                Cancel
+                            </Button>
+                            <Button type="submit">
+                                Save Changes
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </Form>
+            </DialogContent>
+        </Dialog>
+    );
 
     const getSelectedProducts = useCallback(() => {
         const selectedProducts = form.watch("products") || [];
@@ -780,7 +1034,13 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
     const finalJSX = (
         <div className="mt-1 p-2">
             {defaultValue?._id && (
-                <div className="mb-2 flex justify-end">
+                <div className="mb-2 flex justify-end gap-3">
+                    <Link href={`/amc/${defaultValue?._id}`} passHref target="_blank">
+                        <Button type='button' variant='default' className='w-36 justify-between'>
+                            <Wrench />
+                            <span>Show AMC</span>
+                        </Button>
+                    </Link>
                     <Button type='button' className={`w-36 justify-between ${!disableInput ? "bg-destructive hover:bg-destructive" : ""}`} onClick={() => setDisableInput(prev => !prev)}>
                         {disableInput ? (
                             <>
@@ -794,6 +1054,7 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
                             </>
                         )}
                     </Button>
+
                 </div>
             )}
             <Form {...form}>
@@ -1382,6 +1643,8 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
                         <Typography variant='h1'>{title ?? "Order Details"}</Typography>
                     </AccordionTrigger>
                     <AccordionContent>
+                        {AmcHistoryModal()}
+                        {StatusChangeModal()}
                         {finalJSX}
                     </AccordionContent>
                 </AccordionItem>

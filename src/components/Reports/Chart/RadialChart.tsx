@@ -18,7 +18,13 @@ import {
     Cell,
     Label
 } from "recharts";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatIndianNumber } from "@/lib/utils";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface IProps {
     data: { [key: string]: number };
@@ -67,22 +73,35 @@ const RadialChart = ({ data, title, valueToDisplay }: IProps) => {
                             ))}
                             <Label
                                 content={({ viewBox }) => {
-                                    if (viewBox && "cx" in viewBox && "cy" in viewBox) {
+                                    if (viewBox && "cx" in viewBox && "cy" in viewBox && typeof viewBox.cy === "number") {
+                                        const amount = data[valueToDisplay];
+                                        const formattedAmount = formatIndianNumber(amount);
+                                        
                                         return (
-                                            <text
-                                                x={viewBox.cx}
-                                                y={viewBox.cy}
-                                                textAnchor="middle"
-                                                dominantBaseline="middle"
-                                            >
-                                                <tspan
-                                                    x={viewBox.cx}
-                                                    y={viewBox.cy}
-                                                    className="fill-foreground text-xs font-bold"
-                                                >
-                                                    {formatCurrency(data[valueToDisplay])}
-                                                </tspan>
-                                            </text>
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <text
+                                                            x={viewBox.cx}
+                                                            y={viewBox.cy}
+                                                            textAnchor="middle"
+                                                            dominantBaseline="middle"
+                                                            className="cursor-pointer"
+                                                        >
+                                                            <tspan
+                                                                x={viewBox.cx}
+                                                                y={viewBox.cy}
+                                                                className="fill-foreground text-sm font-bold"
+                                                            >
+                                                                {formattedAmount}
+                                                            </tspan>
+                                                        </text>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>{formatCurrency(amount)}</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
                                         )
                                     }
                                     return null;

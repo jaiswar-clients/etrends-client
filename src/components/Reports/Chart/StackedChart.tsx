@@ -21,7 +21,7 @@ import {
     ChartLegendContent,
 } from "@/components/ui/chart";
 import Typography from "@/components/ui/Typography";
-import { capitalizeFirstLetter, cn, formatCurrency } from "@/lib/utils";
+import { capitalizeFirstLetter, cn, formatCurrency, formatIndianNumber } from "@/lib/utils";
 import Loading from "@/components/ui/loading";
 
 interface MultipleStackedChartProps {
@@ -105,13 +105,13 @@ const MultipleStackedChart: React.FC<MultipleStackedChartProps> = ({ data, heade
                                         <CartesianGrid vertical={false} strokeDasharray="3 3" />
                                         <XAxis
                                             dataKey="industry"
-                                            tickLine={false}
+                                            tickLine={true}
                                             tick={{ fill: "hsl(var(--foreground))" }}
                                         />
                                         <YAxis
-                                            tickLine={false}
+                                            tickLine={true}
                                             tick={{ fill: "hsl(var(--foreground))" }}
-                                            tickFormatter={(value) => formatCurrency(value)}
+                                            tickFormatter={(value) => formatIndianNumber(value).replace('₹', '')}
                                         />
                                         <Tooltip content={<CustomTooltip />} />
                                         <Legend content={<ChartLegendContent />} />

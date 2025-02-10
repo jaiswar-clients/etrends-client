@@ -17,11 +17,10 @@ import {
 import {
     ChartContainer,
     ChartTooltip,
-    ChartTooltipContent,
 } from "@/components/ui/chart";
 import Typography from "@/components/ui/Typography";
 import Loading from "@/components/ui/loading";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency, formatIndianNumber } from "@/lib/utils";
 
 const chartConfig = {
     bar1: {
@@ -47,6 +46,35 @@ interface DoubleBarChartProps {
     bar2Label: string;
     chartConfigClassName?: string;
 }
+
+const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+        return (
+            <div className="bg-background border rounded p-2 shadow-md">
+                <p className="font-bold mb-2">{label}</p>
+                <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                        <div className="bg-chart-1 rounded-sm size-2"></div>
+                        <div>
+                            <p className="text-xs text-muted-foreground">{payload[0].name}</p>
+                            <p className="text-sm font-medium">{formatCurrency(payload[0].value)}</p>
+                            <p className="text-xs text-muted-foreground">({formatIndianNumber(payload[0].value)})</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className="bg-chart-2 rounded-sm size-2"></div>
+                        <div>
+                            <p className="text-xs text-muted-foreground">{payload[1].name}</p>
+                            <p className="text-sm font-medium">{formatCurrency(payload[1].value)}</p>
+                            <p className="text-xs text-muted-foreground">({formatIndianNumber(payload[1].value)})</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+    return null;
+};
 
 const DoubleBarChart: React.FC<DoubleBarChartProps> = ({
     data,
@@ -87,7 +115,8 @@ const DoubleBarChart: React.FC<DoubleBarChartProps> = ({
                                     axisLine={true}
                                     tickLine={true}
                                     tick={{ fill: "hsl(var(--foreground))" }}
-                                    tickFormatter={(value) => `₹${value / 1000}k`}
+                                    tickFormatter={(value) => formatIndianNumber(value).replace('₹', '')}
+                                    width={60}
                                 />
                                 <Legend />
                                 <Bar
@@ -107,7 +136,7 @@ const DoubleBarChart: React.FC<DoubleBarChartProps> = ({
                                         fill: "var(--primary-foreground)",
                                         opacity: 0.1,
                                     }}
-                                    content={<ChartTooltipContent indicator="dashed" />}
+                                    content={<CustomTooltip />}
                                 />
                             </BarChart>
                         </ResponsiveContainer>

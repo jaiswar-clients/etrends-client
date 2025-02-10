@@ -8,7 +8,7 @@ import Link from 'next/link'
 import { useGetClientsQuery } from '@/redux/api/client'
 
 const Client = () => {
-    const { data, isSuccess } = useGetClientsQuery({ limit: 10, page: 1 })
+    const { data, isSuccess } = useGetClientsQuery({ limit: 10, page: 1, all: true })
     return (
         <div>
             <div className="flex items-center justify-between">

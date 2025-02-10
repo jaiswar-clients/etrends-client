@@ -8,6 +8,7 @@ import { IClientProfitOrderDetail, useGetClientByIdQuery, useGetProfitFromClient
 import { useCreateOrderMutation } from '@/redux/api/order'
 import { ClientDetailsInputs } from '@/types/client'
 import React, { useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
@@ -21,8 +22,8 @@ import {
 } from "@/components/ui/table"
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Calendar, DollarSign, Headphones, Key, Package, Plus, Wrench } from 'lucide-react'
-import { dateToHumanReadable } from '@/lib/utils'
+import { Calendar, DollarSign, Eye, Headphones, Key, Package, Plus, Wrench } from 'lucide-react'
+import { dateToHumanReadable, formatCurrency } from '@/lib/utils'
 import {
     Dialog,
     DialogContent,
@@ -35,8 +36,10 @@ import { Separator } from '@/components/ui/separator'
 interface OrderDetailModalProps {
     open: boolean
     onOpenChange: (open: boolean) => void
-    data: any // Replace 'any' with a more specific type based on your data structure
+    data: IClientProfitOrderDetail // Replace 'any' with a more specific type based on your data structure
+    amcFrequency: number
 }
+
 
 
 interface RevenueBreakdownProps {
@@ -75,7 +78,7 @@ const RevenueBreakdownTable = ({ breakdown, total }: RevenueBreakdownProps) => {
 
                 <TableRow className='bg-zinc-200 rounded'>
                     <TableHead className='text-black'>Total</TableHead>
-                    <TableHead className="text-right text-black">₹{total}</TableHead>
+                    <TableHead className="text-right text-black">{formatCurrency(total)}</TableHead>
                 </TableRow>
             </TableBody>
         </Table>
@@ -83,7 +86,7 @@ const RevenueBreakdownTable = ({ breakdown, total }: RevenueBreakdownProps) => {
 }
 
 
-export function OrderDetailModal({ open, onOpenChange, data }: OrderDetailModalProps) {
+export function OrderDetailModal({ open, onOpenChange, data, amcFrequency }: OrderDetailModalProps) {
     if (!data) return null
 
     const formatCurrency = (amount: number) => {
@@ -215,12 +218,16 @@ export function OrderDetailModal({ open, onOpenChange, data }: OrderDetailModalP
                                     <span>{formatCurrency(data.amc_details.total_cost)}</span>
                                 </div>
                                 <div className="flex justify-between items-center">
+                                    <span className="text-sm text-muted-foreground">Amc Amount:</span>
+                                    <span>{formatCurrency(data.amc_details.amount)}</span>
+                                </div>
+                                <div className="flex justify-between items-center">
                                     <span className="text-sm text-muted-foreground">Frequency:</span>
-                                    <span>{data.amc_details.amc_frequency_in_months} months</span>
+                                    <span>{amcFrequency} months</span>
                                 </div>
                                 <div className="flex justify-between items-center">
                                     <span className="text-sm text-muted-foreground">Start Date:</span>
-                                    <span>{formatDate(data.amc_details.start_date)}</span>
+                                    <span>{data.amc_details.start_date ? formatDate(data.amc_details.start_date.toString()) : "Not Provided"}</span>
                                 </div>
                                 <div className="flex justify-between items-center">
                                     <span className="text-sm text-muted-foreground">AMC Percentage:</span>
@@ -311,16 +318,17 @@ const PageWithQuery = ({ id }: { id: string }) => {
                         </Dialog>
                     </div>
                     <div className="p-3 bg-white rounded-md text-center">
-                        <p className="text-gray-600 mb-1 font-semibold">Toal AMC Collected</p>
+                        <p className="text-gray-600 mb-1 font-semibold">Total AMC Collected</p>
                         <p className="text-gray-600 mb-1 font-normal text-xs" ></p>
-                        <p className="text-2xl text-green-600 font-semibold">₹{clientProfitData?.data.total_amc_collection || 0}</p>
+                        <p className="text-2xl text-green-600 font-semibold">{formatCurrency(clientProfitData?.data.total_amc_collection || 0)}</p>
                     </div>
                 </div>
-                <div className="flex items-center justify-end">
+                <div className="flex items-center justify-end gap-1">
                     <p className="text-gray-600 font-semibold">Total: </p>
-                    <p className="text-lg text-green-600 font-semibold">₹{(clientProfitData?.data.total_profit || 0) + (clientProfitData?.data.total_amc_collection || 0)}</p>
+                    <p className="text-lg text-green-600 font-semibold">{formatCurrency((clientProfitData?.data.total_profit || 0) + (clientProfitData?.data.total_amc_collection || 0))}</p>
                 </div>
             </div>
+
 
             <div className="flex mt-5 mb-4 justify-between ">
                 <Typography variant='h2' className='text-3xl '>Orders</Typography>
@@ -340,24 +348,40 @@ const PageWithQuery = ({ id }: { id: string }) => {
                         <TableHead className='text-center'>Total Additional Service</TableHead>
                         <TableHead className='text-center'>Purchased Date</TableHead>
                         <TableHead className="text-right">Order Status</TableHead>
+                        <TableHead className="text-right">View</TableHead>
                     </TableRow>
                 </TableHeader>
 
                 <TableBody>
                     {
                         clientProfitData?.data.orders.length ? clientProfitData?.data.orders.map((order, index) => (
-                            <TableRow key={index} className='cursor-pointer' onClick={() => setOrderDetailModal({ open: true, data: order })}>
+                            <TableRow key={index} className='cursor-pointer' onClick={(e) => {
+                                // Prevent row click if clicking the eye button
+                                if ((e.target as HTMLElement).closest('.eye-button')) return;
+                                setOrderDetailModal({ open: true, data: order });
+                            }}>
                                 <TableCell className='text-left'>{index + 1}</TableCell>
                                 <TableCell className='text-center'>{order.products.map((prod) => prod.name).join(", ")}</TableCell>
                                 <TableCell className='text-center'>{order.licenses?.length}</TableCell>
                                 <TableCell className='text-center'>{order.customizations?.length}</TableCell>
                                 <TableCell className='text-center'>{order.additional_services?.length}</TableCell>
                                 <TableCell className='text-center'>{dateToHumanReadable(order.purchased_date)}</TableCell>
-
                                 <TableCell className={`text-right capitalize `}>
                                     <Badge variant={"default"} className={`text-white ${order.status === "active" ? "text-green-400 " : "text-red-400"}`}>{order.status}</Badge>
                                 </TableCell>
+                                <TableCell className='text-right'>
+                                    <Link href={`/purchases/${(order as any).id}?type=order&client=${id}`} passHref target='_blank'>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="eye-button"
+                                        >
+                                            <Eye className="h-4 w-4" />
+                                        </Button>
+                                    </Link>
+                                </TableCell>
                             </TableRow>
+
                         )) :
                             <TableRow className=''>
                                 <TableCell colSpan={7} className='text-center text-gray-600 font-medium'>No Order Purchased by the client</TableCell>
@@ -366,14 +390,20 @@ const PageWithQuery = ({ id }: { id: string }) => {
                 </TableBody>
             </Table>
 
-            <OrderDetailModal
-                open={orderDetailModal.open}
-                onOpenChange={(open) => setOrderDetailModal({ open, data: open ? orderDetailModal.data : null })}
-                data={orderDetailModal.data}
-            />
+            {
+                orderDetailModal.open && orderDetailModal.data && (
+                    <OrderDetailModal
+                        open={orderDetailModal.open}
+                        onOpenChange={(open) => setOrderDetailModal({ open, data: open ? orderDetailModal.data : null })}
+                        data={orderDetailModal.data}
+                        amcFrequency={data?.data?.amc_frequency_in_months || 12}
+                    />
+                )
+            }
 
         </div>
     )
+
 
     return (
         <div>

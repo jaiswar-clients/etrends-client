@@ -39,7 +39,17 @@ interface IProps {
     data: GetAllClientResponse[]
 }
 
-export const columns: ColumnDef<{ id: string; name: string; industry: string; products: string; dateJoined: Date; }>[] = [
+interface ClientTableData {
+    id: string;
+    name: string;
+    industry: string;
+    products: string;
+    dateJoined: Date;
+    first_order_date: Date;
+    parent_company: string | null;
+}
+
+export const columns: ColumnDef<ClientTableData>[] = [
     {
         accessorKey: 'name',
         header: ({ column }) => {
@@ -54,6 +64,11 @@ export const columns: ColumnDef<{ id: string; name: string; industry: string; pr
             )
         },
         cell: ({ row }) => <div>{row.getValue('name')}</div>,
+    },
+    {
+        accessorKey: 'parent_company',
+        header: 'Parent Company',
+        cell: ({ row }) => <div className="capitalize">{row.getValue('parent_company') || '-'}</div>,
     },
     {
         accessorKey: 'industry',
@@ -74,6 +89,15 @@ export const columns: ColumnDef<{ id: string; name: string; industry: string; pr
             return <div>{formatted}</div>
         },
     },
+    {
+        accessorKey: 'first_order_date',
+        header: 'First Purchase',
+        cell: ({ row }) => {
+            const date = row.getValue('first_order_date') as Date
+            const formatted = date.toLocaleDateString()
+            return <div>{formatted}</div>
+        },
+    }
 ]
 
 
@@ -93,6 +117,8 @@ const ClientList: React.FC<IProps> = ({ data: clientData }) => {
             industry: client.industry,
             products: client.products.join(', '),
             dateJoined: new Date(client.createdAt),
+            first_order_date: new Date(client.first_order_date),
+            parent_company: client.parent_company || null
         }))
         , [clientData])
 
@@ -112,6 +138,11 @@ const ClientList: React.FC<IProps> = ({ data: clientData }) => {
     const uniqueIndustries = useMemo(
         () => Array.from(new Set(data.map((d) => d.industry))),
         [data]
+    )
+
+    const uniqueParentCompanies = useMemo(
+        () => Array.from(new Set(clientData.map((d) => d.parent_company).filter(Boolean))),
+        [clientData]
     )
 
     const table = useReactTable({
@@ -147,6 +178,29 @@ const ClientList: React.FC<IProps> = ({ data: clientData }) => {
                     className="max-w-sm"
                 />
                 <div className="flex item-center gap-4">
+                    {/* Parent Company Dropdown */}
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" className="ml-auto capitalize">
+                                {(table.getColumn('parent_company')?.getFilterValue() as string) || 'Parent'} <ChevronDown className="ml-2 h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            {uniqueParentCompanies.map((parent) => (
+                                <DropdownMenuCheckboxItem
+                                    key={parent}
+                                    className="capitalize"
+                                    checked={table.getColumn('parent_company')?.getFilterValue() === parent}
+                                    onCheckedChange={(value) => {
+                                        table.getColumn('parent_company')?.setFilterValue(value ? parent : '')
+                                    }}
+                                >
+                                    {parent}
+                                </DropdownMenuCheckboxItem>
+                            ))}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+
                     {/* Clients Dropdown */}
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>

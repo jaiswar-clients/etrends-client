@@ -12,7 +12,7 @@ import {
     getFilteredRowModel,
     VisibilityState,
 } from '@tanstack/react-table'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
     Table,
@@ -38,6 +38,12 @@ import {
 import { useAppSelector } from '@/redux/hook'
 import { AMC_FILTER } from './AMC'
 import { DatePickerWithRange } from '../ui/daterangepicker'
+import { formatCurrency } from '@/lib/utils'
+import {
+    Pagination,
+    PaginationContent,
+    PaginationItem,
+} from "@/components/ui/pagination"
 
 const upcomingMonths = [
     {
@@ -58,9 +64,18 @@ const upcomingMonths = [
 ]
 
 interface IProps {
+    pagination: {
+        total: number;
+        limit: number;
+        page: number;
+        pages: number;
+    }
     data: TransformedAMCObject[]
     changeFilter: (filter: AMC_FILTER, options?: { upcoming: number, startDate?: string, endDate?: string }) => void
+    onPageChange: (page: number) => void
+    currentPage: number
 }
+
 
 type TableData = {
     id: string;
@@ -69,8 +84,9 @@ type TableData = {
     status: string;
     due_date: string;
     orderId: string
-    amount: number
+    amount: string
 }
+
 
 const columns: ColumnDef<TableData>[] = [
     {
@@ -103,7 +119,7 @@ const columns: ColumnDef<TableData>[] = [
     },
 ]
 
-const AMCList: React.FC<IProps> = ({ data, changeFilter }) => {
+const AMCList: React.FC<IProps> = ({ data, changeFilter, onPageChange, currentPage, pagination }) => {
     const [sorting, setSorting] = useState<SortingState>([])
     const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
     const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
@@ -122,9 +138,9 @@ const AMCList: React.FC<IProps> = ({ data, changeFilter }) => {
             client: d.client.name,
             order: d.products.map((p) => p.short_name).join(', '),
             status: d.last_payment?.status || '',
-            due_date: new Date(d.last_payment?.to_date ?? '').toLocaleDateString(),
+            due_date: new Date(d.last_payment?.from_date ?? '').toLocaleDateString(),
             orderId: d.order?._id,
-            amount: d.amount
+            amount: formatCurrency(d.amount)
         }))
     }, [data])
 
@@ -264,7 +280,7 @@ const AMCList: React.FC<IProps> = ({ data, changeFilter }) => {
                                 dateRangeSelector.show &&
                                 <DatePickerWithRange
                                     dateRange={{ from: dateRangeSelector.startDate, to: dateRangeSelector.endDate }}
-                                    onDateRangeChange={(date) => { 
+                                    onDateRangeChange={(date) => {
                                         setDateRangeSelector({
                                             ...dateRangeSelector,
                                             startDate: date?.from ?? new Date(),
@@ -272,8 +288,8 @@ const AMCList: React.FC<IProps> = ({ data, changeFilter }) => {
                                         })
 
                                         if (date?.from && date?.to) {
-                                            changeFilter(AMC_FILTER.UPCOMING, { 
-                                                upcoming: 0, 
+                                            changeFilter(AMC_FILTER.UPCOMING, {
+                                                upcoming: 0,
                                                 startDate: date.from.toISOString(),
                                                 endDate: date.to.toISOString()
                                             })
@@ -356,24 +372,46 @@ const AMCList: React.FC<IProps> = ({ data, changeFilter }) => {
             </div>
 
             <div className="flex items-center justify-end space-x-2 py-4">
-                <div className="space-x-2">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => table.previousPage()}
-                        disabled={!table.getCanPreviousPage()}
-                    >
-                        Previous
-                    </Button>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => table.nextPage()}
-                        disabled={!table.getCanNextPage()}
-                    >
-                        Next
-                    </Button>
-                </div>
+                <Pagination>
+                    <PaginationContent>
+                        <PaginationItem>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => onPageChange(currentPage - 1)}
+                                disabled={currentPage === 1}
+                                className="gap-1"
+                            >
+                                <ChevronLeft className="h-4 w-4" />
+                                Previous
+                            </Button>
+                        </PaginationItem>
+                        {Array.from({ length: pagination.pages }, (_, i) => (
+                            <PaginationItem key={i + 1}>
+                                <Button
+                                    variant={currentPage === i + 1 ? "default" : "outline"}
+                                    size="sm"
+                                    onClick={() => onPageChange(i + 1)}
+                                    className="w-8"
+                                >
+                                    {i + 1}
+                                </Button>
+                            </PaginationItem>
+                        ))}
+                        <PaginationItem>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => onPageChange(currentPage + 1)}
+                                disabled={currentPage === pagination.pages}
+                                className="gap-1"
+                            >
+                                Next
+                                <ChevronRight className="h-4 w-4" />
+                            </Button>
+                        </PaginationItem>
+                    </PaginationContent>
+                </Pagination>
             </div>
         </div>
     )

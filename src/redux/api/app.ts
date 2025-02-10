@@ -29,7 +29,16 @@ export const appApi = createApi({
         };
       },
     }),
+    getInternalTeamEmail: builder.query<
+      IResponse<{ name: string; email: string }[]>,
+      void
+    >({
+      query: () => ({
+        url: `/users/internal-team-emails`,
+        method: HTTP_REQUEST.GET,
+      }),
+    }),
   }),
 });
 
-export const { useUploadFileMutation } = appApi;
+export const { useUploadFileMutation, useGetInternalTeamEmailQuery } = appApi;

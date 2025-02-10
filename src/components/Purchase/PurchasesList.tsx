@@ -70,7 +70,11 @@ const columns: ColumnDef<Purchase>[] = [
             )
         },
     },
-
+    {
+        accessorKey: 'parent_company',
+        header: 'Parent Company',
+        enableHiding: true,
+    }
 ]
 
 interface IProps {
@@ -120,6 +124,11 @@ const PurchasesList: React.FC<IProps> = ({ data }) => {
         }
     }, [activeTabFilters])
 
+    useEffect(() => {
+        // Hide parent_company column by default
+        setColumnVisibility((prev) => ({ ...prev, parent_company: false }))
+    }, [])
+
     const purchases = useMemo(() =>
         purchasesData.map((purchase) => ({
             id: purchase.id,
@@ -128,9 +137,12 @@ const PurchasesList: React.FC<IProps> = ({ data }) => {
             products: purchase.products.map((product) => product.short_name).join(', '),
             status: purchase.status,
             client_id: purchase.client._id,
-            amc_start_date: purchase?.amc_start_date
+            amc_start_date: purchase?.amc_start_date,
+            parent_company: purchase?.client?.parent_company?.name || null
+
         })) ?? []
         , [purchasesData])
+
 
     // Extract unique clients and products
     const uniqueClients = useMemo(
@@ -149,6 +161,11 @@ const PurchasesList: React.FC<IProps> = ({ data }) => {
 
     const uniqueStatus = useMemo(
         () => Array.from(new Set(purchasesData.map((d) => d.status))),
+        [purchasesData]
+    )
+
+    const uniqueParentCompanies = useMemo(
+        () => Array.from(new Set(purchasesData.map((d) => d?.client?.parent_company?.name).filter(Boolean))),
         [purchasesData]
     )
 
@@ -193,6 +210,29 @@ const PurchasesList: React.FC<IProps> = ({ data }) => {
                         className="max-w-sm"
                     />
                     <div className="flex item-center gap-4">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" className="ml-auto capitalize">
+                                    {(table.getColumn('parent_company')?.getFilterValue() as string) || 'Parent'} <ChevronDown className="ml-2 h-4 w-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                {uniqueParentCompanies.map((parent) => (
+                                    <DropdownMenuCheckboxItem
+                                        key={parent}
+                                        className="capitalize"
+                                        checked={table.getColumn('parent_company')?.getFilterValue() === parent}
+                                        onCheckedChange={(value) => {
+                                            table.getColumn('parent_company')?.setFilterValue(value ? parent : '')
+                                        }}
+                                    >
+                                        {parent}
+                                    </DropdownMenuCheckboxItem>
+
+
+                                ))}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                         {!table.getColumn('products')?.getFilterValue() && (
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
@@ -266,6 +306,7 @@ const PurchasesList: React.FC<IProps> = ({ data }) => {
                                 ))}
                             </DropdownMenuContent>
                         </DropdownMenu>
+
 
 
                         {/* Products Dropdown */}

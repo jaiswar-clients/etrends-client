@@ -5,6 +5,12 @@ import { IResponse } from "./auth";
 import { RootState } from "../store";
 import { IProduct } from "@/types/product";
 import { IOrderObject } from "./order";
+import {
+  IAdditionalServiceObject,
+  IAMCObject,
+  ICustomizationObject,
+  ILicenceObject,
+} from "@/types/order";
 
 const authUrl = `${process.env.NEXT_PUBLIC_API_URL}/clients`;
 
@@ -16,10 +22,16 @@ export type IClientDataObject = Omit<ClientDetailsInputs, "parent_company"> & {
     id: string;
     name: string;
   };
+  first_order_date: string;
 };
 
 export type IClientProfitOrderDetail = Omit<IOrderObject, "products"> & {
   products: IProduct[];
+} & {
+  amc_details: IAMCObject & { amc_percentage: number };
+  licenses: ILicenceObject[];
+  customizations: ICustomizationObject[];
+  additional_services: IAdditionalServiceObject[];
 };
 
 export interface IClientProfit {
@@ -39,9 +51,17 @@ export interface IClientProfit {
 type IUpdateClientRequest = ClientDetailsInputs & { id: string };
 
 export type GetAllClientResponse = Pick<
-  IClientDataObject & { products: string[] },
-  "name" | "_id" | "createdAt" | "industry" | "orders" | "products"
+  IClientDataObject & { products: string[]; parent_company?: string },
+  | "name"
+  | "_id"
+  | "createdAt"
+  | "industry"
+  | "orders"
+  | "products"
+  | "first_order_date"
+  | "parent_company"
 >;
+
 
 export const clientApi = createApi({
   reducerPath: "client",

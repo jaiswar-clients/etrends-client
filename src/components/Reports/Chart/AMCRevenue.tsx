@@ -18,10 +18,9 @@ import {
     ChartLegend,
     ChartLegendContent,
     ChartTooltip,
-    ChartTooltipContent,
 } from "@/components/ui/chart";
 import Typography from "@/components/ui/Typography";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency, formatIndianNumber } from "@/lib/utils";
 import Loading from "@/components/ui/loading";
 import { IAMCAnnualBreakDown } from "@/redux/api/report";
 
@@ -32,6 +31,35 @@ interface MultipleStackedChartProps {
     description: string;
     chartConfigClassName?: string;
 }
+
+const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+        return (
+            <div className="bg-background border rounded p-2 shadow-md">
+                <p className="font-bold mb-2">{label}</p>
+                <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                        <div className="bg-chart-1 rounded-sm size-2"></div>
+                        <div>
+                            <p className="text-xs text-muted-foreground">Total Expected</p>
+                            <p className="text-sm font-medium">{formatCurrency(payload[0].value)}</p>
+                            <p className="text-xs text-muted-foreground">({formatIndianNumber(payload[0].value)})</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className="bg-chart-2 rounded-sm size-2"></div>
+                        <div>
+                            <p className="text-xs text-muted-foreground">Total Collected</p>
+                            <p className="text-sm font-medium">{formatCurrency(payload[1].value)}</p>
+                            <p className="text-xs text-muted-foreground">({formatIndianNumber(payload[1].value)})</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+    return null;
+};
 
 const AMCRevenue: React.FC<MultipleStackedChartProps> = ({ data, header, description, isLoading, chartConfigClassName }) => {
     const chartConfig = {
@@ -73,7 +101,7 @@ const AMCRevenue: React.FC<MultipleStackedChartProps> = ({ data, header, descrip
                                             axisLine={false}
                                             tickFormatter={(value) => value.slice(0, 3)}
                                         />
-                                        <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+                                        <ChartTooltip content={<CustomTooltip />} />
                                         <ChartLegend content={<ChartLegendContent />} />
                                         <Bar
                                             dataKey="totalExpected"
