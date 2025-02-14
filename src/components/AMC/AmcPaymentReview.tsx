@@ -86,7 +86,6 @@ const AmcPaymentReview: React.FC<IProps> = ({ amcId, data, handler }) => {
                 title: "Payment Updated",
                 description: "Payment has been updated successfully"
             })
-            handler()
         } catch (error: any) {
             toast({
                 variant: "destructive",
@@ -123,6 +122,7 @@ const AmcPaymentReview: React.FC<IProps> = ({ amcId, data, handler }) => {
                 description: "Payments have been added successfully"
             })
 
+            handler()
         } catch (error: any) {
             toast({
                 variant: "destructive",

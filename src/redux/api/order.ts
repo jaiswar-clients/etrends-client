@@ -263,6 +263,17 @@ export const orderApi = createApi({
       }),
       invalidatesTags: ["AMC_PAYMENT_REVIEW", "AMC_DATA"],
     }),
+    updateAMCById: builder.mutation<
+      IResponse,
+      { id: string; data: Partial<IAMCObject> }
+    >({
+      query: ({ id, data }) => ({
+        url: `/amc/${id}`,
+        method: HTTP_REQUEST.PATCH,
+        body: data,
+      }),
+      invalidatesTags: ["AMC_DATA"],
+    }),
     getAMCPaymentReview: builder.mutation<
       IResponse<IAMCPaymentReview[]>,
       string
@@ -308,4 +319,5 @@ export const {
   useUpdateAMCPaymentByIdMutation,
   useGetAMCPaymentReviewMutation,
   useAddAmcPaymentsMutation,
+  useUpdateAMCByIdMutation,
 } = orderApi;

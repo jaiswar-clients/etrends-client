@@ -1,19 +1,20 @@
 "use client"
 import { Button } from "@/components/ui/button"
-import { File, Pencil, Info, ArrowUp } from "lucide-react"
+import { File, Pencil, Info, ArrowUp, Edit, CircleX, CircleCheck } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import {
     PAYMENT_STATUS_ENUM,
     useGetAmcByOrderIdQuery,
     useGetAMCPaymentReviewMutation,
     useGetOrderByIdQuery,
+    useUpdateAMCByIdMutation,
     useUpdateOrderMutation,
 } from "@/redux/api/order"
 import Typography from "../ui/Typography"
 import OrderDetail from "../Client/Add/Form/OrderDetail"
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import type { IAMCPayment, OrderDetailInputs } from "@/types/order"
+import type { IAMCObject, IAMCPayment, OrderDetailInputs } from "@/types/order"
 import { Badge } from "../ui/badge"
 import { Dialog, DialogContent, DialogTitle } from "../ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -28,6 +29,9 @@ import {
     useReactTable,
 } from "@tanstack/react-table"
 import React from "react"
+import { useForm } from "react-hook-form"
+import { Form, FormControl, FormField, FormItem, FormLabel } from "../ui/form"
+import { Input } from "../ui/input"
 
 interface IProps {
     orderId: string
@@ -257,6 +261,18 @@ const AmcForm: React.FC<{ orderId: string; defaultValue?: IDefaultValues, amcSta
     const [enablePaymentEdit, setEnablePaymentEdit] = useState<{ payment: IAMCPayment | null, editing: boolean } | null>({ payment: null, editing: false })
     const [selectedPaymentInfo, setSelectedPaymentInfo] = useState<{ payment: IAMCPayment | null, initialAmcRate: number, show: boolean }>({ payment: null, initialAmcRate: 0, show: false })
     const [showPaymentReview, setShowPaymentReview] = useState(false)
+    const [disableInput, setDisableInput] = useState(true)
+
+    const [updateAMCByIdApi, { isLoading: isUpdateAMCByIdLoading }] = useUpdateAMCByIdMutation()
+
+    const form = useForm<Pick<IAMCObject, "amount">>({
+        defaultValues: {
+            amount: defaultValue?.amc_amount || 0
+        },
+        values:{
+            amount: defaultValue?.amc_amount || 0
+        }
+    })
 
     const handleEdit = (payment: IAMCPayment) => {
         setEnablePaymentEdit({ payment, editing: true })
@@ -270,34 +286,108 @@ const AmcForm: React.FC<{ orderId: string; defaultValue?: IDefaultValues, amcSta
         })
     }
 
+    const onSubmit = async (data: Pick<IAMCObject, "amount">) => {
+        try {
+            await updateAMCByIdApi({ id: defaultValue?._id || "", data: { amount: Number(data.amount) } }).unwrap()
+            toast({
+                variant: "success",
+                title: "AMC Updated",
+            })
+            setDisableInput(true)
+        } catch (error: any) {
+            toast({
+                variant: "destructive",
+                title: "Error Occured while updating AMC",
+                description: error?.message || `Please try again and if error still persist contact the developer`,
+            })
+        }
+    }
+
     return (
         <div className="p-4 mt-4">
             <div className="flex items-center justify-between">
                 <Typography variant="h2">AMC Details</Typography>
+                {defaultValue?._id && (
+                    <Button 
+                        type='button' 
+                        className={`w-36 justify-between ${!disableInput ? "bg-destructive hover:bg-destructive" : ""}`} 
+                        onClick={() => setDisableInput(prev => !prev)}
+                    >
+                        {disableInput ? (
+                            <>
+                                <Edit />
+                                <span>Start Editing</span>
+                            </>
+                        ) : (
+                            <>
+                                <CircleX />
+                                <span>Close Editing</span>
+                            </>
+                        )}
+                    </Button>
+                )}
             </div>
 
             <div className="space-y-8 mt-5">
-                <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <Typography variant="h4" className="text-gray-500">AMC Start Date</Typography>
-                        <Typography variant="p">{amcStartDate ? new Date(amcStartDate).toLocaleDateString() : '-'}</Typography>
-                    </div>
-                    <div>
-                        <Typography variant="h4" className="text-gray-500">Total Cost</Typography>
-                        <Typography variant="p">₹{defaultValue?.total_cost.toLocaleString()}</Typography>
-                    </div>
-                </div>
+                <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)}>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <Typography variant="h4" className="text-gray-500">AMC Start Date</Typography>
+                                <Typography variant="p">{amcStartDate ? new Date(amcStartDate).toLocaleDateString() : '-'}</Typography>
+                            </div>
+                            <div>
+                                <Typography variant="h4" className="text-gray-500">Total Cost</Typography>
+                                <Typography variant="p">₹{defaultValue?.total_cost.toLocaleString()}</Typography>
+                            </div>
+                        </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <Typography variant="h4" className="text-gray-500">AMC Percentage</Typography>
-                        <Typography variant="p">{defaultValue?.amc_percentage}%</Typography>
-                    </div>
-                    <div>
-                        <Typography variant="h4" className="text-gray-500">AMC Amount</Typography>
-                        <Typography variant="p">₹{defaultValue?.amc_amount.toLocaleString()}</Typography>
-                    </div>
-                </div>
+                        <div className="grid grid-cols-2 gap-4 mt-4">
+                            <div>
+                                <Typography variant="h4" className="text-gray-500">AMC Percentage</Typography>
+                                <Typography variant="p">{defaultValue?.amc_percentage}%</Typography>
+                            </div>
+                            <div>
+                                <FormField
+                                    control={form.control}
+                                    name="amount"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>AMC Amount</FormLabel>
+                                            <FormControl>
+                                                <Input {...field} disabled={disableInput} />
+                                            </FormControl>
+                                        </FormItem>
+                                    )}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end mt-4">
+                            {!disableInput && (
+                                <div className="flex gap-2">
+                                    <Button 
+                                        type="button" 
+                                        variant="outline" 
+                                        onClick={() => {
+                                            form.reset()
+                                            setDisableInput(true)
+                                        }}
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button 
+                                        type="submit" 
+                                        loading={{ isLoading: isUpdateAMCByIdLoading, loader: "tailspin" }}
+                                    >
+                                        <CircleCheck className="mr-2" />
+                                        Save changes
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
+                    </form>
+                </Form>
 
                 <div className="space-y-6">
                     <Typography variant="h2" className="mb-4">Payments</Typography>

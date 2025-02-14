@@ -102,10 +102,13 @@ export interface IOrderObject {
     end: Date;
     document: string;
   }[];
+  amc_amount?: number;
   purchase_order_document: string;
   purchase_order_number?: string;
   cost_per_license: number;
   licenses_with_base_price: number;
+  training_and_implementation_cost?: number;
+  amc_rate_change_frequency_in_years?: number;
   base_cost_seperation?: {
     product_id: string;
     amount: number;
@@ -120,7 +123,6 @@ export interface IOrderObject {
   deleted: boolean;
   createdAt: string;
   updatedAt: string;
-  customization: ICustomizationObject;
   customizations?: ICustomizationObject[];
   licenses?: ILicenceObject[];
   is_purchased_with_order: {
@@ -271,6 +273,8 @@ export interface OrderDetailInputs {
   purchase_order_document?: string;
   purchase_order_number?: string;
   purchased_date: Date;
+  training_and_implementation_cost?: number;
+  amc_rate_change_frequency_in_years?: number;
   base_cost_seperation?: {
     product_id: string;
     amount: number;
@@ -286,7 +290,6 @@ export interface OrderDetailInputs {
     url: string;
   }[];
   amc_start_date?: Date;
-  customization: CustomizationDetails;
 }
 
 export interface LicenseDetails {

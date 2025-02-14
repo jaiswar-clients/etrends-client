@@ -1,19 +1,14 @@
 "use client"
 
 import * as React from "react"
-import { format, isValid } from "date-fns"
-import { CalendarIcon } from 'lucide-react'
-import { DateRange } from "react-day-picker"
-
+import { format, isValid, parse } from "date-fns"
 import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { Calendar } from "@/components/ui/calendar"
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from "@/components/ui/popover"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Input } from "@/components/ui/input"
+
+interface DateRange {
+    from: Date | undefined
+    to: Date | undefined
+}
 
 interface DatePickerWithRangeProps extends React.HTMLAttributes<HTMLDivElement> {
     dateRange: DateRange | undefined
@@ -27,117 +22,111 @@ export function DatePickerWithRange({
     dateRange,
     onDateRangeChange,
     disabled,
-    placeholder = "Pick a date range",
 }: DatePickerWithRangeProps) {
-    const [month, setMonth] = React.useState(() => dateRange?.from || new Date())
+    const [fromInput, setFromInput] = React.useState("")
+    const [toInput, setToInput] = React.useState("")
 
-    // Update month when dateRange changes externally
+    // Update inputs when dateRange changes externally
     React.useEffect(() => {
         if (dateRange?.from) {
-            setMonth(dateRange.from)
+            setFromInput(format(dateRange.from, "MM/dd/yyyy"))
+        } else {
+            setFromInput("")
+        }
+        if (dateRange?.to) {
+            setToInput(format(dateRange.to, "MM/dd/yyyy"))
+        } else {
+            setToInput("")
         }
     }, [dateRange])
 
-    const years = Array.from({ length: 121 }, (_, i) => 2025 - i)
-    const months = [
-        "January", "February", "March", "April", "May", "June",
-        "July", "August", "September", "October", "November", "December"
-    ]
+    const isValidDateFormat = (value: string) => {
+        // Check if the input matches MM/DD/YYYY format
+        return /^(0[1-9]|1[0-2])\/(0[1-9]|[12]\d|3[01])\/\d{4}$/.test(value);
+    }
 
-    const handleYearChange = (year: string) => {
-        const newDate = new Date(month)
-        newDate.setFullYear(parseInt(year, 10))
-        if (isValid(newDate)) {
-            setMonth(newDate)
+    const validateAndUpdateDates = (fromDate: string, toDate: string) => {
+        // Only proceed if at least one date is in valid format
+        const isFromValid = fromDate ? isValidDateFormat(fromDate) : true;
+        const isToValid = toDate ? isValidDateFormat(toDate) : true;
+
+        if (!isFromValid || !isToValid) return;
+
+        const parsedFromDate = fromDate ? parse(fromDate, "MM/dd/yyyy", new Date()) : undefined
+        const parsedToDate = toDate ? parse(toDate, "MM/dd/yyyy", new Date()) : undefined
+
+        if (fromDate && !isValid(parsedFromDate)) return
+        if (toDate && !isValid(parsedToDate)) return
+
+        // Only update if we have both valid dates
+        if (parsedFromDate && parsedToDate) {
+            // Ensure from date is not after to date
+            if (parsedFromDate > parsedToDate) return
+
+            onDateRangeChange({
+                from: parsedFromDate,
+                to: parsedToDate
+            })
+        } else if (!fromDate && !toDate) {
+            // Clear the date range if both inputs are empty
+            onDateRangeChange(undefined)
         }
     }
 
-    const handleMonthChange = (monthIndex: string) => {
-        const newDate = new Date(month)
-        newDate.setMonth(parseInt(monthIndex, 10))
-        if (isValid(newDate)) {
-            setMonth(newDate)
+    const formatDateInput = (value: string) => {
+        // Remove any non-digit characters
+        const digits = value.replace(/\D/g, '');
+        
+        // Format as MM/DD/YYYY
+        if (digits.length <= 2) {
+            return digits;
+        } else if (digits.length <= 4) {
+            return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+        } else {
+            return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4, 8)}`;
+        }
+    }
+
+    const handleInputChange = (value: string, isFrom: boolean) => {
+        // Format the input value
+        const formattedValue = formatDateInput(value);
+        
+        if (isFrom) {
+            setFromInput(formattedValue)
+            // Only validate if we have a complete date format or empty string
+            if (formattedValue === '' || isValidDateFormat(formattedValue)) {
+                validateAndUpdateDates(formattedValue, toInput)
+            }
+        } else {
+            setToInput(formattedValue)
+            // Only validate if we have a complete date format or empty string
+            if (formattedValue === '' || isValidDateFormat(formattedValue)) {
+                validateAndUpdateDates(fromInput, formattedValue)
+            }
         }
     }
 
     return (
-        <div className={cn("grid gap-2", className)}>
-            <Popover>
-                <PopoverTrigger asChild>
-                    <Button
-                        id="date"
-                        variant={"outline"}
-                        disabled={disabled}
-                        className={cn(
-                            "w-full max-w-[300px] justify-start text-left font-normal",
-                            !dateRange && "text-muted-foreground"
-                        )}
-                    >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {dateRange?.from ? (
-                            dateRange.to ? (
-                                <>
-                                    {format(dateRange.from, "LLL dd, y")} -{" "}
-                                    {format(dateRange.to, "LLL dd, y")}
-                                </>
-                            ) : (
-                                format(dateRange.from, "LLL dd, y")
-                            )
-                        ) : (
-                            <span>{placeholder}</span>
-                        )}
-                    </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="end">
-                    <div className="flex gap-4 p-2">
-                        <div className="space-y-2 w-full">
-                            <Select
-                                onValueChange={handleYearChange}
-                                defaultValue={month.getFullYear().toString()}
-                                disabled={disabled}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select Year" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {years.map((year) => (
-                                        <SelectItem key={year} value={year.toString()}>
-                                            {year}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <Select
-                                onValueChange={handleMonthChange}
-                                defaultValue={month.getMonth().toString()}
-                                disabled={disabled}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select Month" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {months.map((month, index) => (
-                                        <SelectItem key={month} value={index.toString()}>
-                                            {month}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-                    <Calendar
-                        initialFocus
-                        mode="range"
-                        defaultMonth={month}
-                        selected={dateRange}
-                        onSelect={onDateRangeChange}
-                        month={month}
-                        onMonthChange={setMonth}
-                        numberOfMonths={2}
-                        disabled={disabled}
-                    />
-                </PopoverContent>
-            </Popover>
+        <div className={cn("flex gap-2 items-center", className)}>
+            <Input
+                type="text"
+                placeholder="MM/DD/YYYY"
+                value={fromInput}
+                onChange={(e) => handleInputChange(e.target.value, true)}
+                disabled={disabled}
+                className="w-[140px]"
+                maxLength={10}
+            />
+            <span className="flex items-center">-</span>
+            <Input
+                type="text"
+                placeholder="MM/DD/YYYY"
+                value={toInput}
+                onChange={(e) => handleInputChange(e.target.value, false)}
+                disabled={disabled}
+                className="w-[140px]"
+                maxLength={10}
+            />
         </div>
     )
 }

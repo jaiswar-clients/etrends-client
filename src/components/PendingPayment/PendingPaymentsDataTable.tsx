@@ -81,6 +81,7 @@ export default function DataTableWithModalAndPagination({ data, pagination, page
         return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
     }
 
+    console.log(updatePayment)
     const onSubmit = async (data: { payment_receive_date: Date, status: PAYMENT_STATUS_ENUM }) => {
         if (!data.payment_receive_date) {
             toast({

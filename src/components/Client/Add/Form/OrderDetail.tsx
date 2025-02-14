@@ -24,9 +24,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import DatePicker from '@/components/ui/datepicker'
 import { CircleCheck, CirclePlus, CircleX, Edit, File, IndianRupee, Wrench, X } from 'lucide-react'
 import { Separator } from '@radix-ui/react-separator'
-import { Switch } from '@/components/ui/switch'
 import { useToast } from '@/hooks/use-toast'
-import { CustomizationType, IPaymentTerm, LicenseDetails, OrderDetailInputs } from '@/types/order'
+import { IPaymentTerm, LicenseDetails, OrderDetailInputs } from '@/types/order'
 import { useAppSelector } from '@/redux/hook'
 import { IOrderObject, PAYMENT_STATUS_ENUM } from '@/redux/api/order'
 import {
@@ -37,10 +36,7 @@ import {
 } from "@/components/ui/tooltip"
 import Link from 'next/link'
 import { IProduct } from '@/types/product'
-import { ModuleData, ModulesCombobox } from '@/components/Purchase/Form/CustomizationForm'
-import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from '@/components/ui/dialog'
-import { useUpdateProductByIdMutation } from '@/redux/api/product'
 import { Card, CardContent } from '@/components/ui/card'
 import { useFileUpload } from '@/hooks/useFileUpload'
 import { formatCurrency } from '@/lib/utils'
@@ -82,14 +78,12 @@ type RenderFormFieldNameType = keyof OrderDetailInputs | keyof LicenseDetails |
     `payment_terms.${number}.${keyof OrderDetailInputs['payment_terms'][number]}` |
     `agreements.${number}.${keyof OrderDetailInputs['agreements'][number]}` |
     `base_cost_seperation.${number}.${'product_id' | 'percentage' | 'amount'}`
-    | 'customization.cost' | `customization.modules.${number}` | `other_documents.${number}.url` | `other_documents.${number}.title`
+    | `other_documents.${number}.url` | `other_documents.${number}.title`
 
 
 const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updateHandler, removeAccordion, defaultOpen = false, isLoading = false }) => {
     const [disableInput, setDisableInput] = useState(false);
-    const [isPercentage, setIsPercentage] = useState({ amc_rate: true, customization_amc_rate: true })
-    const [enableCustomization, setEnableCustomization] = useState(true)
-    const [addNewModule, setAddNewModule] = useState<{ add: boolean, value: string, type?: "report" | "module", description: string, product?: string }>({ add: false, value: '', type: 'module', description: '' })
+    const [isPercentage, setIsPercentage] = useState({ amc_rate: true })
     const [showAmcHistoryModal, setShowAmcHistoryModal] = useState(false);
     const [amcHistoryDate, setAmcHistoryDate] = useState<Date>(new Date());
     const [initialAmcRate, setInitialAmcRate] = useState<{ percentage: number; amount: number } | null>(null);
@@ -118,7 +112,6 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
     useEffect(() => {
         if (defaultValue?._id) {
             setDisableInput(true)
-            setEnableCustomization(!!defaultValue?.is_purchased_with_order?.customization)
             setInitialAmcRate(defaultValue.amc_rate);
             setInitialStatus(defaultValue.status as ORDER_STATUS_ENUM);
         }
@@ -132,6 +125,7 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
             amount: 0,
         },
         status: ORDER_STATUS_ENUM.ACTIVE,
+        training_and_implementation_cost: 0,
         payment_terms: defaultValue?.payment_terms ?
             defaultValue.payment_terms.map(term => ({
                 ...term,
@@ -173,21 +167,11 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
         total_cost: 0,
         license: "",
         cost_per_license: 0,
+        amc_rate_change_frequency_in_years: 0,
         invoice_document: "",
         total_license: 0,
         licenses_with_base_price: 0,
-        customization: {
-            cost: 0,
-            amc_rate: {
-                percentage: 0,
-                amount: 0
-            },
-            modules: [],
-            type: "module" as CustomizationType,
-            reports: []
-        },
         purchased_date: new Date(),
-        base_cost_seperation: [],
         amc_rate_history: [],
         status_logs: []
     }
@@ -197,23 +181,18 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
         base_cost: defaultValue.base_cost,
         amc_rate: defaultValue.amc_rate,
         status: defaultValue.status as ORDER_STATUS_ENUM,
+        training_and_implementation_cost: defaultValue.training_and_implementation_cost || 0,
         payment_terms: defaultValue.payment_terms.map(term => ({ ...term, invoice_date: term.invoice_date ? new Date(term.invoice_date) : undefined, payment_receive_date: term.payment_receive_date ? new Date(term.payment_receive_date) : undefined })),
         agreements: defaultValue.agreements,
         cost_per_license: defaultValue.cost_per_license || 0,
         licenses_with_base_price: defaultValue.licenses_with_base_price || 0,
-        customization: {
-            cost: defaultValue?.customization?.cost || 0,
-            modules: defaultValue?.customization?.modules || [],
-            reports: defaultValue?.customization?.reports || [],
-            type: defaultValue?.customization?.type || ("module" as CustomizationType),
-        },
         amc_start_date: new Date(defaultValue.amc_start_date),
         other_documents: defaultValue?.other_documents || [],
         purchase_order_document: defaultValue.purchase_order_document || "",
         purchased_date: new Date(defaultValue.purchased_date || new Date()),
-        base_cost_seperation: defaultValue.base_cost_seperation || [],
         amc_rate_history: defaultValue.amc_rate_history || [],
-        status_logs: defaultValue.status_logs || []
+        amc_rate_change_frequency_in_years: defaultValue.amc_rate_change_frequency_in_years || 0,
+        status_logs: defaultValue.status_logs || [],
     } : undefined, [defaultValue])
 
 
@@ -245,23 +224,6 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
     }
 
     const agreementsData = form.watch("agreements")
-
-    // Create useFieldArray for customization modules
-    const customizationModulesFields = form.watch("customization.modules") || []
-    const reportFields = form.watch("customization.reports") || []
-    const appendCustomizationModule = (value: string, type: "module" | "report" = "module") => {
-        if (type === "module") form.setValue("customization.modules", [...customizationModulesFields, value])
-        else form.setValue("customization.reports", [...(reportFields || []), value])
-    }
-
-    const [updateProductByIdApi] = useUpdateProductByIdMutation()
-
-    const removeCustomizationModule = (index: number, type: "module" | "report" = "module") => {
-        if (type === "module")
-            form.setValue("customization.modules", customizationModulesFields.filter((_, i) => i !== index))
-        else
-            form.setValue("customization.reports", (reportFields || []).filter((_, i) => i !== index))
-    }
 
     const addPaymentTerm = () => {
         appendPaymentTerm({
@@ -316,9 +278,7 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
         const currentAmcRate = form.getValues("amc_rate");
         const amcPercentage = currentAmcRate.percentage || 0;
 
-        const customizationCost = form.getValues("customization.cost") || 0;
-
-        const amcTotalCost = (customizationCost || 0) + baseCost;
+        const amcTotalCost = baseCost;
         const calculatedAmount = (amcTotalCost / 100) * amcPercentage;
 
         form.setValue("amc_rate.amount", calculatedAmount);
@@ -327,13 +287,9 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
     const recalculateAMCRate = (value: number, field: 'percentage' | 'amount') => {
         const baseCost = form.getValues("base_cost");
 
-        const customizationCost = form.getValues("customization.cost") || 0;
-
         if (!baseCost) return;
-
-
         // Calculate total cost including base cost, license cost and customization
-        const amcTotalCost = (customizationCost || 0) + baseCost;
+        const amcTotalCost = baseCost;
 
         if (field === 'percentage') {
             const percentage = value || 0;
@@ -351,39 +307,20 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
     const calculateTotalCost = () => {
         // Use parseFloat to handle string inputs and ensure numeric values
         const baseCost = parseFloat(form.getValues("base_cost")?.toString() || "0");
-        const customizationCost = parseFloat(form.getValues("customization.cost")?.toString() || "0");
 
         // Handle negative values by using Math.max
         const sanitizedBaseCost = Math.max(0, baseCost);
 
-        const sanitizedCustomizationCost = Math.max(0, customizationCost);
-
-
-        const totalCost = sanitizedBaseCost + sanitizedCustomizationCost;
+        const totalCost = sanitizedBaseCost;
 
         // Return 0 if calculation results in NaN or negative value
         return isNaN(totalCost) ? 0 : Math.max(0, totalCost);
     }
 
-    const amcRateAfterCustomization = () => {
-        const baseCost = parseFloat(form.getValues("base_cost")?.toString() || "0");
-        const customizationCost = parseFloat(form.getValues("customization.cost")?.toString() || "0");
-
-        const amcRate = form.getValues("amc_rate");
-
-
-        const amcTotalCost = (customizationCost || 0) + baseCost;
-        const amcRateAfterCustomization = (amcTotalCost * amcRate.percentage) / 100;
-
-        return isNaN(amcRateAfterCustomization) ? 0 : Math.max(0, amcRateAfterCustomization);
-    }
-
     useEffect(() => {
         form.setValue("total_cost", calculateTotalCost());
-        form.setValue("amc_rate.amount", amcRateAfterCustomization());
     }, [
         form.watch("base_cost"),
-        form.watch("customization.cost")
     ]);
 
     const getSignedUrl = async (file: File, field: keyof OrderDetailInputs) => {
@@ -420,7 +357,7 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
             // Helper to determine which handler to use
             const getHandler = () => {
                 if (fieldName.includes('base_cost_seperation')) return 'base_cost_seperation';
-                if (fieldName.startsWith('amc_rate')) return 'amc_rate';
+                if (fieldName.startsWith('amc_rate.')) return 'amc_rate';
                 if (fieldName.includes('payment_terms')) return 'payment_terms';
                 return fieldName;
             };
@@ -624,12 +561,10 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
                 document: date.document || ""
             })),
             amc_start_date: data.amc_start_date ? new Date(data.amc_start_date) : undefined,
-            customization: {
-                cost: Number(data.customization?.cost) || 0,
-                modules: data.customization?.modules || []
-            },
+            training_and_implementation_cost: Number(data.training_and_implementation_cost) || 0,
             cost_per_license: Number(data.cost_per_license) || 0,
-            licenses_with_base_price: Number(data.licenses_with_base_price) || 0
+            licenses_with_base_price: Number(data.licenses_with_base_price) || 0,
+            amc_rate_change_frequency_in_years: Number(data.amc_rate_change_frequency_in_years) || 0
         };
 
         return transformedData;
@@ -901,25 +836,30 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
         return products.filter(product => selectedProducts.includes(product._id))
     }, [form, products]);
 
-
     const getProductById = (id: string) => products.find(product => product._id === id);
 
     const onProductSelectHandler = (selectedProducts: IProduct[]) => {
-        // Add new selected products
+        // Clear existing base cost separation
+        const currentFields = form.getValues("base_cost_seperation") || [];
+
+        // Create a map of existing product IDs for quick lookup
+        const existingProductIds = new Set(currentFields.map(field => field.product_id));
+
+        // Add only new selected products
         selectedProducts.forEach(product => {
-            if (!baseCostSeparationFields.some(baseCostSeperation => baseCostSeperation.product_id === product._id)) {
+            if (!existingProductIds.has(product._id)) {
                 appendBaseCostSeperation({
                     product_id: product._id,
                     amount: 0,
                     percentage: 0
-                })
+                });
             }
         });
 
         // Remove products that are no longer selected
-        const selectedProductIds = selectedProducts.map(p => p._id);
-        baseCostSeparationFields.forEach((field, index) => {
-            if (!selectedProductIds.includes(field.product_id)) {
+        const selectedProductIds = new Set(selectedProducts.map(p => p._id));
+        currentFields.forEach((field, index) => {
+            if (!selectedProductIds.has(field.product_id)) {
                 removebaseCostSeparation(index);
             }
         });
@@ -927,88 +867,6 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
         // if license is selected then add the license details
         if (selectedProducts.some(product => product.does_have_license)) {
             form.setValue("licenses_with_base_price", selectedProducts.find(product => product.does_have_license)?.default_number_of_licenses || 0)
-        }
-    }
-
-    const createCustomizationModuleComboboxData = () => {
-        const type = form.watch("customization.type") || "module"
-
-        let data: ModuleData[] = []
-
-        if (type === "report") {
-            data = []
-            // Create combobox data for modules from the selected products
-            const selectedProducts = getSelectedProducts();
-            selectedProducts.map(product => {
-                const reports = product.reports || [];
-                data.push(...reports.map(report => ({
-                    name: `${product.name} - ${report.name}`,
-                    key: report.key,
-                    description: report.description
-                })))
-            });
-        } else {
-            // Create combobox data for modules from the selected products
-            const selectedProducts = getSelectedProducts();
-            selectedProducts.map(product => {
-                const modules = product.modules || [];
-                data.push(...modules.map(mod => ({
-                    name: `${product.name} - ${mod.name}`,
-                    key: mod.key,
-                    description: mod.description
-                })))
-            });
-        }
-        return data
-    }
-
-    const getSelectModules = () => {
-        const type = form.watch("customization.type") || "module"
-        if (type === "module") {
-            const selectedModules = form.watch("customization.modules") || []
-            const allModules: ModuleData[] = []
-            products.forEach(product => {
-                const modules = product.modules || []
-                allModules.push(...modules)
-            })
-            return allModules.filter(mod => selectedModules.includes(mod.key))
-        }
-        if (type === "report") {
-            const selectedReports = form.watch("customization.reports") || []
-            const allReports: ModuleData[] = []
-            products.forEach(product => {
-                const reports = product.reports || []
-                allReports.push(...reports)
-            })
-            return allReports.filter(report => selectedReports.includes(report.key))
-        }
-
-        return []
-
-    }
-
-    const addCustomModuleInProduct = async (type: "module" | "report" = "module") => {
-        if (!addNewModule.product || !addNewModule.add || !addNewModule.value) return
-        const selectedProduct = products.find(p => p._id === addNewModule.product)
-        if (!selectedProduct) return
-        const key = type === "report" ? "reports" : "modules"
-        try {
-            const newModule = { key: addNewModule.value.toString().replaceAll(" ", "-"), name: addNewModule.value, description: addNewModule.description }
-            await updateProductByIdApi({
-                id: selectedProduct?._id,
-                data: {
-                    [key]: [...selectedProduct[key], newModule]
-                }
-            }).unwrap()
-            appendCustomizationModule(newModule.key, type)
-            setAddNewModule({ add: false, value: "", description: "" })
-        } catch (error) {
-            console.log(error)
-            toast({
-                variant: 'destructive',
-                title: 'Error',
-                description: 'Error adding module'
-            })
         }
     }
 
@@ -1156,6 +1014,11 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
                                         </FormItem>
                                     )}
                                 />
+                                {renderFormField("amc_rate_change_frequency_in_years", "AMC Rate Change Frequency (Years)", "Enter frequency in years", "number")}
+                            </div>
+                            <div className="md:flex items-start gap-4 w-full mt-4">
+                                {renderFormField("training_and_implementation_cost", "Training and Implementation Cost", "Training and Implementation Cost", "number")}
+
                                 <FormField
                                     control={form.control}
                                     name="status"
@@ -1205,11 +1068,9 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
                                         </FormItem>
                                     )}
                                 />
-                                <div className=" hidden md:block w-full "></div>
                             </div>
                         </CardContent>
                     </Card>
-
                     {getSelectedProducts().some(product => product.does_have_license) && (
                         <Card>
                             <CardContent className='p-6'>
@@ -1221,153 +1082,11 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
                                         {renderFormField("licenses_with_base_price", "Auditor Licenses with Base Price", "Total number of Licenses ", "number")}
                                         {renderFormField("cost_per_license", "Additional Cost Per Licencse", "Additional Cost Per Licencse", "number")}
                                     </div>
-                                    {/* <div className="mt-4">
-                                        {renderFormField("licenses_with_base_price", "Licenses with Base Price", "Licenses with Base Price", "number")}
-                                    </div> */}
-                                    {/* <div className="flex justify-end mt-4">
-                                        <Card className='items-center'>
-                                            <CardContent className="flex items-center gap-2 justify-center p-3">
-                                                <Typography variant='h3'>Total Cost</Typography>
-                                                <Typography variant='p' className='flex items-center '>
-                                                    <IndianRupee className='text-green-600 size-5' />
-                                                    <span className="font-bold">{millify((form.watch("cost_per_license") || 0) * (form.watch("total_license") || 0), { precision: 2 })}</span>
-                                                </Typography>
-                                            </CardContent>
-                                        </Card>
-                                    </div> */}
                                 </div>
 
                             </CardContent>
                         </Card>
                     )}
-
-                    <Card>
-                        <CardContent className='p-6'>
-                            <div className="">
-                                <div className="flex items-center justify-between md:justify-start gap-4">
-                                    <Typography variant='h3'>Customization</Typography>
-                                    <Switch checked={enableCustomization} onCheckedChange={(val) => setEnableCustomization(val)} disabled={disableInput} />
-                                </div>
-                                {
-                                    enableCustomization && (
-                                        <div className="mt-2">
-                                            <div className="md:flex items-start gap-4 w-full">
-                                                {renderFormField("customization.cost", "Cost of Customization", "Enter customization cost which will add up in the Total Cost", "number")}
-                                                <FormItem className='w-full relative'>
-                                                    <FormLabel className='text-gray-500'>AMC Rate After Customozation</FormLabel>
-                                                    <FormControl>
-                                                        <Input
-                                                            type='number'
-                                                            value={amcRateAfterCustomization()}
-                                                            disabled
-                                                            className="bg-white !m-0"
-                                                        />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            </div>
-                                            <div className="mt-2">
-                                                <FormField
-                                                    control={form.control}
-                                                    name="customization.type"
-                                                    render={({ field }) => (
-                                                        <FormItem className='md:w-1/2 mb-4 md:mb-0'>
-                                                            <FormLabel className='text-gray-500'>Type</FormLabel>
-                                                            <FormControl>
-                                                                <Select onValueChange={field.onChange}>
-                                                                    <SelectTrigger className="w-full bg-white" disabled={disableInput}>
-                                                                        <SelectValue placeholder={`${(field.value || 'module').charAt(0).toUpperCase() + (field.value || 'module').slice(1)}`} />
-                                                                    </SelectTrigger>
-                                                                    <SelectContent className='bg-white'>
-                                                                        {
-                                                                            Object.values(CustomizationType).map((type) => (
-                                                                                <SelectItem value={type} key={type}>
-                                                                                    {type.charAt(0).toUpperCase() + type.slice(1)}
-                                                                                </SelectItem>
-                                                                            ))
-                                                                        }
-
-                                                                    </SelectContent>
-                                                                </Select>
-                                                            </FormControl>
-                                                            <FormMessage />
-                                                        </FormItem>
-                                                    )}
-                                                />
-                                            </div>
-                                            <div className="mt-2 md:mt-4">
-                                                <ModulesCombobox
-                                                    data={createCustomizationModuleComboboxData()}
-                                                    customizationModulesFields={form.watch("customization.type") === "report" ? reportFields : customizationModulesFields}
-                                                    disableInput={disableInput}
-                                                    appendCustomizationModule={appendCustomizationModule}
-                                                    removeCustomizationModule={removeCustomizationModule}
-                                                    setAddNewModule={setAddNewModule}
-                                                    type={form.watch("customization.type") || "module"}
-                                                />
-                                                <div className="mt-3 md:w-1/2 w-11/12 max-h-96 overflow-y-auto">
-                                                    {
-                                                        getSelectModules()?.map((mod, index) => (
-                                                            <div className="mb-4 gap-2 relative" key={mod.key}>
-                                                                <Typography variant='h3' className='text-sm font-bold'>{mod.name}</Typography>
-                                                                <Typography variant='p' className='text-xs !text-gray-800 font-medium'>{mod.description || "No Description"}</Typography>
-                                                                <div className="absolute top-0 right-0 cursor-pointer" onClick={() => !disableInput && removeCustomizationModule(index, form.watch("customization.type") || "module")}>
-                                                                    <X className={disableInput ? "text-gray-500" : "text-black"} />
-                                                                </div>
-                                                            </div>
-                                                        ))
-                                                    }
-                                                </div>
-                                                <Dialog open={addNewModule.add} onOpenChange={(val) => !val && setAddNewModule({ add: false, value: "", description: "" })}>
-                                                    <DialogContent>
-                                                        <DialogTitle>Add New Module</DialogTitle>
-                                                        <DialogDescription className='!mt-0'>This module will automatically will be added in the products</DialogDescription>
-                                                        {
-                                                            addNewModule.add && (
-                                                                <div className="">
-                                                                    <FormItem className='w-full mb-4 md:mb-0'>
-                                                                        <FormControl>
-                                                                            <Select onValueChange={(value) => {
-                                                                                setAddNewModule(prev => ({ ...prev, product: value as string }))
-                                                                            }}>
-                                                                                <SelectTrigger className="w-full bg-white" disabled={disableInput}>
-                                                                                    <SelectValue placeholder={"Select a Product"} />
-                                                                                </SelectTrigger>
-                                                                                <SelectContent>
-                                                                                    {
-                                                                                        products?.map((product) => (
-                                                                                            <SelectItem value={String(product._id)} key={product._id}>
-                                                                                                {String(product.name)}
-                                                                                            </SelectItem>
-                                                                                        ))
-                                                                                    }
-                                                                                </SelectContent>
-                                                                            </Select>
-                                                                        </FormControl>
-                                                                        <FormMessage />
-                                                                    </FormItem>
-                                                                    <Input placeholder='Title' className='mt-3' onChange={(e) => setAddNewModule(prev => ({ ...prev, value: e.target.value }))} />
-                                                                    <Textarea placeholder='Description' className='mt-3 resize-none' rows={4} onChange={(e) => setAddNewModule(prev => ({ ...prev, description: e.target.value }))} />
-
-                                                                    <DialogFooter className='mt-4'>
-                                                                        <Button variant='default' className='!p-3 ' type='button' onClick={() => addCustomModuleInProduct(addNewModule.type)}>
-                                                                            Create
-                                                                        </Button>
-                                                                    </DialogFooter>
-
-                                                                </div>
-                                                            )
-                                                        }
-                                                    </DialogContent>
-                                                </Dialog>
-                                            </div>
-                                        </div>
-                                    )
-                                }
-                            </div>
-                        </CardContent>
-                    </Card>
-
                     <div className="mt-6">
                         <div className="">
                             <Card>
@@ -1509,7 +1228,7 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
                                             <Wrench className="w-6 h-6 text-blue-500" />
                                         </div>
                                         <p className="text-3xl font-bold text-gray-800">
-                                            {formatCurrency(form.watch("amc_rate.amount"))}
+                                            {formatCurrency(defaultValue?.amc_amount || form.watch("amc_rate.amount"))}
                                         </p>
                                     </CardContent>
                                 </Card>
