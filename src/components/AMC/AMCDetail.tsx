@@ -62,16 +62,10 @@ const columns = (onEdit: (payment: IAMCPayment) => void, onInfo: (payment: IAMCP
         header: "Sr No.",
         cell: ({ row, table }) => {
             const index = table.getRowModel().rows.findIndex(r => r.id === row.id)
-            const is_free_amc = row.original.is_free_amc
 
             return (
                 <div className="flex items-center gap-2">
                     {index + 1}
-                    {is_free_amc && (
-                        <Badge variant={"default"}>
-                            {index === 0 ? "Free AMC" : "Subsequent Payment"}
-                        </Badge>
-                    )}
                 </div>
             )
         }

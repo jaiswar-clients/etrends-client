@@ -153,7 +153,6 @@ export interface IAMCPayment {
   purchase_order_document: string;
   invoice_number: string;
   invoice_date?: Date;
-  is_free_amc?: boolean;
   invoice_document?: string;
   amc_rate_applied?: number;
   amc_rate_amount?: number;
@@ -315,7 +314,6 @@ export interface CustomizationDetails {
 
 export interface IAMCPaymentReview {
   from_date: Date;
-  is_free_amc: boolean;
   to_date: Date;
   status: PAYMENT_STATUS_ENUM;
   amc_rate_applied: number;

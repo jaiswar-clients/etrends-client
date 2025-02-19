@@ -81,7 +81,8 @@ const ClientDetail: React.FC<IProps> = ({ handler, disable = false, defaultValue
             client_id: clientId?.data || "",
             point_of_contacts: [{ name: '', email: '', phone: '', designation: '', opt_for_email_reminder: false }],
             address: "",
-            amc_frequency_in_months: 12
+            amc_frequency_in_months: 12,
+            remark: ""
         },
         ...(defaultValue && {
             values: {
@@ -94,7 +95,8 @@ const ClientDetail: React.FC<IProps> = ({ handler, disable = false, defaultValue
                 client_id: defaultValue?.client_id || "",
                 point_of_contacts: defaultValue?.point_of_contacts || [],
                 address: defaultValue?.address || "",
-                amc_frequency_in_months: defaultValue?.amc_frequency_in_months || 12
+                amc_frequency_in_months: defaultValue?.amc_frequency_in_months || 12,
+                remark: defaultValue?.remark || ""
             }
         })
     })
@@ -293,7 +295,19 @@ const ClientDetail: React.FC<IProps> = ({ handler, disable = false, defaultValue
 
                         </FormItem>
                     </div>
-
+                    <FormField
+                        control={form.control}
+                        name="remark"
+                        render={({ field }) => (
+                            <FormItem className='w-full mb-3'>
+                                <FormLabel className='text-gray-500'>Remark</FormLabel>
+                                <FormControl>
+                                    <Textarea disabled={disableInput} className='bg-white resize-none' placeholder="Client Remark" {...field} rows={5} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
                     <div className="mt-6">
                         <Typography variant='h4'>Point of Contacts(POC)</Typography>
 
@@ -329,6 +343,9 @@ const ClientDetail: React.FC<IProps> = ({ handler, disable = false, defaultValue
                             </Button>
                         </div>
                     </div>
+
+
+
                     <div className="flex justify-end">
                         <Button type="submit" disabled={disableInput} loading={{ isLoading, loader: "tailspin" }} className='w-full md:w-36 '>
                             <CircleCheck />

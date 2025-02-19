@@ -537,8 +537,7 @@ const CustomizationForm: React.FC<ICustomationProps> = ({ clientId, handler, isL
             </div>
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 mt-5">
-                    <div className="grid md:grid-cols-2 gap-6 items-start">
-                        {renderFormField('title', 'Title', 'Enter Title', 'text')}
+                    <div className="grid md:grid-cols-2 gap-6 items-end">
                         <FormField
                             control={form.control}
                             name="product_id"
@@ -570,7 +569,7 @@ const CustomizationForm: React.FC<ICustomationProps> = ({ clientId, handler, isL
                                 </FormItem>
                             )}
                         />
-
+                        {renderFormField('title', 'Title', 'Enter Title', 'text')}
                         <FormField
                             control={form.control}
                             name="cost"

@@ -43,7 +43,6 @@ const AmcPaymentReview: React.FC<IProps> = ({ amcId, data, handler }) => {
         defaultValues: {
             from_date: new Date(),
             to_date: new Date(),
-            is_free_amc: false,
             status: PAYMENT_STATUS_ENUM.PENDING,
             amc_rate_applied: 0,
             amc_rate_amount: 0,
@@ -100,7 +99,6 @@ const AmcPaymentReview: React.FC<IProps> = ({ amcId, data, handler }) => {
         form.reset({
             from_date: new Date(payment.from_date),
             to_date: new Date(payment.to_date),
-            is_free_amc: payment.is_free_amc,
             status: payment.status,
             amc_rate_applied: payment.amc_rate_applied,
             amc_rate_amount: payment.amc_rate_amount,

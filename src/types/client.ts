@@ -17,6 +17,7 @@ export type ClientDetailsInputs = {
   gst_number: string;
   address: string;
   industry: string;
+  remark?: string;
   amc_frequency_in_months: number;
   vendor_id?: string;
   client_id?: string;

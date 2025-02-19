@@ -86,7 +86,7 @@ const AMCPayment = ({ payment, amcId, onClose }: IProps) => {
         name: keyof IPaymentForm,
         label: string,
         placeholder: string,
-        type: "text" | "file" = "text",
+        type: "text" | "file" | "number" = "text",
     ) => {
         const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
             const file = e.target.files?.[0]
@@ -130,7 +130,14 @@ const AMCPayment = ({ payment, amcId, onClose }: IProps) => {
                                 <Input
                                     type={type}
                                     {...field}
-                                    value={typeof field.value === 'string' ? field.value : ''}
+                                    value={type === "number" ? (field.value as number || '') : (field.value as string || '')}
+                                    onChange={(e) => {
+                                        if (type === "number") {
+                                            field.onChange(e.target.valueAsNumber || 0)
+                                        } else {
+                                            field.onChange(e.target.value)
+                                        }
+                                    }}
                                     className="bg-white"
                                     placeholder={placeholder}
                                 />
@@ -268,6 +275,27 @@ const AMCPayment = ({ payment, amcId, onClose }: IProps) => {
                             </FormItem>
                         )}
                     />
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                    {renderInput(
+                        "amc_rate_applied",
+                        "AMC Rate (%)",
+                        "Enter AMC Rate",
+                        "number"
+                    )}
+                    {renderInput(
+                        "amc_rate_amount",
+                        "AMC Rate Amount",
+                        "Enter AMC Rate Amount",
+                        "number"
+                    )}
+                    {renderInput(
+                        "total_cost",
+                        "Total Cost",
+                        "Enter Total Cost",
+                        "number"
+                    )}
                 </div>
 
                 <div className="flex justify-end gap-2">

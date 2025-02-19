@@ -289,7 +289,10 @@ const PageWithQuery = ({ id }: { id: string }) => {
     if (!data) return null
 
     const FinacialSummary = (
-        <div className=" p-5">
+        <div className="px-5">
+            <Typography variant='h2' className='text-3xl '>Client Remark</Typography>
+            <p className="text-gray-600 mb-4 font-normal text-sm">{data?.data.remark || "No Remark"}</p>
+
             <Typography variant='h2' className='text-3xl mb-4'>Financial Summary</Typography>
             <div className="bg-gray-50 p-4 rounded-lg shadow-sm">
                 <div className="grid grid-cols-2 gap-4">

@@ -22,7 +22,7 @@ import ProductDropdown from '@/components/common/ProductDropdown'
 import { AmountInput } from '@/components/ui/AmountInput'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import DatePicker from '@/components/ui/datepicker'
-import { CircleCheck, CirclePlus, CircleX, Edit, File, IndianRupee, Wrench, X } from 'lucide-react'
+import { CircleCheck, CirclePlus, CircleX, Edit, File, IndianRupee, Wrench, X, History } from 'lucide-react'
 import { Separator } from '@radix-ui/react-separator'
 import { useToast } from '@/hooks/use-toast'
 import { IPaymentTerm, LicenseDetails, OrderDetailInputs } from '@/types/order'
@@ -90,6 +90,7 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
     const [initialStatus, setInitialStatus] = useState<ORDER_STATUS_ENUM | null>(null);
     const [showStatusChangeModal, setShowStatusChangeModal] = useState(false);
     const [statusChangeDate, setStatusChangeDate] = useState<Date>(new Date());
+    const [showStatusLogsModal, setShowStatusLogsModal] = useState(false);
 
     const { uploadFile, getFileNameFromUrl } = useFileUpload()
 
@@ -831,6 +832,57 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
         </Dialog>
     );
 
+    const StatusLogsModal = () => (
+        <Dialog open={showStatusLogsModal} onOpenChange={(val) => !val && setShowStatusLogsModal(false)}>
+            <DialogContent>
+                <DialogTitle>Status Change History</DialogTitle>
+                <DialogDescription>
+                    History of all status changes for this order
+                </DialogDescription>
+                <div className="mt-4 space-y-4">
+                    {(form.watch("status_logs") || []).map((log, index) => (
+                        <Card key={index}>
+                            <CardContent className="p-4">
+                                <div className="flex flex-col space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-medium">From:</span>
+                                            <div className="flex items-center gap-2">
+                                                <span className={`w-2 h-2 rounded-full ${log.from === ORDER_STATUS_ENUM.ACTIVE ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                                                <span className="capitalize">{log.from}</span>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-medium">To:</span>
+                                            <div className="flex items-center gap-2">
+                                                <span className={`w-2 h-2 rounded-full ${log.to === ORDER_STATUS_ENUM.ACTIVE ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                                                <span className="capitalize">{log.to}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="text-sm text-gray-500">
+                                        Changed on: {new Date(log.date).toLocaleDateString('en-US', {
+                                            year: 'numeric',
+                                            month: 'long',
+                                            day: 'numeric',
+                                            hour: '2-digit',
+                                            minute: '2-digit'
+                                        })}
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
+                <DialogFooter>
+                    <Button type="button" onClick={() => setShowStatusLogsModal(false)}>
+                        Close
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+
     const getSelectedProducts = useCallback(() => {
         const selectedProducts = form.watch("products") || [];
         return products.filter(product => selectedProducts.includes(product._id))
@@ -847,7 +899,7 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
 
         // Add only new selected products
         selectedProducts.forEach(product => {
-            if (!existingProductIds.has(product._id)) {
+            if (!existingProductIds.has(product?._id)) {
                 appendBaseCostSeperation({
                     product_id: product._id,
                     amount: 0,
@@ -1024,7 +1076,18 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
                                     name="status"
                                     render={({ field }) => (
                                         <FormItem className='w-full relative'>
-                                            <FormLabel className='text-gray-500'>Order Status</FormLabel>
+                                            <FormLabel className='text-gray-500 flex items-center gap-3'>Order Status
+                                                {defaultValue?.status_logs && defaultValue?.status_logs?.length > 0 && (
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        className="mt-2 flex items-center gap-2"
+                                                        onClick={() => setShowStatusLogsModal(true)}
+                                                    >
+                                                        <History className="w-4 h-4" />
+                                                        View Status History
+                                                    </Button>
+                                                )}</FormLabel>
                                             <FormControl>
                                                 <Select defaultValue={ORDER_STATUS_ENUM.ACTIVE} onValueChange={field.onChange} disabled={disableInput}>
                                                     <SelectTrigger className="w-full bg-white">
@@ -1053,6 +1116,7 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
                                         </FormItem>
                                     )}
                                 />
+
                             </div>
                             <div className="flex items-start gap-4 w-full mt-4">
                                 <FormField
@@ -1364,6 +1428,7 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
                     <AccordionContent>
                         {AmcHistoryModal()}
                         {StatusChangeModal()}
+                        {StatusLogsModal()}
                         {finalJSX}
                     </AccordionContent>
                 </AccordionItem>
