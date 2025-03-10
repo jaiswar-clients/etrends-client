@@ -302,7 +302,7 @@ const Email: React.FC<IProps> = ({ id, emailIndex }) => {
                         <SelectGroup>
                           {internalEmailsApiRes?.data?.map((email) => (
                             <SelectItem key={email.email} value={email.email}>
-                              {email.name} ({email.email})
+                              {email.email}
                             </SelectItem>
                           ))}
                         </SelectGroup>

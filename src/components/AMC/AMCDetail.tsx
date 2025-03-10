@@ -73,12 +73,32 @@ const columns = (onEdit: (payment: IAMCPayment) => void, onInfo: (payment: IAMCP
     {
         accessorKey: "from_date",
         header: "From Date",
-        cell: ({ row }) => new Date(row.getValue("from_date")).toLocaleDateString()
+        cell: ({ row }) => {
+            const date = row.getValue('from_date') as string
+            const formattedDate = new Date(date).toLocaleDateString('en-US', {
+                month: 'short',
+                day: '2-digit',
+                year: 'numeric'
+            });
+            return (
+                <span>{formattedDate}</span>
+            )
+        },
     },
     {
         accessorKey: "to_date",
         header: "To Date",
-        cell: ({ row }) => new Date(row.getValue("to_date")).toLocaleDateString()
+        cell: ({ row }) => {
+            const date = row.getValue('to_date') as string
+            const formattedDate = new Date(date).toLocaleDateString('en-US', {
+                month: 'short',
+                day: '2-digit',
+                year: 'numeric'
+            });
+            return (
+                <span>{formattedDate}</span>
+            )
+        },
     },
     {
         accessorKey: "status",
@@ -328,7 +348,11 @@ const AmcForm: React.FC<{ orderId: string; defaultValue?: IDefaultValues, amcSta
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <Typography variant="h4" className="text-gray-500">AMC Start Date</Typography>
-                                <Typography variant="p">{amcStartDate ? new Date(amcStartDate).toLocaleDateString() : '-'}</Typography>
+                                <Typography variant="p">{amcStartDate ? new Date(amcStartDate).toLocaleDateString('en-US', {
+                                    month: 'short',
+                                    day: '2-digit',
+                                    year: 'numeric'
+                                }) : '-'}</Typography>
                             </div>
                             <div>
                                 <Typography variant="h4" className="text-gray-500">Total Cost</Typography>

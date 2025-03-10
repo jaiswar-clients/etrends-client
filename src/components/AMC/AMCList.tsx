@@ -115,18 +115,45 @@ const columns: ColumnDef<TableData>[] = [
     },
     {
         accessorKey: 'due_date',
-        header: 'Due Date',
+        header: ({ column }) => {
+            return (
+                <Button
+                    variant="ghost"
+                    onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+                >
+                    Due Date
+                    <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+            )
+        },
+        cell: ({ row }) => {
+            const date = row.getValue('due_date') as string
+            const formattedDate = new Date(date).toLocaleDateString('en-US', {
+                month: 'short',
+                day: '2-digit',
+                year: 'numeric'
+            });
+            return (
+                <span>{formattedDate}</span>
+            )
+        },
     },
 ]
 
 const AMCList: React.FC<IProps> = ({ data, changeFilter, onPageChange, currentPage, pagination }) => {
-    const [sorting, setSorting] = useState<SortingState>([])
+    const [sorting, setSorting] = useState<SortingState>([
+        {
+            id: 'due_date',
+            desc: true
+        }
+    ])
     const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
     const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
     const [rowSelection, setRowSelection] = useState({})
-    const [dateRangeSelector, setDateRangeSelector] = useState({ show: false, startDate: new Date(), endDate: new Date() })
+    const [dateRangeSelector, setDateRangeSelector] = useState({ show: false, startDate: new Date(new Date().setFullYear(new Date().getFullYear() - 1)), endDate: new Date() })
 
     const [showUpcomingMonthsFilter, setShowUpcomingMonthsFilter] = useState(true)
+    const [activeFilter, setActiveFilter] = useState<AMC_FILTER>(AMC_FILTER.UPCOMING)
 
     const router = useRouter()
 
@@ -171,12 +198,21 @@ const AMCList: React.FC<IProps> = ({ data, changeFilter, onPageChange, currentPa
             columnVisibility,
             rowSelection,
         },
+        enableSorting: true,
+        initialState: {
+            sorting: [
+                {
+                    id: 'due_date',
+                    desc: true
+                }
+            ]
+        }
     })
 
     return (
         <div>
             <Typography variant="h1">AMC List</Typography>
-            <div className="flex items-center justify-between py-4">
+            <div className="flex items-center justify-between py-4 flex-wrap gap-3">
                 <Input
                     placeholder="Filter clients..."
                     value={(table.getColumn('client')?.getFilterValue() as string) ?? ''}
@@ -185,7 +221,7 @@ const AMCList: React.FC<IProps> = ({ data, changeFilter, onPageChange, currentPa
                     }
                     className="max-w-sm"
                 />
-                <div className="flex item-center gap-4">
+                <div className="flex item-center gap-4 ">
                     {/* Clients Dropdown */}
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -246,11 +282,11 @@ const AMCList: React.FC<IProps> = ({ data, changeFilter, onPageChange, currentPa
                         showUpcomingMonthsFilter &&
                         <div className="flex items-center gap-2">
                             <Select defaultValue={'1'} onValueChange={(value: string) => {
-                                changeFilter(AMC_FILTER.UPCOMING, { upcoming: Number(value) })
                                 if (value === 'custom') {
                                     setDateRangeSelector({ show: true, startDate: new Date(new Date().setFullYear(new Date().getFullYear() - 1)), endDate: new Date() })
                                 } else {
-                                    setDateRangeSelector({ show: false, startDate: new Date(), endDate: new Date() })
+                                    setDateRangeSelector({ show: false, startDate: new Date(new Date().setFullYear(new Date().getFullYear() - 1)), endDate: new Date() })
+                                    changeFilter(AMC_FILTER.UPCOMING, { upcoming: Number(value) })
                                 }
                             }}>
                                 <SelectTrigger className="w-[180px] capitalize">
@@ -262,7 +298,6 @@ const AMCList: React.FC<IProps> = ({ data, changeFilter, onPageChange, currentPa
                                             key={month.id}
                                             className="cursor-pointer capitalize"
                                             value={month.value.toString()}
-                                            onClick={() => changeFilter(AMC_FILTER.UPCOMING, { upcoming: month.value })}
                                         >
                                             {month.name}
                                         </SelectItem>
@@ -270,7 +305,6 @@ const AMCList: React.FC<IProps> = ({ data, changeFilter, onPageChange, currentPa
                                     <SelectItem
                                         className="cursor-pointer capitalize"
                                         value="custom"
-                                        onClick={() => setDateRangeSelector({ show: true, startDate: new Date(new Date().setFullYear(new Date().getFullYear() - 1)), endDate: new Date() })}
                                     >
                                         Custom
                                     </SelectItem>
@@ -300,16 +334,57 @@ const AMCList: React.FC<IProps> = ({ data, changeFilter, onPageChange, currentPa
                         </div>
                     }
 
+                    {
+                        // Date Range Selector for non-upcoming filters
+                        !showUpcomingMonthsFilter && activeFilter !== AMC_FILTER.UPCOMING &&
+                        <div className="flex items-center gap-2">
+                            <Typography variant="p">Date Range:</Typography>
+                            <DatePickerWithRange
+                                dateRange={{ from: dateRangeSelector.startDate, to: dateRangeSelector.endDate }}
+                                onDateRangeChange={(date) => {
+                                    setDateRangeSelector({
+                                        ...dateRangeSelector,
+                                        startDate: date?.from ?? new Date(),
+                                        endDate: date?.to ?? new Date()
+                                    })
+
+                                    if (date?.from && date?.to) {
+                                        changeFilter(activeFilter, {
+                                            upcoming: 0,
+                                            startDate: date.from.toISOString(),
+                                            endDate: date.to.toISOString()
+                                        })
+                                    }
+                                }}
+                            />
+                        </div>
+                    }
+
                     <Select
+                        value={activeFilter}
                         defaultValue={AMC_FILTER.UPCOMING}
                         onValueChange={(value: AMC_FILTER) => {
                             // reset all filters
                             table.resetColumnFilters()
-                            changeFilter(value)
+                            setActiveFilter(value)
+
                             if (value === AMC_FILTER.UPCOMING) {
                                 setShowUpcomingMonthsFilter(true)
+                                changeFilter(value, { upcoming: 1 })
                             } else {
                                 setShowUpcomingMonthsFilter(false)
+                                // For any other filter, show the date range selector
+                                setDateRangeSelector({
+                                    show: true,
+                                    startDate: new Date(new Date().setFullYear(new Date().getFullYear() - 1)),
+                                    endDate: new Date()
+                                })
+                                // Apply the filter with default date range (last year to now)
+                                changeFilter(value, {
+                                    upcoming: 0,
+                                    startDate: new Date(new Date().setFullYear(new Date().getFullYear() - 1)).toISOString(),
+                                    endDate: new Date().toISOString()
+                                })
                             }
                         }}
                     >

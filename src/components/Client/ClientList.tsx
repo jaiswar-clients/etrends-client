@@ -167,7 +167,7 @@ const ClientList: React.FC<IProps> = ({ data: clientData }) => {
 
     return (
         <div className="w-full">
-            <div className="flex items-center justify-between py-4">
+            <div className="flex items-center justify-between py-4 flex-wrap gap-3">
                 <Input
                     placeholder="Filter companies..."
                     value={(table.getColumn('name')?.getFilterValue() as string) ?? ''}

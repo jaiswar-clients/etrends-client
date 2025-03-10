@@ -199,7 +199,7 @@ const PurchasesList: React.FC<IProps> = ({ data }) => {
     return (
         <div>
             <div className="w-full">
-                <div className="flex items-center justify-between py-4">
+                <div className="flex items-center justify-between py-4 flex-wrap gap-3">
                     <Input
                         placeholder="Filter companies..."
                         value={(table.getColumn('client')?.getFilterValue() as string) ?? ''}
