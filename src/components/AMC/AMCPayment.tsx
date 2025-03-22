@@ -34,6 +34,7 @@ const AMCPayment = ({ payment, amcId, onClose }: IProps) => {
             from_date: new Date(payment.from_date),
             to_date: new Date(payment.to_date),
             received_date: payment.received_date ? new Date(payment.received_date) : undefined,
+            performa_date: payment.performa_date ? new Date(payment.performa_date) : undefined,
             purchase_order_number: payment.purchase_order_number || "",
             purchase_order_document: payment.purchase_order_document || "",
             invoice_document: payment.invoice_document || "",
@@ -43,9 +44,8 @@ const AMCPayment = ({ payment, amcId, onClose }: IProps) => {
             amc_rate_amount: payment.amc_rate_amount,
             total_cost: payment.total_cost,
             _id: payment._id
-        },
+        }
     })
-
 
     const onSubmit = async (data: IPaymentForm) => {
         if (!payment._id) {
@@ -57,6 +57,56 @@ const AMCPayment = ({ payment, amcId, onClose }: IProps) => {
             return
         }
 
+        // Validation based on status
+        const currentStatus = data.status as PAYMENT_STATUS_ENUM;
+        
+        // Validate required fields based on status
+        if (currentStatus === PAYMENT_STATUS_ENUM.PERFORMA || 
+            currentStatus === PAYMENT_STATUS_ENUM.INVOICE || 
+            currentStatus === PAYMENT_STATUS_ENUM.PAID) {
+            if (!data.performa_date) {
+                toast({
+                    variant: "destructive",
+                    title: "Validation Error",
+                    description: "Performa date is required when status is Performa or beyond."
+                });
+                return;
+            }
+        }
+
+        if (currentStatus === PAYMENT_STATUS_ENUM.INVOICE || 
+            currentStatus === PAYMENT_STATUS_ENUM.PAID) {
+            if (!data.invoice_date) {
+                toast({
+                    variant: "destructive",
+                    title: "Validation Error",
+                    description: "Invoice date is required when status is Invoice or beyond."
+                });
+                return;
+            }
+            
+            if (!data.invoice_document) {
+                toast({
+                    variant: "destructive",
+                    title: "Validation Error",
+                    description: "Invoice document is required when status is Invoice or beyond."
+                });
+                return;
+            }
+        }
+
+        if (currentStatus === PAYMENT_STATUS_ENUM.PAID) {
+            if (!data.received_date) {
+                toast({
+                    variant: "destructive",
+                    title: "Validation Error",
+                    description: "Payment receive date is required when status is Paid."
+                });
+                return;
+            }
+        }
+
+       
         try {
             await updateAMCPayment({
                 id: amcId,
@@ -65,6 +115,7 @@ const AMCPayment = ({ payment, amcId, onClose }: IProps) => {
                     ...data,
                     received_date: data.received_date || undefined,
                     invoice_date: data.invoice_date || undefined,
+                    performa_date: data.performa_date || undefined,
                 }
             }).unwrap()
 
@@ -150,10 +201,36 @@ const AMCPayment = ({ payment, amcId, onClose }: IProps) => {
         )
     }
 
+    const paymentStatusColor = (status: PAYMENT_STATUS_ENUM) => {
+        if (status === PAYMENT_STATUS_ENUM.PAID) return "bg-green-700"
+        if (status === PAYMENT_STATUS_ENUM.PENDING) return "bg-red-600"
+        if (status === PAYMENT_STATUS_ENUM.PERFORMA) return "bg-yellow-600"
+        if (status === PAYMENT_STATUS_ENUM.INVOICE) return "bg-blue-600"
+    }
+
+    // Check if a field is required based on current status
+    const isFieldRequired = (fieldName: string) => {
+        const currentStatus = form.getValues('status') as PAYMENT_STATUS_ENUM;
+        
+        if (fieldName === 'performa_date') {
+            return [PAYMENT_STATUS_ENUM.PERFORMA, PAYMENT_STATUS_ENUM.INVOICE, PAYMENT_STATUS_ENUM.PAID].includes(currentStatus);
+        }
+        
+        if (fieldName === 'invoice_date' || fieldName === 'invoice_document') {
+            return [PAYMENT_STATUS_ENUM.INVOICE, PAYMENT_STATUS_ENUM.PAID].includes(currentStatus);
+        }
+        
+        if (fieldName === 'received_date') {
+            return currentStatus === PAYMENT_STATUS_ENUM.PAID;
+        }
+        
+        return false;
+    }
+
     return (
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <FormField
                         control={form.control}
                         name="from_date"
@@ -182,7 +259,7 @@ const AMCPayment = ({ payment, amcId, onClose }: IProps) => {
                     />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <FormField
                         control={form.control}
                         name="status"
@@ -198,17 +275,10 @@ const AMCPayment = ({ payment, amcId, onClose }: IProps) => {
                                             .filter(([key]) => isNaN(Number(key)))
                                             .map(([key, value]: [string, PAYMENT_STATUS_ENUM]) => (
                                                 <SelectItem value={value} key={key} className="capitalize">
-                                                    {value === PAYMENT_STATUS_ENUM.PAID ? (
-                                                        <div className="flex items-center">
-                                                            <div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div>
-                                                            {value}
-                                                        </div>
-                                                    ) : (
-                                                        <div className="flex items-center">
-                                                            <div className="w-2 h-2 rounded-full bg-red-500 mr-2"></div>
-                                                            <span className="capitalize">{value}</span>
-                                                        </div>
-                                                    )}
+                                                    <div className="flex items-center">
+                                                        <div className={`w-2 h-2 rounded-full ${paymentStatusColor(value)} mr-2`}></div>
+                                                        <span className="capitalize">{value}</span>
+                                                    </div>
                                                 </SelectItem>
                                             ))}
                                     </SelectContent>
@@ -219,10 +289,12 @@ const AMCPayment = ({ payment, amcId, onClose }: IProps) => {
                     />
                     <FormField
                         control={form.control}
-                        name="received_date"
+                        name="performa_date"
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel className="text-gray-500">Payment Receive Date</FormLabel>
+                                <FormLabel className={`text-gray-500 ${isFieldRequired('performa_date') ? 'after:content-["*"] after:text-red-500 after:ml-0.5' : ''}`}>
+                                    Performa Date
+                                </FormLabel>
                                 <FormControl>
                                     <DatePicker
                                         date={field.value || undefined}
@@ -236,7 +308,7 @@ const AMCPayment = ({ payment, amcId, onClose }: IProps) => {
                     />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-6">
                     {renderInput(
                         "purchase_order_number",
                         "Purchase Order Number",
@@ -250,20 +322,55 @@ const AMCPayment = ({ payment, amcId, onClose }: IProps) => {
                     )}
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
-                    {renderInput(
-                        "invoice_document",
-                        "Invoice Document",
-                        "Upload Invoice Document",
-                        "file"
-                    )}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <FormField
+                        control={form.control}
+                        name="invoice_document"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel className={`text-gray-500 ${isFieldRequired('invoice_document') ? 'after:content-["*"] after:text-red-500 after:ml-0.5' : ''}`}>
+                                    Invoice Document
+                                </FormLabel>
+                                <FormControl>
+                                    <div className="space-y-2">
+                                        {field.value && (
+                                            <div className="flex items-center gap-2">
+                                                <Link href={field.value as string} target="_blank" passHref>
+                                                    <Button variant="outline" type="button">
+                                                        <File className="w-4 h-4 mr-2" />
+                                                        View File
+                                                    </Button>
+                                                </Link>
+                                                <span className="text-sm text-gray-500">{getFileNameFromUrl(field.value as string)}</span>
+                                            </div>
+                                        )}
+                                        <Input
+                                            type="file"
+                                            onChange={async (e) => {
+                                                const file = e.target.files?.[0]
+                                                if (file) {
+                                                    const filename = await uploadFile(file)
+                                                    field.onChange(filename)
+                                                }
+                                            }}
+                                            className="bg-white"
+                                            placeholder="Upload Invoice Document"
+                                        />
+                                    </div>
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
                     {renderInput("invoice_number", "Invoice Number", "Enter Invoice Number")}
                     <FormField
                         control={form.control}
                         name="invoice_date"
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel className="text-gray-500">Invoice Date</FormLabel>
+                                <FormLabel className={`text-gray-500 ${isFieldRequired('invoice_date') ? 'after:content-["*"] after:text-red-500 after:ml-0.5' : ''}`}>
+                                    Invoice Date
+                                </FormLabel>
                                 <FormControl>
                                     <DatePicker
                                         date={field.value || undefined}
@@ -277,7 +384,7 @@ const AMCPayment = ({ payment, amcId, onClose }: IProps) => {
                     />
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {renderInput(
                         "amc_rate_applied",
                         "AMC Rate (%)",
@@ -296,6 +403,28 @@ const AMCPayment = ({ payment, amcId, onClose }: IProps) => {
                         "Enter Total Cost",
                         "number"
                     )}
+                </div>
+
+                <div className="grid grid-cols-1 gap-6">
+                    <FormField
+                        control={form.control}
+                        name="received_date"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel className={`text-gray-500 ${isFieldRequired('received_date') ? 'after:content-["*"] after:text-red-500 after:ml-0.5' : ''}`}>
+                                    Payment Receive Date
+                                </FormLabel>
+                                <FormControl>
+                                    <DatePicker
+                                        date={field.value || undefined}
+                                        onDateChange={(date) => field.onChange(date)}
+                                        placeholder="Pick a Date"
+                                    />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
                 </div>
 
                 <div className="flex justify-end gap-2">

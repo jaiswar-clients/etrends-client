@@ -31,6 +31,15 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
+import {
+    Pagination,
+    PaginationContent,
+    PaginationEllipsis,
+    PaginationItem,
+    PaginationLink,
+    PaginationNext,
+    PaginationPrevious,
+} from "@/components/ui/pagination"
 import { GetAllClientResponse } from '@/redux/api/client'
 import { useRouter } from 'next/navigation'
 import { useAppSelector } from '@/redux/hook'
@@ -330,25 +339,93 @@ const ClientList: React.FC<IProps> = ({ data: clientData }) => {
                     </TableBody>
                 </Table>
             </div>
-            <div className="flex items-center justify-end space-x-2 py-4">
-                <div className="space-x-2">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => table.previousPage()}
-                        disabled={!table.getCanPreviousPage()}
-                    >
-                        Previous
-                    </Button>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => table.nextPage()}
-                        disabled={!table.getCanNextPage()}
-                    >
-                        Next
-                    </Button>
+            {/* Display row count and pagination */}
+            <div className="flex items-center justify-between py-4">
+                <div className="text-sm text-muted-foreground">
+                    Showing {table.getFilteredRowModel().rows.length} of {data.length} items
                 </div>
+                <Pagination>
+                    <PaginationContent>
+                        <PaginationItem>
+                            {table.getCanPreviousPage() ? (
+                                <PaginationPrevious 
+                                    href="#" 
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        table.previousPage();
+                                    }}
+                                />
+                            ) : (
+                                <PaginationPrevious
+                                    href="#"
+                                    onClick={(e) => e.preventDefault()}
+                                    className="opacity-50 cursor-not-allowed"
+                                />
+                            )}
+                        </PaginationItem>
+                        
+                        {/* Calculate page numbers to display */}
+                        {Array.from({ length: table.getPageCount() }).map((_, index) => {
+                            // Show limited page numbers with ellipsis for better UX
+                            const pageIndex = index;
+                            const currentPage = table.getState().pagination.pageIndex;
+                            
+                            // Always show first, last, current and pages around current
+                            if (
+                                pageIndex === 0 || 
+                                pageIndex === table.getPageCount() - 1 ||
+                                Math.abs(pageIndex - currentPage) <= 1
+                            ) {
+                                return (
+                                    <PaginationItem key={pageIndex}>
+                                        <PaginationLink 
+                                            href="#"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                table.setPageIndex(pageIndex);
+                                            }}
+                                            isActive={currentPage === pageIndex}
+                                        >
+                                            {pageIndex + 1}
+                                        </PaginationLink>
+                                    </PaginationItem>
+                                );
+                            }
+                            
+                            // Show ellipsis for skipped pages
+                            if (
+                                (pageIndex === 1 && currentPage > 2) ||
+                                (pageIndex === table.getPageCount() - 2 && currentPage < table.getPageCount() - 3)
+                            ) {
+                                return (
+                                    <PaginationItem key={pageIndex}>
+                                        <PaginationEllipsis />
+                                    </PaginationItem>
+                                );
+                            }
+                            
+                            return null;
+                        })}
+                        
+                        <PaginationItem>
+                            {table.getCanNextPage() ? (
+                                <PaginationNext 
+                                    href="#" 
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        table.nextPage();
+                                    }}
+                                />
+                            ) : (
+                                <PaginationNext
+                                    href="#"
+                                    onClick={(e) => e.preventDefault()}
+                                    className="opacity-50 cursor-not-allowed"
+                                />
+                            )}
+                        </PaginationItem>
+                    </PaginationContent>
+                </Pagination>
             </div>
         </div>
     )

@@ -316,8 +316,18 @@ const Reports = () => {
             </div>
             <div ref={chartRef}>
                 <div className="w-full flex justify-between gap-6 mt-4">
-                    <RadialChart data={totalBillingRadialChartData} title='New Business vs AMC' valueToDisplay='total_purchase_billing' />
-                    <RadialChart data={totalAMCRevenueRadialChartData || {}} title='AMC Expected vs Collected' valueToDisplay='total_collected' />
+                    <RadialChart data={totalBillingRadialChartData} title='New Business vs AMC' valueToDisplay='total_purchase_billing' footerText={
+                        <div className="flex items-center gap-2">   
+                            <span>From: <b>{totalBillingApiRes?.data?.[0]?.period}</b></span>
+                            <span>To: <b>{totalBillingApiRes?.data?.[totalBillingApiRes?.data?.length - 1]?.period}</b></span>
+                        </div>
+                    } />
+                    <RadialChart data={totalAMCRevenueRadialChartData || {}} title='AMC Expected vs Collected' valueToDisplay='total_collected' footerText={
+                        <div className="flex items-center gap-2">
+                            <span>From: <b>{amcAnnualBreakDownApiRes?.data?.[0]?.period}</b></span>
+                            <span>To: <b>{amcAnnualBreakDownApiRes?.data?.[amcAnnualBreakDownApiRes?.data?.length - 1]?.period}</b></span>
+                        </div>
+                    } />
                 </div>
                 <div className="w-full flex justify-between gap-6 mt-4">
                     <DoubleBarChart

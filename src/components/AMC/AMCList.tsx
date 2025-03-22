@@ -12,7 +12,7 @@ import {
     getFilteredRowModel,
     VisibilityState,
 } from '@tanstack/react-table'
-import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
     Table,
@@ -22,11 +22,10 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
-import { Badge } from '@/components/ui/badge'
 import { useMemo, useState } from 'react'
 import { Input } from '../ui/input'
 import Typography from '../ui/Typography'
-import { TransformedAMCObject } from '@/redux/api/order'
+import { PAYMENT_STATUS_ENUM, TransformedAMCObject } from '@/redux/api/order'
 import { useRouter } from 'next/navigation'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 import {
@@ -43,6 +42,10 @@ import {
     Pagination,
     PaginationContent,
     PaginationItem,
+    PaginationLink,
+    PaginationNext,
+    PaginationPrevious,
+    PaginationEllipsis,
 } from "@/components/ui/pagination"
 
 const upcomingMonths = [
@@ -101,11 +104,18 @@ const columns: ColumnDef<TableData>[] = [
         accessorKey: 'status',
         header: 'Payment Status',
         cell: ({ row }) => {
-            const status = row.getValue('status') as string
+            const status = row.getValue('status') as PAYMENT_STATUS_ENUM
+
+            const paymentStatusColor = (status: PAYMENT_STATUS_ENUM) => {
+                if (status === PAYMENT_STATUS_ENUM.PAID) return "bg-green-700"
+                if (status === PAYMENT_STATUS_ENUM.PENDING) return "bg-red-600"
+                if (status === PAYMENT_STATUS_ENUM.PERFORMA) return "bg-yellow-600"
+                if (status === PAYMENT_STATUS_ENUM.INVOICE) return "bg-blue-600"
+            }
             return (
-                <Badge variant={status !== 'pending' ? 'success' : 'destructive'}>
+                <div className={`px-2 py-1 rounded-md text-center max-w-24 text-white text-xs font-medium ${paymentStatusColor(status)}`}>
                     {status}
-                </Badge>
+                </div>
             )
         },
     },
@@ -363,14 +373,14 @@ const AMCList: React.FC<IProps> = ({ data, changeFilter, onPageChange, currentPa
                     <Select
                         value={activeFilter}
                         defaultValue={AMC_FILTER.UPCOMING}
-                        onValueChange={(value: AMC_FILTER) => {
+                        onValueChange={(value: string) => {
                             // reset all filters
                             table.resetColumnFilters()
-                            setActiveFilter(value)
+                            setActiveFilter(value as AMC_FILTER)
 
                             if (value === AMC_FILTER.UPCOMING) {
                                 setShowUpcomingMonthsFilter(true)
-                                changeFilter(value, { upcoming: 1 })
+                                changeFilter(value as AMC_FILTER, { upcoming: 1 })
                             } else {
                                 setShowUpcomingMonthsFilter(false)
                                 // For any other filter, show the date range selector
@@ -380,11 +390,18 @@ const AMCList: React.FC<IProps> = ({ data, changeFilter, onPageChange, currentPa
                                     endDate: new Date()
                                 })
                                 // Apply the filter with default date range (last year to now)
-                                changeFilter(value, {
+                                changeFilter(value as AMC_FILTER, {
                                     upcoming: 0,
                                     startDate: new Date(new Date().setFullYear(new Date().getFullYear() - 1)).toISOString(),
                                     endDate: new Date().toISOString()
                                 })
+                                
+                                // Set column filter for payment status for Performa and Invoice
+                                if (value === 'performa') {
+                                    table.getColumn('status')?.setFilterValue(PAYMENT_STATUS_ENUM.PERFORMA)
+                                } else if (value === 'invoice') {
+                                    table.getColumn('status')?.setFilterValue(PAYMENT_STATUS_ENUM.INVOICE)
+                                }
                             }
                         }}
                     >
@@ -397,6 +414,12 @@ const AMCList: React.FC<IProps> = ({ data, changeFilter, onPageChange, currentPa
                                     {filter} AMC
                                 </SelectItem>
                             ))}
+                            <SelectItem className="cursor-pointer capitalize" value="performa">
+                                Performa AMC
+                            </SelectItem>
+                            <SelectItem className="cursor-pointer capitalize" value="invoice">
+                                Invoice AMC
+                            </SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
@@ -446,44 +469,85 @@ const AMCList: React.FC<IProps> = ({ data, changeFilter, onPageChange, currentPa
                 </Table>
             </div>
 
-            <div className="flex items-center justify-end space-x-2 py-4">
+            <div className="flex items-center justify-between py-4">
+                <div className="text-sm text-muted-foreground">
+                    Showing {table.getFilteredRowModel().rows.length} of {tableData.length} items (Total {pagination.total})
+                </div>
                 <Pagination>
                     <PaginationContent>
                         <PaginationItem>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => onPageChange(currentPage - 1)}
-                                disabled={currentPage === 1}
-                                className="gap-1"
-                            >
-                                <ChevronLeft className="h-4 w-4" />
-                                Previous
-                            </Button>
+                            {currentPage > 1 ? (
+                                <PaginationPrevious
+                                    href="#"
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        onPageChange(currentPage - 1);
+                                    }}
+                                />
+                            ) : (
+                                <PaginationPrevious
+                                    href="#"
+                                    onClick={(e) => e.preventDefault()}
+                                    className="opacity-50 cursor-not-allowed"
+                                />
+                            )}
                         </PaginationItem>
-                        {Array.from({ length: pagination.pages }, (_, i) => (
-                            <PaginationItem key={i + 1}>
-                                <Button
-                                    variant={currentPage === i + 1 ? "default" : "outline"}
-                                    size="sm"
-                                    onClick={() => onPageChange(i + 1)}
-                                    className="w-8"
-                                >
-                                    {i + 1}
-                                </Button>
-                            </PaginationItem>
-                        ))}
+
+                        {Array.from({ length: pagination.pages }).map((_, index) => {
+                            const pageNumber = index + 1;
+                            // Show first, last, current and pages around current
+                            if (
+                                pageNumber === 1 ||
+                                pageNumber === pagination.pages ||
+                                Math.abs(pageNumber - currentPage) <= 1
+                            ) {
+                                return (
+                                    <PaginationItem key={pageNumber}>
+                                        <PaginationLink
+                                            href="#"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                onPageChange(pageNumber);
+                                            }}
+                                            isActive={currentPage === pageNumber}
+                                        >
+                                            {pageNumber}
+                                        </PaginationLink>
+                                    </PaginationItem>
+                                );
+                            }
+
+                            // Show ellipsis for skipped pages
+                            if (
+                                (pageNumber === 2 && currentPage > 3) ||
+                                (pageNumber === pagination.pages - 1 && currentPage < pagination.pages - 2)
+                            ) {
+                                return (
+                                    <PaginationItem key={pageNumber}>
+                                        <PaginationEllipsis />
+                                    </PaginationItem>
+                                );
+                            }
+
+                            return null;
+                        })}
+
                         <PaginationItem>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => onPageChange(currentPage + 1)}
-                                disabled={currentPage === pagination.pages}
-                                className="gap-1"
-                            >
-                                Next
-                                <ChevronRight className="h-4 w-4" />
-                            </Button>
+                            {currentPage < pagination.pages ? (
+                                <PaginationNext
+                                    href="#"
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        onPageChange(currentPage + 1);
+                                    }}
+                                />
+                            ) : (
+                                <PaginationNext
+                                    href="#"
+                                    onClick={(e) => e.preventDefault()}
+                                    className="opacity-50 cursor-not-allowed"
+                                />
+                            )}
                         </PaginationItem>
                     </PaginationContent>
                 </Pagination>

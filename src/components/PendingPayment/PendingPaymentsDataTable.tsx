@@ -11,11 +11,15 @@ import {
 } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
 import {
     Pagination,
     PaginationContent,
     PaginationItem,
+    PaginationLink,
+    PaginationNext,
+    PaginationPrevious,
+    PaginationEllipsis,
 } from "@/components/ui/pagination"
 import { IPendingPayment, IPendingPaymentPagination, IPendingPaymentType, IUpdatePendingPaymentRequest, PAYMENT_STATUS_ENUM, useUpdatePendingPaymentMutation } from "@/redux/api/order"
 import { useForm } from "react-hook-form"
@@ -34,11 +38,10 @@ import { formatCurrency } from "@/lib/utils"
 interface IProps {
     data: IPendingPayment[]
     pagination: IPendingPaymentPagination
-    page: number
     handlePagination: (page: number) => void
 }
 
-export default function DataTableWithModalAndPagination({ data, pagination, page, handlePagination }: IProps) {
+export default function DataTableWithModalAndPagination({ data, pagination, handlePagination }: IProps) {
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [updatePayment, setUpdatePayment] = useState<{ modal: boolean, data: IUpdatePendingPaymentRequest }>({
         modal: false, data: {
@@ -205,6 +208,13 @@ export default function DataTableWithModalAndPagination({ data, pagination, page
         </div>
     )
 
+    const paymentStatusColor = (status: PAYMENT_STATUS_ENUM) => {
+        if (status === PAYMENT_STATUS_ENUM.PAID) return "bg-green-700"
+        if (status === PAYMENT_STATUS_ENUM.PENDING) return "bg-red-600"
+        if (status === PAYMENT_STATUS_ENUM.PERFORMA) return "bg-yellow-600"
+        if (status === PAYMENT_STATUS_ENUM.INVOICE) return "bg-blue-600"
+    }
+
     return (
         <div className="container">
             {renderFilters()}
@@ -240,40 +250,84 @@ export default function DataTableWithModalAndPagination({ data, pagination, page
             </div>
 
             <div className="flex items-center justify-between space-x-2 py-4">
+                <div className="text-sm text-muted-foreground">
+                    Showing {filteredData.length} of {data.length} items (Total {pagination.total})
+                </div>
                 <Pagination>
                     <PaginationContent>
                         <PaginationItem>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handlePagination(pagination.currentPage - 1)}
-                                disabled={pagination.currentPage === 1}
-                            >
-                                <ChevronLeft className="h-4 w-4" />
-                                Previous
-                            </Button>
+                            {pagination.currentPage > 1 ? (
+                                <PaginationPrevious
+                                    href="#"
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        handlePagination(pagination.currentPage - 1);
+                                    }}
+                                />
+                            ) : (
+                                <PaginationPrevious
+                                    href="#"
+                                    onClick={(e) => e.preventDefault()}
+                                    className="opacity-50 cursor-not-allowed"
+                                />
+                            )}
                         </PaginationItem>
-                        {[...Array(pagination.totalPages)].map((_, index) => (
-                            <PaginationItem key={index + 1}>
-                                <Button
-                                    variant={page === index + 1 ? "default" : "outline"}
-                                    size="sm"
-                                    onClick={() => handlePagination(index + 1)}
-                                >
-                                    {index + 1}
-                                </Button>
-                            </PaginationItem>
-                        ))}
+
+                        {Array.from({ length: pagination.totalPages }).map((_, index) => {
+                            const pageNumber = index + 1;
+                            // Show first, last, current and pages around current
+                            if (
+                                pageNumber === 1 ||
+                                pageNumber === pagination.totalPages ||
+                                Math.abs(pageNumber - pagination.currentPage) <= 1
+                            ) {
+                                return (
+                                    <PaginationItem key={pageNumber}>
+                                        <PaginationLink
+                                            href="#"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                handlePagination(pageNumber);
+                                            }}
+                                            isActive={pagination.currentPage === pageNumber}
+                                        >
+                                            {pageNumber}
+                                        </PaginationLink>
+                                    </PaginationItem>
+                                );
+                            }
+
+                            // Show ellipsis for skipped pages
+                            if (
+                                (pageNumber === 2 && pagination.currentPage > 3) ||
+                                (pageNumber === pagination.totalPages - 1 && pagination.currentPage < pagination.totalPages - 2)
+                            ) {
+                                return (
+                                    <PaginationItem key={pageNumber}>
+                                        <PaginationEllipsis />
+                                    </PaginationItem>
+                                );
+                            }
+
+                            return null;
+                        })}
+
                         <PaginationItem>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handlePagination(pagination.currentPage + 1)}
-                                disabled={pagination.currentPage === pagination.totalPages}
-                            >
-                                Next
-                                <ChevronRight className="h-4 w-4" />
-                            </Button>
+                            {pagination.currentPage < pagination.totalPages ? (
+                                <PaginationNext
+                                    href="#"
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        handlePagination(pagination.currentPage + 1);
+                                    }}
+                                />
+                            ) : (
+                                <PaginationNext
+                                    href="#"
+                                    onClick={(e) => e.preventDefault()}
+                                    className="opacity-50 cursor-not-allowed"
+                                />
+                            )}
                         </PaginationItem>
                     </PaginationContent>
                 </Pagination>
@@ -294,12 +348,13 @@ export default function DataTableWithModalAndPagination({ data, pagination, page
                                     </TableRow>
                                     <TableRow>
                                         <TableCell className="font-medium">Type</TableCell>
-
                                         <TableCell>{selectedItem.type}</TableCell>
                                     </TableRow>
                                     <TableRow>
                                         <TableCell className="font-medium">Status</TableCell>
-                                        <TableCell className={selectedItem.status === PAYMENT_STATUS_ENUM.PENDING ? "text-red-600 capitalize" : "text-green-700"}>{selectedItem.status}</TableCell>
+                                        <TableCell>
+                                            <span className={`${paymentStatusColor(selectedItem.status)} text-white px-2 py-1 rounded-md`}>{selectedItem.status}</span>
+                                        </TableCell>
                                     </TableRow>
                                     <TableRow>
                                         <TableCell className="font-medium">Pending Amount</TableCell>
@@ -342,11 +397,9 @@ export default function DataTableWithModalAndPagination({ data, pagination, page
                     <div className="mt-4">
                         <Form {...form}>
                             <form action="" onSubmit={handleSubmit(onSubmit)}>
-
                                 <FormItem >
                                     <FormLabel htmlFor="payment_identifier">Payment Status</FormLabel>
                                     <Input value={PAYMENT_STATUS_ENUM.PAID} disabled />
-
                                 </FormItem>
 
                                 <br />

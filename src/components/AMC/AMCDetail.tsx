@@ -105,10 +105,17 @@ const columns = (onEdit: (payment: IAMCPayment) => void, onInfo: (payment: IAMCP
         header: "Status",
         cell: ({ row }) => {
             const status = row.getValue("status") as PAYMENT_STATUS_ENUM
+
+            const paymentStatusColor = (status: PAYMENT_STATUS_ENUM) => {
+                if (status === PAYMENT_STATUS_ENUM.PAID) return "bg-green-700"
+                if (status === PAYMENT_STATUS_ENUM.PENDING) return "bg-red-600"
+                if (status === PAYMENT_STATUS_ENUM.PERFORMA) return "bg-yellow-600"
+                if (status === PAYMENT_STATUS_ENUM.INVOICE) return "bg-blue-600"
+            }
             return (
-                <Badge variant={status === PAYMENT_STATUS_ENUM.PAID ? "success" : "destructive"}>
+                <div className={`px-2 py-1 rounded-md text-center text-white text-xs font-medium ${paymentStatusColor(status)}`}>
                     {status}
-                </Badge>
+                </div>
             )
         },
         filterFn: (row, id, value) => {
@@ -225,6 +232,20 @@ const DataTable = ({ data, onEdit, onInfo, initialAmcRate }: DataTableProps) => 
                 >
                     Paid
                 </Button>
+                <Button
+                    type="button"
+                    variant={table.getColumn("status")?.getFilterValue() === PAYMENT_STATUS_ENUM.PERFORMA ? "default" : "outline"}
+                    onClick={() => table.getColumn("status")?.setFilterValue(PAYMENT_STATUS_ENUM.PERFORMA)}
+                >
+                    Performa
+                </Button>
+                <Button
+                    type="button"
+                    variant={table.getColumn("status")?.getFilterValue() === PAYMENT_STATUS_ENUM.INVOICE ? "default" : "outline"}
+                    onClick={() => table.getColumn("status")?.setFilterValue(PAYMENT_STATUS_ENUM.INVOICE)}
+                >
+                    Invoice
+                </Button>
             </div>
 
             <div className="rounded-md border">
@@ -283,7 +304,7 @@ const AmcForm: React.FC<{ orderId: string; defaultValue?: IDefaultValues, amcSta
         defaultValues: {
             amount: defaultValue?.amc_amount || 0
         },
-        values:{
+        values: {
             amount: defaultValue?.amc_amount || 0
         }
     })
@@ -322,9 +343,9 @@ const AmcForm: React.FC<{ orderId: string; defaultValue?: IDefaultValues, amcSta
             <div className="flex items-center justify-between">
                 <Typography variant="h2">AMC Details</Typography>
                 {defaultValue?._id && (
-                    <Button 
-                        type='button' 
-                        className={`w-36 justify-between ${!disableInput ? "bg-destructive hover:bg-destructive" : ""}`} 
+                    <Button
+                        type='button'
+                        className={`w-36 justify-between ${!disableInput ? "bg-destructive hover:bg-destructive" : ""}`}
                         onClick={() => setDisableInput(prev => !prev)}
                     >
                         {disableInput ? (
@@ -384,9 +405,9 @@ const AmcForm: React.FC<{ orderId: string; defaultValue?: IDefaultValues, amcSta
                         <div className="flex justify-end mt-4">
                             {!disableInput && (
                                 <div className="flex gap-2">
-                                    <Button 
-                                        type="button" 
-                                        variant="outline" 
+                                    <Button
+                                        type="button"
+                                        variant="outline"
                                         onClick={() => {
                                             form.reset()
                                             setDisableInput(true)
@@ -394,8 +415,8 @@ const AmcForm: React.FC<{ orderId: string; defaultValue?: IDefaultValues, amcSta
                                     >
                                         Cancel
                                     </Button>
-                                    <Button 
-                                        type="submit" 
+                                    <Button
+                                        type="submit"
                                         loading={{ isLoading: isUpdateAMCByIdLoading, loader: "tailspin" }}
                                     >
                                         <CircleCheck className="mr-2" />

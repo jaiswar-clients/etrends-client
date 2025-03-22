@@ -240,28 +240,31 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
 
     const handlePaymentTermChange = (index: number, value: number, field: 'percentage_from_base_cost' | 'calculated_amount') => {
         const baseCost = form.getValues("base_cost");
+        const trainingCost = form.getValues("training_and_implementation_cost") || 0;
+        const totalCost = baseCost + trainingCost;
 
         if (field === 'percentage_from_base_cost') {
             const percentage = value || 0;
-            const calculatedAmount = (baseCost * percentage) / 100;
+            const calculatedAmount = (totalCost * percentage) / 100;
             form.setValue(`payment_terms.${index}.percentage_from_base_cost`, value);
             form.setValue(`payment_terms.${index}.calculated_amount`, calculatedAmount);
         } else {
             const amount = value || 0;
-            const calculatedPercentage = ((amount / baseCost) * 100).toFixed(2);
+            const calculatedPercentage = ((amount / totalCost) * 100).toFixed(2);
             form.setValue(`payment_terms.${index}.calculated_amount`, amount);
             form.setValue(`payment_terms.${index}.percentage_from_base_cost`, parseFloat(calculatedPercentage));
         }
     };
 
     // Function to recalculate all payment terms
-    const recalculatePaymentTerms = (baseCost: number) => {
-        if (!baseCost) return
+    const recalculatePaymentTerms = (baseCost: number, trainingCost: number = form.getValues("training_and_implementation_cost") || 0) => {
+        if (!baseCost && !trainingCost) return;
+        const totalCost = baseCost + trainingCost;
         const paymentTerms = form.getValues("payment_terms");
         paymentTerms.forEach((term, index) => {
             const percentage = term.percentage_from_base_cost || 0;
             if (!percentage) return;
-            const calculatedAmount = (baseCost * percentage) / 100;
+            const calculatedAmount = (totalCost * percentage) / 100;
             form.setValue(`payment_terms.${index}.calculated_amount`, calculatedAmount);
         });
     };
@@ -308,11 +311,12 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
     const calculateTotalCost = () => {
         // Use parseFloat to handle string inputs and ensure numeric values
         const baseCost = parseFloat(form.getValues("base_cost")?.toString() || "0");
+        const trainingAndImplementationCost = parseFloat(form.getValues("training_and_implementation_cost")?.toString() || "0");
 
         // Handle negative values by using Math.max
         const sanitizedBaseCost = Math.max(0, baseCost);
-
-        const totalCost = sanitizedBaseCost;
+        const sanitizedTrainingAndImplementationCost = Math.max(0, trainingAndImplementationCost);
+        const totalCost = sanitizedBaseCost + sanitizedTrainingAndImplementationCost;
 
         // Return 0 if calculation results in NaN or negative value
         return isNaN(totalCost) ? 0 : Math.max(0, totalCost);
@@ -320,8 +324,13 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
 
     useEffect(() => {
         form.setValue("total_cost", calculateTotalCost());
+        // Recalculate payment terms when base_cost or training_and_implementation_cost changes
+        const baseCost = form.getValues("base_cost");
+        const trainingCost = form.getValues("training_and_implementation_cost") || 0;
+        recalculatePaymentTerms(baseCost, trainingCost);
     }, [
         form.watch("base_cost"),
+        form.watch("training_and_implementation_cost")
     ]);
 
     const getSignedUrl = async (file: File, field: keyof OrderDetailInputs) => {
@@ -367,9 +376,15 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
             const handlers = {
                 base_cost: () => {
                     field.onChange(e);
-                    recalculatePaymentTerms(value);
+                    const trainingCost = form.getValues("training_and_implementation_cost") || 0;
+                    recalculatePaymentTerms(value, trainingCost);
                     recalculateAMCRateBasedOnBaseCost(value);
                     reCalculateBaseSeperationCost(value);
+                },
+                training_and_implementation_cost: () => {
+                    field.onChange(e);
+                    const baseCost = form.getValues("base_cost");
+                    recalculatePaymentTerms(baseCost, value);
                 },
                 base_cost_seperation: () => {
                     const [, index, term] = fieldName.split('.');
@@ -1161,7 +1176,7 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
                                             <CardContent className="p-4">
                                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4 items-end">
                                                     {renderFormField(`payment_terms.${index}.name`, "Name", "Name of the Payment Term")}
-                                                    {renderFormField(`payment_terms.${index}.percentage_from_base_cost`, "Percentage from Base Cost", "Percentage", "number")}
+                                                    {renderFormField(`payment_terms.${index}.percentage_from_base_cost`, "Percentage from Base Cost + T&I Cost", "Percentage", "number")}
                                                     {renderFormField(`payment_terms.${index}.calculated_amount`, "Amount (Auto Calculated)", "Amount", "number")}
                                                     {renderFormField(`payment_terms.${index}.invoice_number`, "Invoice Number", "Invoice Number")}
                                                     <FormField

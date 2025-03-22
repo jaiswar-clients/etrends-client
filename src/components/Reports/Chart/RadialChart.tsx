@@ -4,6 +4,7 @@ import * as React from "react";
 import {
     Card,
     CardContent,
+    CardFooter,
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
@@ -30,9 +31,10 @@ interface IProps {
     data: { [key: string]: number };
     title: string;
     valueToDisplay: string; // The key whose value will be displayed in the center
+    footerText?: React.ReactNode;
 }
 
-const RadialChart = ({ data, title, valueToDisplay }: IProps) => {
+const RadialChart = ({ data, title, valueToDisplay, footerText }: IProps) => {
     // Dynamically create chart data and config
     const chartData = Object.keys(data).map((key, index) => ({
         name: key.replace(/_/g, " "),
@@ -76,7 +78,7 @@ const RadialChart = ({ data, title, valueToDisplay }: IProps) => {
                                     if (viewBox && "cx" in viewBox && "cy" in viewBox && typeof viewBox.cy === "number") {
                                         const amount = data[valueToDisplay];
                                         const formattedAmount = formatIndianNumber(amount);
-                                        
+
                                         return (
                                             <TooltipProvider>
                                                 <Tooltip>
@@ -124,6 +126,13 @@ const RadialChart = ({ data, title, valueToDisplay }: IProps) => {
                         />
                     </PieChart>
                 </ChartContainer>
+                {
+                    footerText && (
+                        <CardFooter className="text-xs text-muted-foreground">
+                            {footerText}
+                        </CardFooter>
+                    )
+                }
             </CardContent>
         </Card>
     );
