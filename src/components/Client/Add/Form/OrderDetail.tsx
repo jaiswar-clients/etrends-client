@@ -259,7 +259,7 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
     // Function to recalculate all payment terms
     const recalculatePaymentTerms = (baseCost: number, trainingCost: number = form.getValues("training_and_implementation_cost") || 0) => {
         if (!baseCost && !trainingCost) return;
-        const totalCost = baseCost + trainingCost;
+        const totalCost = Number(baseCost) + Number(trainingCost);
         const paymentTerms = form.getValues("payment_terms");
         paymentTerms.forEach((term, index) => {
             const percentage = term.percentage_from_base_cost || 0;
