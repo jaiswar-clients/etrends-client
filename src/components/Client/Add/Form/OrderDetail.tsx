@@ -239,8 +239,8 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
     };
 
     const handlePaymentTermChange = (index: number, value: number, field: 'percentage_from_base_cost' | 'calculated_amount') => {
-        const baseCost = form.getValues("base_cost");
-        const trainingCost = form.getValues("training_and_implementation_cost") || 0;
+        const baseCost = Number(form.getValues("base_cost")) || 0;
+        const trainingCost = Number(form.getValues("training_and_implementation_cost")) || 0;
         const totalCost = baseCost + trainingCost;
 
         if (field === 'percentage_from_base_cost') {
@@ -257,39 +257,42 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
     };
 
     // Function to recalculate all payment terms
-    const recalculatePaymentTerms = (baseCost: number, trainingCost: number = form.getValues("training_and_implementation_cost") || 0) => {
+    const recalculatePaymentTerms = (baseCost: number, trainingCost: number = Number(form.getValues("training_and_implementation_cost")) || 0) => {
         if (!baseCost && !trainingCost) return;
         const totalCost = Number(baseCost) + Number(trainingCost);
+        console.log({totalCost})
         const paymentTerms = form.getValues("payment_terms");
+        
         paymentTerms.forEach((term, index) => {
-            const percentage = term.percentage_from_base_cost || 0;
+            const percentage = Number(term.percentage_from_base_cost) || 0;
             if (!percentage) return;
             const calculatedAmount = (totalCost * percentage) / 100;
+            console.log({calculatedAmount})
             form.setValue(`payment_terms.${index}.calculated_amount`, calculatedAmount);
         });
     };
 
     const reCalculateBaseSeperationCost = (baseCost: number) => {
         baseCostSeparationFields.forEach((field, index) => {
-            const percentage = field.percentage || 0;
+            const percentage = Number(field.percentage) || 0;
             if (!percentage) return;
-            const calculatedAmount = (baseCost * percentage) / 100;
+            const calculatedAmount = (Number(baseCost) * percentage) / 100;
             form.setValue(`base_cost_seperation.${index}.amount`, calculatedAmount);
         });
     }
 
     const recalculateAMCRateBasedOnBaseCost = (baseCost: number) => {
         const currentAmcRate = form.getValues("amc_rate");
-        const amcPercentage = currentAmcRate.percentage || 0;
+        const amcPercentage = Number(currentAmcRate.percentage) || 0;
 
-        const amcTotalCost = baseCost;
+        const amcTotalCost = Number(baseCost);
         const calculatedAmount = (amcTotalCost / 100) * amcPercentage;
 
         form.setValue("amc_rate.amount", calculatedAmount);
     };
 
     const recalculateAMCRate = (value: number, field: 'percentage' | 'amount') => {
-        const baseCost = form.getValues("base_cost");
+        const baseCost = Number(form.getValues("base_cost")) || 0;
 
         if (!baseCost) return;
         // Calculate total cost including base cost, license cost and customization
@@ -376,24 +379,25 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
             const handlers = {
                 base_cost: () => {
                     field.onChange(e);
-                    const trainingCost = form.getValues("training_and_implementation_cost") || 0;
+                    const trainingCost = Number(form.getValues("training_and_implementation_cost")) || 0;
                     recalculatePaymentTerms(value, trainingCost);
                     recalculateAMCRateBasedOnBaseCost(value);
                     reCalculateBaseSeperationCost(value);
                 },
                 training_and_implementation_cost: () => {
                     field.onChange(e);
-                    const baseCost = form.getValues("base_cost");
+                    const baseCost = Number(form.getValues("base_cost")) || 0;
                     recalculatePaymentTerms(baseCost, value);
                 },
                 base_cost_seperation: () => {
                     const [, index, term] = fieldName.split('.');
                     if (term === 'percentage') {
-                        const calculatedAmount = (value * form.getValues(`base_cost`)) / 100;
+                        const calculatedAmount = (value * Number(form.getValues(`base_cost`))) / 100;
                         form.setValue(`base_cost_seperation.${parseInt(index)}.amount`, calculatedAmount);
                         field.onChange(e);
                     } else {
-                        const percentage = ((value / form.getValues(`base_cost`)) * 100).toFixed(2);
+                        const baseCostValue = Number(form.getValues(`base_cost`)) || 1;
+                        const percentage = ((value / baseCostValue) * 100).toFixed(2);
                         form.setValue(`base_cost_seperation.${parseInt(index)}.percentage`, Number(percentage));
                         field.onChange(e);
                     }
