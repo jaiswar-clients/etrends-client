@@ -1,18 +1,20 @@
 'use client'
 import { useGetAllPendingPaymentsQuery } from '@/redux/api/order'
 import React from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import PendingPaymentsDataTable from './PendingPaymentsDataTable'
 import Typography from '../ui/Typography'
 
 const PendingPayment = () => {
     const router = useRouter()
+    const searchParams=useSearchParams()
+    const page=searchParams.get('page')
 
     const {
         data,
         isLoading,
         refetch
-    } = useGetAllPendingPaymentsQuery({ page: 1, limit: 20 })
+    } = useGetAllPendingPaymentsQuery({ page: page ? Number(page) : 1, limit: 20 })
 
     const handlePagination = (page: number) => {
         router.push(`/pending-payments?page=${page}`)

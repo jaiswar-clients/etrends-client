@@ -260,14 +260,12 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
     const recalculatePaymentTerms = (baseCost: number, trainingCost: number = Number(form.getValues("training_and_implementation_cost")) || 0) => {
         if (!baseCost && !trainingCost) return;
         const totalCost = Number(baseCost) + Number(trainingCost);
-        console.log({totalCost})
         const paymentTerms = form.getValues("payment_terms");
         
         paymentTerms.forEach((term, index) => {
             const percentage = Number(term.percentage_from_base_cost) || 0;
             if (!percentage) return;
             const calculatedAmount = (totalCost * percentage) / 100;
-            console.log({calculatedAmount})
             form.setValue(`payment_terms.${index}.calculated_amount`, calculatedAmount);
         });
     };

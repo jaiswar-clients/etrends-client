@@ -34,7 +34,7 @@ const AMCPayment = ({ payment, amcId, onClose }: IProps) => {
             from_date: new Date(payment.from_date),
             to_date: new Date(payment.to_date),
             received_date: payment.received_date ? new Date(payment.received_date) : undefined,
-            performa_date: payment.performa_date ? new Date(payment.performa_date) : undefined,
+            proforma_date: payment.proforma_date ? new Date(payment.proforma_date) : undefined,
             purchase_order_number: payment.purchase_order_number || "",
             purchase_order_document: payment.purchase_order_document || "",
             invoice_document: payment.invoice_document || "",
@@ -61,14 +61,14 @@ const AMCPayment = ({ payment, amcId, onClose }: IProps) => {
         const currentStatus = data.status as PAYMENT_STATUS_ENUM;
         
         // Validate required fields based on status
-        if (currentStatus === PAYMENT_STATUS_ENUM.PERFORMA || 
+        if (currentStatus === PAYMENT_STATUS_ENUM.proforma || 
             currentStatus === PAYMENT_STATUS_ENUM.INVOICE || 
             currentStatus === PAYMENT_STATUS_ENUM.PAID) {
-            if (!data.performa_date) {
+            if (!data.proforma_date) {
                 toast({
                     variant: "destructive",
                     title: "Validation Error",
-                    description: "Performa date is required when status is Performa or beyond."
+                    description: "proforma date is required when status is proforma or beyond."
                 });
                 return;
             }
@@ -115,7 +115,7 @@ const AMCPayment = ({ payment, amcId, onClose }: IProps) => {
                     ...data,
                     received_date: data.received_date || undefined,
                     invoice_date: data.invoice_date || undefined,
-                    performa_date: data.performa_date || undefined,
+                    proforma_date: data.proforma_date || undefined,
                 }
             }).unwrap()
 
@@ -204,7 +204,7 @@ const AMCPayment = ({ payment, amcId, onClose }: IProps) => {
     const paymentStatusColor = (status: PAYMENT_STATUS_ENUM) => {
         if (status === PAYMENT_STATUS_ENUM.PAID) return "bg-green-700"
         if (status === PAYMENT_STATUS_ENUM.PENDING) return "bg-red-600"
-        if (status === PAYMENT_STATUS_ENUM.PERFORMA) return "bg-yellow-600"
+        if (status === PAYMENT_STATUS_ENUM.proforma) return "bg-yellow-600"
         if (status === PAYMENT_STATUS_ENUM.INVOICE) return "bg-blue-600"
     }
 
@@ -212,8 +212,8 @@ const AMCPayment = ({ payment, amcId, onClose }: IProps) => {
     const isFieldRequired = (fieldName: string) => {
         const currentStatus = form.getValues('status') as PAYMENT_STATUS_ENUM;
         
-        if (fieldName === 'performa_date') {
-            return [PAYMENT_STATUS_ENUM.PERFORMA, PAYMENT_STATUS_ENUM.INVOICE, PAYMENT_STATUS_ENUM.PAID].includes(currentStatus);
+        if (fieldName === 'proforma_date') {
+            return [PAYMENT_STATUS_ENUM.proforma, PAYMENT_STATUS_ENUM.INVOICE, PAYMENT_STATUS_ENUM.PAID].includes(currentStatus);
         }
         
         if (fieldName === 'invoice_date' || fieldName === 'invoice_document') {
@@ -289,11 +289,11 @@ const AMCPayment = ({ payment, amcId, onClose }: IProps) => {
                     />
                     <FormField
                         control={form.control}
-                        name="performa_date"
+                        name="proforma_date"
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel className={`text-gray-500 ${isFieldRequired('performa_date') ? 'after:content-["*"] after:text-red-500 after:ml-0.5' : ''}`}>
-                                    Performa Date
+                                <FormLabel className={`text-gray-500 ${isFieldRequired('proforma_date') ? 'after:content-["*"] after:text-red-500 after:ml-0.5' : ''}`}>
+                                    proforma Date
                                 </FormLabel>
                                 <FormControl>
                                     <DatePicker

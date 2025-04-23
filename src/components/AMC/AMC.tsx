@@ -8,7 +8,7 @@ export enum AMC_FILTER {
     ALL = 'all',
     PAID = 'paid',
     PENDING = 'pending',
-    OVERDUE = 'overdue'
+    OVERDUE = 'overdue',
 }
 
 const AMC = () => {

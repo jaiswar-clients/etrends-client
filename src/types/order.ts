@@ -140,7 +140,7 @@ export type TransformedAMCObject = Omit<IAMCObject, "order_id"> & {
 
 export enum PAYMENT_STATUS_ENUM {
   PENDING = "pending",
-  PERFORMA = "performa",
+  proforma = "proforma",
   INVOICE = "invoice",
   PAID = "paid",
 }
@@ -150,7 +150,7 @@ export interface IAMCPayment {
   from_date: Date;
   to_date: Date;
   status: PAYMENT_STATUS_ENUM;
-  performa_date?: Date;
+  proforma_date?: Date;
   received_date: Date;
   purchase_order_number: string;
   purchase_order_document: string;

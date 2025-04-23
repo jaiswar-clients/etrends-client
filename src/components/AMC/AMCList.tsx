@@ -109,7 +109,7 @@ const columns: ColumnDef<TableData>[] = [
             const paymentStatusColor = (status: PAYMENT_STATUS_ENUM) => {
                 if (status === PAYMENT_STATUS_ENUM.PAID) return "bg-green-700"
                 if (status === PAYMENT_STATUS_ENUM.PENDING) return "bg-red-600"
-                if (status === PAYMENT_STATUS_ENUM.PERFORMA) return "bg-yellow-600"
+                if (status === PAYMENT_STATUS_ENUM.proforma) return "bg-yellow-600"
                 if (status === PAYMENT_STATUS_ENUM.INVOICE) return "bg-blue-600"
             }
             return (
@@ -396,9 +396,9 @@ const AMCList: React.FC<IProps> = ({ data, changeFilter, onPageChange, currentPa
                                     endDate: new Date().toISOString()
                                 })
                                 
-                                // Set column filter for payment status for Performa and Invoice
-                                if (value === 'performa') {
-                                    table.getColumn('status')?.setFilterValue(PAYMENT_STATUS_ENUM.PERFORMA)
+                                // Set column filter for payment status for proforma and Invoice
+                                if (value === 'proforma') {
+                                    table.getColumn('status')?.setFilterValue(PAYMENT_STATUS_ENUM.proforma)
                                 } else if (value === 'invoice') {
                                     table.getColumn('status')?.setFilterValue(PAYMENT_STATUS_ENUM.INVOICE)
                                 }
@@ -414,8 +414,8 @@ const AMCList: React.FC<IProps> = ({ data, changeFilter, onPageChange, currentPa
                                     {filter} AMC
                                 </SelectItem>
                             ))}
-                            <SelectItem className="cursor-pointer capitalize" value="performa">
-                                Performa AMC
+                            <SelectItem className="cursor-pointer capitalize" value="proforma">
+                                proforma AMC
                             </SelectItem>
                             <SelectItem className="cursor-pointer capitalize" value="invoice">
                                 Invoice AMC

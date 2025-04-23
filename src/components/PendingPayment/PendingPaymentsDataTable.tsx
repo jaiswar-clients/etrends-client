@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import React, { useState, useMemo } from "react"
 import {
     Table,
     TableBody,
@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, ChevronRight } from 'lucide-react'
 import {
     Pagination,
     PaginationContent,
@@ -33,12 +33,22 @@ import {
     DropdownMenuContent,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Badge } from "../ui/badge"
 import { formatCurrency } from "@/lib/utils"
 
 interface IProps {
     data: IPendingPayment[]
     pagination: IPendingPaymentPagination
     handlePagination: (page: number) => void
+}
+
+// Define type for grouped data
+interface GroupedPayment {
+    clientName: string;
+    productName: string;
+    totalAmount: number;
+    count: number;
+    payments: IPendingPayment[];
 }
 
 export default function DataTableWithModalAndPagination({ data, pagination, handlePagination }: IProps) {
@@ -72,6 +82,7 @@ export default function DataTableWithModalAndPagination({ data, pagination, hand
     } = form
 
     const [selectedItem, setSelectedItem] = useState<IPendingPayment | null>(null)
+    const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
 
     const handleRowClick: (item: IPendingPayment) => void = (item) => {
         const payment_identifier = (item.type === "order" || item.type === "amc") ? item.payment_identifier : item._id
@@ -84,7 +95,6 @@ export default function DataTableWithModalAndPagination({ data, pagination, hand
         return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
     }
 
-    console.log(updatePayment)
     const onSubmit = async (data: { payment_receive_date: Date, status: PAYMENT_STATUS_ENUM }) => {
         if (!data.payment_receive_date) {
             toast({
@@ -134,17 +144,61 @@ export default function DataTableWithModalAndPagination({ data, pagination, hand
         [data]
     )
 
-    const filteredData = useMemo(() => {
-        return data.filter(item => {
+    // Group data by client_name + product_name
+    const groupedData = useMemo<GroupedPayment[]>(() => {
+        const groupMap = new Map<string, GroupedPayment>();
+        
+        data.forEach(item => {
+            const key = `${item.client_name}-${item.product_name}`;
+            
+            if (!groupMap.has(key)) {
+                groupMap.set(key, {
+                    clientName: item.client_name,
+                    productName: item.product_name,
+                    totalAmount: 0,
+                    count: 0,
+                    payments: []
+                });
+            }
+            
+            const group = groupMap.get(key)!;
+            group.payments.push(item);
+            group.totalAmount += item.pending_amount;
+            group.count += 1;
+        });
+        
+        return Array.from(groupMap.values());
+    }, [data]);
+    
+    // Filter the grouped data
+    const filteredGroupedData = useMemo(() => {
+        return groupedData.filter(group => {
             const matchesClientName = !columnFilters.client_name ||
-                item.client_name.toLowerCase().includes(columnFilters.client_name.toLowerCase())
+                group.clientName.toLowerCase().includes(columnFilters.client_name.toLowerCase());
+                
+            // Check if any payment in the group matches the type filter
             const matchesType = !columnFilters.type ||
-                item.type === columnFilters.type
+                group.payments.some(payment => payment.type === columnFilters.type);
+                
+            // Check if any payment in the group matches the status filter  
             const matchesStatus = !columnFilters.status ||
-                item.status === columnFilters.status
-            return matchesClientName && matchesType && matchesStatus
-        })
-    }, [data, columnFilters])
+                group.payments.some(payment => payment.status === columnFilters.status);
+                
+            return matchesClientName && matchesType && matchesStatus;
+        });
+    }, [groupedData, columnFilters]);
+
+    const toggleGroupExpansion = (groupKey: string) => {
+        setExpandedGroups(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(groupKey)) {
+                newSet.delete(groupKey);
+            } else {
+                newSet.add(groupKey);
+            }
+            return newSet;
+        });
+    };
 
     const renderFilters = () => (
         <div className="flex items-center justify-between py-4">
@@ -211,7 +265,7 @@ export default function DataTableWithModalAndPagination({ data, pagination, hand
     const paymentStatusColor = (status: PAYMENT_STATUS_ENUM) => {
         if (status === PAYMENT_STATUS_ENUM.PAID) return "bg-green-700"
         if (status === PAYMENT_STATUS_ENUM.PENDING) return "bg-red-600"
-        if (status === PAYMENT_STATUS_ENUM.PERFORMA) return "bg-yellow-600"
+        if (status === PAYMENT_STATUS_ENUM.proforma) return "bg-yellow-600"
         if (status === PAYMENT_STATUS_ENUM.INVOICE) return "bg-blue-600"
     }
 
@@ -222,36 +276,103 @@ export default function DataTableWithModalAndPagination({ data, pagination, hand
                 <Table>
                     <TableHeader>
                         <TableRow>
+                            <TableHead className="w-10"></TableHead>
                             <TableHead>Client Name</TableHead>
                             <TableHead>Product Name</TableHead>
-                            <TableHead>Type</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Pending Amount</TableHead>
-                            <TableHead>Payment Date</TableHead>
+                            <TableHead>Count</TableHead>
+                            <TableHead>Total Pending Amount</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {filteredData.map((item) => (
-                            <TableRow
-                                key={item._id}
-                                onClick={() => handleRowClick(item)}
-                                className="cursor-pointer hover:bg-muted/50"
-                            >
-                                <TableCell className="font-medium">{item.client_name}</TableCell>
-                                <TableCell>{item.product_name}</TableCell>
-                                <TableCell>{item.type}</TableCell>
-                                <TableCell>{item.status}</TableCell>
-                                <TableCell>{formatCurrency(item.pending_amount)}</TableCell>
-                                <TableCell>{formatDate(item.payment_date)}</TableCell>
+                        {filteredGroupedData.map((group, groupIndex) => {
+                            const groupKey = `${group.clientName}-${group.productName}`;
+                            const isExpanded = expandedGroups.has(groupKey);
+                            
+                            return (
+                                <React.Fragment key={groupKey}>
+                                    {/* Parent row (grouped data) */}
+                                    <TableRow 
+                                        className={`cursor-pointer hover:bg-muted/50 group ${groupIndex > 0 ? 'border-t' : ''}`}
+                                        onClick={() => toggleGroupExpansion(groupKey)}
+                                    >
+                                        <TableCell className="p-2 w-10">
+                                            {isExpanded ? 
+                                                <ChevronDown className="h-4 w-4 text-muted-foreground" /> : 
+                                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                            }
+                                        </TableCell>
+                                        <TableCell className="font-semibold">{group.clientName}</TableCell>
+                                        <TableCell>{group.productName}</TableCell>
+                                        <TableCell>
+                                            <Badge variant="outline">
+                                                {group.count} payments
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="text-right font-medium">{formatCurrency(group.totalAmount)}</TableCell>
+                                    </TableRow>
+                                    
+                                    {/* Child rows (individual payments) */}
+                                    {isExpanded && (
+                                        <TableRow className="bg-muted/50">
+                                            <TableCell colSpan={5} className="p-0">
+                                                <div className="overflow-hidden pl-10">
+                                                    <Table>
+                                                        <TableHeader>
+                                                            <TableRow className="bg-muted/50 text-xs text-muted-foreground">
+                                                                <TableHead className="w-10"></TableHead>
+                                                                <TableHead>Name</TableHead>
+                                                                <TableHead>Type</TableHead>
+                                                                <TableHead>Status</TableHead>
+                                                                <TableHead className="text-right">Amount</TableHead>
+                                                                <TableHead>Payment Date</TableHead>
+                                                            </TableRow>
+                                                        </TableHeader>
+                                                        <TableBody>
+                                                            {group.payments.map((payment) => (
+                                                                <TableRow
+                                                                    key={`${payment._id}-${payment.payment_identifier}`}
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleRowClick(payment);
+                                                                    }}
+                                                                    className="cursor-pointer hover:bg-muted/70 text-sm"
+                                                                >
+                                                                    <TableCell className="w-10"></TableCell>
+                                                                    <TableCell>{payment.name}</TableCell>
+                                                                    <TableCell>{payment.type}</TableCell>
+                                                                    <TableCell>
+                                                                        <span className={`${paymentStatusColor(payment.status)} text-white px-2 py-1 rounded-md text-xs`}>
+                                                                            {payment.status}
+                                                                        </span>
+                                                                    </TableCell>
+                                                                    <TableCell className="text-right font-medium">{formatCurrency(payment.pending_amount)}</TableCell>
+                                                                    <TableCell>{formatDate(payment.payment_date)}</TableCell>
+                                                                </TableRow>
+                                                            ))}
+                                                        </TableBody>
+                                                    </Table>
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </React.Fragment>
+                            );
+                        })}
+                        
+                        {filteredGroupedData.length === 0 && (
+                            <TableRow>
+                                <TableCell colSpan={5} className="h-24 text-center">
+                                    No results found.
+                                </TableCell>
                             </TableRow>
-                        ))}
+                        )}
                     </TableBody>
                 </Table>
             </div>
 
             <div className="flex items-center justify-between space-x-2 py-4">
                 <div className="text-sm text-muted-foreground">
-                    Showing {filteredData.length} of {data.length} items (Total {pagination.total})
+                    Showing {filteredGroupedData.length} client groups (Total {pagination.total} payments)
                 </div>
                 <Pagination>
                     <PaginationContent>

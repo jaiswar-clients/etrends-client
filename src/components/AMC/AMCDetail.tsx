@@ -109,7 +109,7 @@ const columns = (onEdit: (payment: IAMCPayment) => void, onInfo: (payment: IAMCP
             const paymentStatusColor = (status: PAYMENT_STATUS_ENUM) => {
                 if (status === PAYMENT_STATUS_ENUM.PAID) return "bg-green-700"
                 if (status === PAYMENT_STATUS_ENUM.PENDING) return "bg-red-600"
-                if (status === PAYMENT_STATUS_ENUM.PERFORMA) return "bg-yellow-600"
+                if (status === PAYMENT_STATUS_ENUM.proforma) return "bg-yellow-600"
                 if (status === PAYMENT_STATUS_ENUM.INVOICE) return "bg-blue-600"
             }
             return (
@@ -234,10 +234,10 @@ const DataTable = ({ data, onEdit, onInfo, initialAmcRate }: DataTableProps) => 
                 </Button>
                 <Button
                     type="button"
-                    variant={table.getColumn("status")?.getFilterValue() === PAYMENT_STATUS_ENUM.PERFORMA ? "default" : "outline"}
-                    onClick={() => table.getColumn("status")?.setFilterValue(PAYMENT_STATUS_ENUM.PERFORMA)}
+                    variant={table.getColumn("status")?.getFilterValue() === PAYMENT_STATUS_ENUM.proforma ? "default" : "outline"}
+                    onClick={() => table.getColumn("status")?.setFilterValue(PAYMENT_STATUS_ENUM.proforma)}
                 >
-                    Performa
+                    proforma
                 </Button>
                 <Button
                     type="button"
