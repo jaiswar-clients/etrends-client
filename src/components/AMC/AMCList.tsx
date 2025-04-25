@@ -22,7 +22,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { Input } from '../ui/input'
 import Typography from '../ui/Typography'
 import { PAYMENT_STATUS_ENUM, TransformedAMCObject } from '@/redux/api/order'
@@ -74,9 +74,18 @@ interface IProps {
         pages: number;
     }
     data: TransformedAMCObject[]
-    changeFilter: (filter: AMC_FILTER, options?: { upcoming: number, startDate?: string, endDate?: string }) => void
+    changeFilter: (filter: AMC_FILTER, options?: { upcoming?: number, startDate?: string, endDate?: string }) => void
     onPageChange: (page: number) => void
     currentPage: number
+    initialClientFilter?: string
+    initialProductFilter?: string
+    onClientFilterChange: (client: string | undefined) => void
+    onProductFilterChange: (product: string | undefined) => void
+    activeFilter: AMC_FILTER
+    showUpcomingMonthsFilter: boolean
+    dateRangeSelector: { show: boolean; startDate: Date; endDate: Date; }
+    upcomingMonthValue: string
+    isLoading?: boolean
 }
 
 
@@ -150,7 +159,22 @@ const columns: ColumnDef<TableData>[] = [
     },
 ]
 
-const AMCList: React.FC<IProps> = ({ data, changeFilter, onPageChange, currentPage, pagination }) => {
+const AMCList: React.FC<IProps> = ({ 
+    data, 
+    changeFilter,
+    onPageChange, 
+    currentPage, 
+    pagination, 
+    initialClientFilter,
+    initialProductFilter,
+    onClientFilterChange,
+    onProductFilterChange,
+    activeFilter,
+    showUpcomingMonthsFilter,
+    dateRangeSelector,
+    upcomingMonthValue,
+    isLoading
+}) => {
     const [sorting, setSorting] = useState<SortingState>([
         {
             id: 'due_date',
@@ -160,10 +184,6 @@ const AMCList: React.FC<IProps> = ({ data, changeFilter, onPageChange, currentPa
     const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
     const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
     const [rowSelection, setRowSelection] = useState({})
-    const [dateRangeSelector, setDateRangeSelector] = useState({ show: false, startDate: new Date(new Date().setFullYear(new Date().getFullYear() - 1)), endDate: new Date() })
-
-    const [showUpcomingMonthsFilter, setShowUpcomingMonthsFilter] = useState(true)
-    const [activeFilter, setActiveFilter] = useState<AMC_FILTER>(AMC_FILTER.UPCOMING)
 
     const router = useRouter()
 
@@ -219,6 +239,27 @@ const AMCList: React.FC<IProps> = ({ data, changeFilter, onPageChange, currentPa
         }
     })
 
+    // Effect to set initial filters from props
+    useEffect(() => {
+        if (initialClientFilter) {
+            table.getColumn('client')?.setFilterValue(initialClientFilter)
+        }
+        if (initialProductFilter) {
+            table.getColumn('order')?.setFilterValue(initialProductFilter)
+        }
+        // Set status filter based on activeFilter from props if needed (e.g., for proforma/invoice)
+        if (activeFilter === AMC_FILTER.PROFORMA) {
+            table.getColumn('status')?.setFilterValue(PAYMENT_STATUS_ENUM.proforma)
+        } else if (activeFilter === AMC_FILTER.INVOICE) {
+            table.getColumn('status')?.setFilterValue(PAYMENT_STATUS_ENUM.INVOICE)
+        } else {
+             // Clear status filter if not proforma or invoice
+            if (table.getColumn('status')?.getFilterValue()) {
+                 table.getColumn('status')?.setFilterValue(undefined)
+            }
+        }
+    }, [initialClientFilter, initialProductFilter, activeFilter, table])
+
     return (
         <div>
             <Typography variant="h1">AMC List</Typography>
@@ -227,7 +268,7 @@ const AMCList: React.FC<IProps> = ({ data, changeFilter, onPageChange, currentPa
                     placeholder="Filter clients..."
                     value={(table.getColumn('client')?.getFilterValue() as string) ?? ''}
                     onChange={(event) =>
-                        table.getColumn('client')?.setFilterValue(event.target.value)
+                        onClientFilterChange(event.target.value || undefined)
                     }
                     className="max-w-sm"
                 />
@@ -249,9 +290,7 @@ const AMCList: React.FC<IProps> = ({ data, changeFilter, onPageChange, currentPa
                                         table.getColumn('client')?.getFilterValue() === client
                                     }
                                     onCheckedChange={(value) => {
-                                        table
-                                            .getColumn('client')
-                                            ?.setFilterValue(value ? client : '')
+                                        onClientFilterChange(value ? client : undefined)
                                     }}
                                 >
                                     {client}
@@ -276,9 +315,7 @@ const AMCList: React.FC<IProps> = ({ data, changeFilter, onPageChange, currentPa
                                         table.getColumn('order')?.getFilterValue() === product
                                     }
                                     onCheckedChange={(value) => {
-                                        table
-                                            .getColumn('order')
-                                            ?.setFilterValue(value ? product : '')
+                                        onProductFilterChange(value ? product : undefined)
                                     }}
                                 >
                                     {product}
@@ -291,11 +328,10 @@ const AMCList: React.FC<IProps> = ({ data, changeFilter, onPageChange, currentPa
                         // Upcoming Months Selector
                         showUpcomingMonthsFilter &&
                         <div className="flex items-center gap-2">
-                            <Select defaultValue={'1'} onValueChange={(value: string) => {
+                            <Select value={upcomingMonthValue} defaultValue={'1'} onValueChange={(value: string) => {
                                 if (value === 'custom') {
-                                    setDateRangeSelector({ show: true, startDate: new Date(new Date().setFullYear(new Date().getFullYear() - 1)), endDate: new Date() })
+                                    changeFilter(AMC_FILTER.UPCOMING, { upcoming: 0, startDate: dateRangeSelector.startDate.toISOString(), endDate: dateRangeSelector.endDate.toISOString() })
                                 } else {
-                                    setDateRangeSelector({ show: false, startDate: new Date(new Date().setFullYear(new Date().getFullYear() - 1)), endDate: new Date() })
                                     changeFilter(AMC_FILTER.UPCOMING, { upcoming: Number(value) })
                                 }
                             }}>
@@ -325,12 +361,6 @@ const AMCList: React.FC<IProps> = ({ data, changeFilter, onPageChange, currentPa
                                 <DatePickerWithRange
                                     dateRange={{ from: dateRangeSelector.startDate, to: dateRangeSelector.endDate }}
                                     onDateRangeChange={(date) => {
-                                        setDateRangeSelector({
-                                            ...dateRangeSelector,
-                                            startDate: date?.from ?? new Date(),
-                                            endDate: date?.to ?? new Date()
-                                        })
-
                                         if (date?.from && date?.to) {
                                             changeFilter(AMC_FILTER.UPCOMING, {
                                                 upcoming: 0,
@@ -352,12 +382,6 @@ const AMCList: React.FC<IProps> = ({ data, changeFilter, onPageChange, currentPa
                             <DatePickerWithRange
                                 dateRange={{ from: dateRangeSelector.startDate, to: dateRangeSelector.endDate }}
                                 onDateRangeChange={(date) => {
-                                    setDateRangeSelector({
-                                        ...dateRangeSelector,
-                                        startDate: date?.from ?? new Date(),
-                                        endDate: date?.to ?? new Date()
-                                    })
-
                                     if (date?.from && date?.to) {
                                         changeFilter(activeFilter, {
                                             upcoming: 0,
@@ -374,34 +398,17 @@ const AMCList: React.FC<IProps> = ({ data, changeFilter, onPageChange, currentPa
                         value={activeFilter}
                         defaultValue={AMC_FILTER.UPCOMING}
                         onValueChange={(value: string) => {
-                            // reset all filters
+                            // Reset local table filters, parent handles state/URL
                             table.resetColumnFilters()
-                            setActiveFilter(value as AMC_FILTER)
 
                             if (value === AMC_FILTER.UPCOMING) {
-                                setShowUpcomingMonthsFilter(true)
                                 changeFilter(value as AMC_FILTER, { upcoming: 1 })
                             } else {
-                                setShowUpcomingMonthsFilter(false)
-                                // For any other filter, show the date range selector
-                                setDateRangeSelector({
-                                    show: true,
-                                    startDate: new Date(new Date().setFullYear(new Date().getFullYear() - 1)),
-                                    endDate: new Date()
-                                })
-                                // Apply the filter with default date range (last year to now)
-                                changeFilter(value as AMC_FILTER, {
-                                    upcoming: 0,
+                                changeFilter(value as AMC_FILTER, { 
+                                    upcoming: 0, 
                                     startDate: new Date(new Date().setFullYear(new Date().getFullYear() - 1)).toISOString(),
-                                    endDate: new Date().toISOString()
+                                    endDate: new Date().toISOString() 
                                 })
-                                
-                                // Set column filter for payment status for proforma and Invoice
-                                if (value === 'proforma') {
-                                    table.getColumn('status')?.setFilterValue(PAYMENT_STATUS_ENUM.proforma)
-                                } else if (value === 'invoice') {
-                                    table.getColumn('status')?.setFilterValue(PAYMENT_STATUS_ENUM.INVOICE)
-                                }
                             }
                         }}
                     >
@@ -414,12 +421,12 @@ const AMCList: React.FC<IProps> = ({ data, changeFilter, onPageChange, currentPa
                                     {filter} AMC
                                 </SelectItem>
                             ))}
-                            <SelectItem className="cursor-pointer capitalize" value="proforma">
+                            {/* <SelectItem className="cursor-pointer capitalize" value={AMC_FILTER.PROFORMA}>
                                 proforma AMC
                             </SelectItem>
-                            <SelectItem className="cursor-pointer capitalize" value="invoice">
+                            <SelectItem className="cursor-pointer capitalize" value={AMC_FILTER.INVOICE}>
                                 Invoice AMC
-                            </SelectItem>
+                            </SelectItem> */}
                         </SelectContent>
                     </Select>
                 </div>
@@ -443,7 +450,13 @@ const AMCList: React.FC<IProps> = ({ data, changeFilter, onPageChange, currentPa
                         ))}
                     </TableHeader>
                     <TableBody>
-                        {table.getRowModel().rows?.length ? (
+                        {isLoading ? (
+                            <TableRow>
+                                <TableCell colSpan={columns.length} className="h-24 text-center">
+                                    Loading...
+                                </TableCell>
+                            </TableRow>
+                        ) : table.getRowModel().rows?.length ? (
                             table.getRowModel().rows.map((row) => (
                                 <TableRow
                                     key={row.id}

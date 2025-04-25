@@ -1,5 +1,5 @@
 "use client"
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Typography from '../ui/Typography'
 import { Button } from '../ui/button'
 import { Plus } from 'lucide-react'
@@ -24,7 +24,7 @@ import {
     SelectTrigger,
     SelectValue
 } from '@/components/ui/select'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import PurchasesList from './PurchasesList'
 import { useGetAllOrdersWithAttributesQuery } from '@/redux/api/order'
 
@@ -39,15 +39,72 @@ interface IProps {
     page?: number
 }
 
-const Purchase: React.FC<IProps> = ({ page }) => {
+const Purchase: React.FC<IProps> = ({ page: initialPage }) => {
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [selectedItem, setSelectedItem] = useState<typeof dropdownItems[0] | null>(null)
     const [selectedClientId, setSelectedClientId] = useState<string>('')
-
-    const { data } = useGetAllOrdersWithAttributesQuery({ page })
-
-    const { data: clientsList } = useGetClientsQuery({ all: true })
+    
     const router = useRouter()
+    const pathname = usePathname()
+    const searchParams = useSearchParams()
+    
+    // Create function to update URL query params
+    const createQueryString = (params: Record<string, string | number | undefined>) => {
+        const newSearchParams = new URLSearchParams(searchParams?.toString())
+        for (const [key, value] of Object.entries(params)) {
+            if (value === undefined || value === null || value === '') {
+                newSearchParams.delete(key)
+            } else {
+                newSearchParams.set(key, String(value))
+            }
+        }
+        return newSearchParams.toString()
+    }
+
+    // Get initial filter values from URL
+    const [queryArgs, setQueryArgs] = useState(() => {
+        const initialClientFilter = searchParams?.get('client')
+        const initialProductFilter = searchParams?.get('product')
+        const initialStatusFilter = searchParams?.get('status')
+        const initialPurchaseTypeFilter = searchParams?.get('purchaseType')
+        const initialParentCompanyFilter = searchParams?.get('parentCompany')
+        const initialAmcPendingFilter = searchParams?.get('amcPending') === 'true'
+        const urlPage = searchParams?.get('page')
+        
+        return {
+            client: initialClientFilter || undefined,
+            product: initialProductFilter || undefined,
+            status: initialStatusFilter || undefined,
+            purchaseType: initialPurchaseTypeFilter || undefined,
+            parentCompany: initialParentCompanyFilter || undefined,
+            amcPending: initialAmcPendingFilter,
+            page: urlPage ? parseInt(urlPage) : (initialPage || 1)
+        }
+    })
+
+    const { data, refetch, isFetching } = useGetAllOrdersWithAttributesQuery({ page: queryArgs.page })
+    const { data: clientsList } = useGetClientsQuery({ all: true })
+
+    // Effect to update URL when queryArgs change
+    useEffect(() => {
+        const queryString = createQueryString({
+            client: queryArgs.client,
+            product: queryArgs.product,
+            status: queryArgs.status,
+            purchaseType: queryArgs.purchaseType,
+            parentCompany: queryArgs.parentCompany,
+            amcPending: queryArgs.amcPending ? 'true' : undefined,
+            page: queryArgs.page
+        })
+        
+        // Use replace to avoid adding duplicate entries to history
+        router.replace(`${pathname}?${queryString}`, { scroll: false })
+    }, [queryArgs, router, pathname])
+    
+    // Effect to refetch data when page changes
+    useEffect(() => {
+        refetch()
+    }, [queryArgs.page, refetch])
 
     const handleItemClick = (item: typeof dropdownItems[0]) => {
         setSelectedItem(item)
@@ -63,7 +120,20 @@ const Purchase: React.FC<IProps> = ({ page }) => {
         router.push(`${selectedItem?.href}/${selectedClientId}`)
     }
 
+    const handleFilterChange = (
+        filterType: 'client' | 'product' | 'status' | 'purchaseType' | 'parentCompany',
+        value: string | undefined
+    ) => {
+        setQueryArgs(prev => ({ ...prev, [filterType]: value, page: 1 })) // Reset page on filter change
+    }
 
+    const handleAmcPendingChange = (value: boolean) => {
+        setQueryArgs(prev => ({ ...prev, amcPending: value, page: 1 }))
+    }
+
+    const handlePageChange = (page: number) => {
+        setQueryArgs(prev => ({ ...prev, page }))
+    }
 
     return (
         <div>
@@ -118,6 +188,11 @@ const Purchase: React.FC<IProps> = ({ page }) => {
             <PurchasesList
                 data={data?.data.purchases ?? []}
                 pagination={data?.data.pagination ?? { total: 0, page: 1, limit: 10 }}
+                initialFilters={queryArgs}
+                onFilterChange={handleFilterChange}
+                onAmcPendingChange={handleAmcPendingChange}
+                onPageChange={handlePageChange}
+                isLoading={isFetching}
             />
         </div>
     )

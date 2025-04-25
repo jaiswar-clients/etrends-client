@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
     ColumnDef,
     ColumnFiltersState,
@@ -46,6 +46,16 @@ import { useAppSelector } from '@/redux/hook'
 
 interface IProps {
     data: GetAllClientResponse[]
+    initialFilters: {
+        client?: string;
+        product?: string;
+        industry?: string;
+        parentCompany?: string;
+        page: number;
+    };
+    onFilterChange: (filterType: 'client' | 'product' | 'industry' | 'parentCompany', value: string | undefined) => void;
+    onPageChange: (page: number) => void;
+    isLoading?: boolean;
 }
 
 interface ClientTableData {
@@ -109,16 +119,23 @@ export const columns: ColumnDef<ClientTableData>[] = [
     }
 ]
 
-
-const ClientList: React.FC<IProps> = ({ data: clientData }) => {
+const ClientList: React.FC<IProps> = ({ 
+    data: clientData, 
+    initialFilters,
+    onFilterChange,
+    onPageChange,
+    isLoading 
+}) => {
     const [sorting, setSorting] = useState<SortingState>([])
-    const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>(
-        []
-    )
+    const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
     const router = useRouter()
     const products = useAppSelector((state) => state.user.products)
 
-    // Transform the data into the shape we need
+    // State for column visibility
+    const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
+    const [rowSelection, setRowSelection] = useState({})
+
+    // FIRST: Transform the data into the shape we need
     const data = useMemo(() =>
         clientData.map((client) => ({
             id: client._id,
@@ -129,16 +146,14 @@ const ClientList: React.FC<IProps> = ({ data: clientData }) => {
             first_order_date: new Date(client.first_order_date),
             parent_company: client.parent_company || null
         }))
-        , [clientData])
+    , [clientData])
 
-    const [columnVisibility, setColumnVisibility] =
-        useState<VisibilityState>({})
-    const [rowSelection, setRowSelection] = useState({})
-
+    // SECOND: Extract all filter data needed for the dropdowns
     const uniqueClients = useMemo(
         () => Array.from(new Set(data.map((d) => d.name))),
         [data]
     )
+    
     const uniqueProducts = useMemo(
         () => [...new Set(products.map((product) => product.short_name))],
         [products]
@@ -154,6 +169,7 @@ const ClientList: React.FC<IProps> = ({ data: clientData }) => {
         [clientData]
     )
 
+    // THIRD: Now that we have all the data, create the table
     const table = useReactTable({
         data,
         columns,
@@ -171,8 +187,49 @@ const ClientList: React.FC<IProps> = ({ data: clientData }) => {
             columnVisibility,
             rowSelection,
         },
-
+        initialState: {
+            pagination: {
+                pageIndex: initialFilters.page - 1, // Convert 1-based to 0-based index
+                pageSize: 10 // Assuming fixed page size
+            }
+        }
     })
+
+    // FOURTH: Set initial table state from URL params
+    useEffect(() => {
+        if (!table) return; // Safety check
+        
+        if (initialFilters.client) {
+            table.getColumn('name')?.setFilterValue(initialFilters.client)
+        }
+        if (initialFilters.product) {
+            table.getColumn('products')?.setFilterValue(initialFilters.product)
+        }
+        if (initialFilters.industry) {
+            table.getColumn('industry')?.setFilterValue(initialFilters.industry)
+        }
+        if (initialFilters.parentCompany) {
+            table.getColumn('parent_company')?.setFilterValue(initialFilters.parentCompany)
+        }
+        
+        // Ensure page index is correctly set from initialFilters
+        if (table.getState().pagination.pageIndex !== initialFilters.page - 1) {
+            table.setPageIndex(initialFilters.page - 1);
+        }
+    }, [initialFilters, table])
+    
+    // Ensure table pagination state syncs with URL
+    useEffect(() => {
+        if (!table) return; // Safety check
+        
+        const pageFromUrl = initialFilters.page;
+        const tablePageIndex = table.getState().pagination.pageIndex;
+        
+        // If URL page doesn't match table page, update table
+        if (pageFromUrl - 1 !== tablePageIndex) {
+            table.setPageIndex(pageFromUrl - 1);
+        }
+    }, [initialFilters.page, table]);
 
     return (
         <div className="w-full">
@@ -182,7 +239,10 @@ const ClientList: React.FC<IProps> = ({ data: clientData }) => {
                     value={(table.getColumn('name')?.getFilterValue() as string) ?? ''}
                     onChange={(event) => {
                         const value = event.target.value;
+                        // Update local table state
                         table.getColumn('name')?.setFilterValue(value);
+                        // Update parent state/URL
+                        onFilterChange('client', value || undefined);
                     }}
                     className="max-w-sm"
                 />
@@ -201,7 +261,10 @@ const ClientList: React.FC<IProps> = ({ data: clientData }) => {
                                     className="capitalize"
                                     checked={table.getColumn('parent_company')?.getFilterValue() === parent}
                                     onCheckedChange={(value) => {
+                                        // Update local table state
                                         table.getColumn('parent_company')?.setFilterValue(value ? parent : '')
+                                        // Update parent state/URL
+                                        onFilterChange('parentCompany', value ? parent : undefined)
                                     }}
                                 >
                                     {parent}
@@ -227,9 +290,10 @@ const ClientList: React.FC<IProps> = ({ data: clientData }) => {
                                         table.getColumn('name')?.getFilterValue() === client
                                     }
                                     onCheckedChange={(value) => {
-                                        table
-                                            .getColumn('name')
-                                            ?.setFilterValue(value ? client : '')
+                                        // Update local table state
+                                        table.getColumn('name')?.setFilterValue(value ? client : '')
+                                        // Update parent state/URL
+                                        onFilterChange('client', value ? client : undefined)
                                     }}
                                 >
                                     {client}
@@ -253,7 +317,10 @@ const ClientList: React.FC<IProps> = ({ data: clientData }) => {
                                     className="capitalize"
                                     checked={table.getColumn('products')?.getFilterValue() === product}
                                     onCheckedChange={(value) => {
+                                        // Update local table state
                                         table.getColumn('products')?.setFilterValue(value ? product : '')
+                                        // Update parent state/URL
+                                        onFilterChange('product', value ? product : undefined)
                                     }}
                                 >
                                     {product}
@@ -277,7 +344,10 @@ const ClientList: React.FC<IProps> = ({ data: clientData }) => {
                                     className="capitalize"
                                     checked={table.getColumn('industry')?.getFilterValue() === industry}
                                     onCheckedChange={(value) => {
+                                        // Update local table state
                                         table.getColumn('industry')?.setFilterValue(value ? industry : '')
+                                        // Update parent state/URL
+                                        onFilterChange('industry', value ? industry : undefined)
                                     }}
                                 >
                                     {industry}
@@ -308,7 +378,13 @@ const ClientList: React.FC<IProps> = ({ data: clientData }) => {
                         ))}
                     </TableHeader>
                     <TableBody>
-                        {table.getRowModel().rows?.length ? (
+                        {isLoading ? (
+                            <TableRow>
+                                <TableCell colSpan={columns.length} className="h-24 text-center">
+                                    Loading...
+                                </TableCell>
+                            </TableRow>
+                        ) : table.getRowModel().rows?.length ? (
                             table.getRowModel().rows.map((row) => (
                                 <TableRow
                                     key={row.id}
@@ -352,7 +428,9 @@ const ClientList: React.FC<IProps> = ({ data: clientData }) => {
                                     href="#" 
                                     onClick={(e) => {
                                         e.preventDefault();
+                                        const newPage = table.getState().pagination.pageIndex; // Current page index before change
                                         table.previousPage();
+                                        onPageChange(newPage); // Use the page we're going to, not the one we came from
                                     }}
                                 />
                             ) : (
@@ -383,6 +461,7 @@ const ClientList: React.FC<IProps> = ({ data: clientData }) => {
                                             onClick={(e) => {
                                                 e.preventDefault();
                                                 table.setPageIndex(pageIndex);
+                                                onPageChange(pageIndex + 1); // Convert 0-based to 1-based index
                                             }}
                                             isActive={currentPage === pageIndex}
                                         >
@@ -413,7 +492,9 @@ const ClientList: React.FC<IProps> = ({ data: clientData }) => {
                                     href="#" 
                                     onClick={(e) => {
                                         e.preventDefault();
+                                        const newPageIndex = table.getState().pagination.pageIndex + 1; // Get next page index
                                         table.nextPage();
+                                        onPageChange(newPageIndex + 1); // Convert from 0-based to 1-based and use the page we're going to
                                     }}
                                 />
                             ) : (

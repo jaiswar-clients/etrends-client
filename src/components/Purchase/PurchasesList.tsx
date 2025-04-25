@@ -93,18 +93,39 @@ interface IProps {
         page: number,
         limit: number
     }
-
+    initialFilters: {
+        client?: string;
+        product?: string;
+        status?: string;
+        purchaseType?: string;
+        parentCompany?: string;
+        amcPending: boolean;
+        page: number;
+    };
+    onFilterChange: (filterType: 'client' | 'product' | 'status' | 'purchaseType' | 'parentCompany', value: string | undefined) => void;
+    onAmcPendingChange: (value: boolean) => void;
+    onPageChange: (page: number) => void;
+    isLoading?: boolean;
 }
 
-const PurchasesList: React.FC<IProps> = ({ data }) => {
+const PurchasesList: React.FC<IProps> = ({ 
+    data, 
+    pagination, 
+    initialFilters,
+    onFilterChange,
+    onAmcPendingChange,
+    onPageChange,
+    isLoading 
+}) => {
     const [sorting, setSorting] = useState<SortingState>([])
-    const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>(
-        []
-    )
+    const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
     const [purchasesData, setPurchasesData] = useState(data)
     const products = useAppSelector(state => state.user.products)
 
-    const [activeTabFilters, setActiveTabFilters] = useState({ pending_amc_start_date: false })
+    // Set active tab state from initialFilters
+    const [activeTabFilters, setActiveTabFilters] = useState({ 
+        pending_amc_start_date: initialFilters.amcPending 
+    })
 
     const router = useRouter()
 
@@ -115,6 +136,7 @@ const PurchasesList: React.FC<IProps> = ({ data }) => {
     const searchParams = useSearchParams()
     const id = searchParams.get('id')
 
+    // Apply initial data filters
     useEffect(() => {
         if (data) {
             const filteredData = id
@@ -131,13 +153,14 @@ const PurchasesList: React.FC<IProps> = ({ data }) => {
         } else {
             setPurchasesData(data)
         }
-    }, [activeTabFilters])
+    }, [activeTabFilters, data])
 
     useEffect(() => {
         // Hide parent_company column by default
         setColumnVisibility((prev) => ({ ...prev, parent_company: false }))
     }, [])
 
+    // IMPORTANT: Create purchases data before table initialization
     const purchases = useMemo(() =>
         purchasesData.map((purchase) => ({
             id: purchase.id,
@@ -148,10 +171,8 @@ const PurchasesList: React.FC<IProps> = ({ data }) => {
             client_id: purchase.client._id,
             amc_start_date: purchase?.amc_start_date,
             parent_company: purchase?.client?.parent_company?.name || null
-
         })) ?? []
-        , [purchasesData])
-
+    , [purchasesData])
 
     // Extract unique clients and products
     const uniqueClients = useMemo(
@@ -178,9 +199,9 @@ const PurchasesList: React.FC<IProps> = ({ data }) => {
         [purchasesData]
     )
 
-
+    // Now create the table after all data is prepared
     const table = useReactTable({
-        data: purchases ?? [],
+        data: purchases,
         columns,
         onSortingChange: setSorting,
         onColumnFiltersChange: setColumnFilters,
@@ -196,13 +217,63 @@ const PurchasesList: React.FC<IProps> = ({ data }) => {
             columnVisibility,
             rowSelection,
         },
+        initialState: {
+            pagination: {
+                pageIndex: initialFilters.page - 1, // Convert 1-based to 0-based index
+                pageSize: pagination.limit
+            }
+        }
     })
 
+    // Set initial table state from URL params after table is initialized
+    useEffect(() => {
+        if (!table) return; // Safety check
+        
+        if (initialFilters.client) {
+            table.getColumn('client')?.setFilterValue(initialFilters.client)
+        }
+        if (initialFilters.product) {
+            table.getColumn('products')?.setFilterValue(initialFilters.product)
+        }
+        if (initialFilters.status) {
+            table.getColumn('status')?.setFilterValue(initialFilters.status)
+        }
+        if (initialFilters.purchaseType) {
+            table.getColumn('purchaseType')?.setFilterValue(initialFilters.purchaseType)
+        }
+        if (initialFilters.parentCompany) {
+            table.getColumn('parent_company')?.setFilterValue(initialFilters.parentCompany)
+        }
+        
+        // Ensure page index is correctly set from initialFilters
+        if (table.getState().pagination.pageIndex !== initialFilters.page - 1) {
+            table.setPageIndex(initialFilters.page - 1);
+        }
+    }, [initialFilters, table])
+    
+    // Ensure table pagination state syncs with URL
+    useEffect(() => {
+        if (!table) return; // Safety check
+        
+        const pageFromUrl = initialFilters.page;
+        const tablePageIndex = table.getState().pagination.pageIndex;
+        
+        // If URL page doesn't match table page, update table
+        if (pageFromUrl - 1 !== tablePageIndex) {
+            table.setPageIndex(pageFromUrl - 1);
+        }
+    }, [initialFilters.page, table]);
+
     const onTabFilterChange = (tab: keyof typeof activeTabFilters) => {
+        const newValue = !activeTabFilters[tab];
         setActiveTabFilters((prev) => ({
             ...prev,
-            [tab]: !prev[tab],
-        }))
+            [tab]: newValue,
+        }));
+        // Also call parent component callback
+        if (tab === 'pending_amc_start_date') {
+            onAmcPendingChange(newValue);
+        }
     }
     
 
@@ -215,7 +286,10 @@ const PurchasesList: React.FC<IProps> = ({ data }) => {
                         value={(table.getColumn('client')?.getFilterValue() as string) ?? ''}
                         onChange={(event) => {
                             const value = event.target.value
+                            // Update local table state
                             table.getColumn('client')?.setFilterValue(value)
+                            // Update parent state/URL
+                            onFilterChange('client', value || undefined)
                         }}
                         className="max-w-sm"
                     />
@@ -233,7 +307,10 @@ const PurchasesList: React.FC<IProps> = ({ data }) => {
                                         className="capitalize"
                                         checked={table.getColumn('parent_company')?.getFilterValue() === parent}
                                         onCheckedChange={(value) => {
+                                            // Update local table state
                                             table.getColumn('parent_company')?.setFilterValue(value ? parent : '')
+                                            // Update parent state/URL
+                                            onFilterChange('parentCompany', value ? parent : undefined)
                                         }}
                                     >
                                         {parent}
@@ -260,9 +337,10 @@ const PurchasesList: React.FC<IProps> = ({ data }) => {
                                                 table.getColumn('client')?.getFilterValue() === client
                                             }
                                             onCheckedChange={(value) => {
-                                                table
-                                                    .getColumn('client')
-                                                    ?.setFilterValue(value ? client : '')
+                                                // Update local table state
+                                                table.getColumn('client')?.setFilterValue(value ? client : '')
+                                                // Update parent state/URL
+                                                onFilterChange('client', value ? client : undefined)
                                             }}
                                         >
                                             {client}
@@ -286,7 +364,10 @@ const PurchasesList: React.FC<IProps> = ({ data }) => {
                                         className="capitalize"
                                         checked={table.getColumn('status')?.getFilterValue() === status}
                                         onCheckedChange={(value) => {
+                                            // Update local table state
                                             table.getColumn('status')?.setFilterValue(value ? status : '')
+                                            // Update parent state/URL
+                                            onFilterChange('status', value ? status : undefined)
                                         }}
                                     >
                                         {status}
@@ -308,7 +389,10 @@ const PurchasesList: React.FC<IProps> = ({ data }) => {
                                         className="capitalize"
                                         checked={table.getColumn('purchaseType')?.getFilterValue() === type}
                                         onCheckedChange={(value) => {
+                                            // Update local table state
                                             table.getColumn('purchaseType')?.setFilterValue(value ? type : '')
+                                            // Update parent state/URL
+                                            onFilterChange('purchaseType', value ? type : undefined)
                                         }}
                                     >
                                         {type}
@@ -336,9 +420,10 @@ const PurchasesList: React.FC<IProps> = ({ data }) => {
                                                 table.getColumn('products')?.getFilterValue() === product
                                             }
                                             onCheckedChange={(value) => {
-                                                table
-                                                    .getColumn('products')
-                                                    ?.setFilterValue(value ? product : '')
+                                                // Update local table state
+                                                table.getColumn('products')?.setFilterValue(value ? product : '')
+                                                // Update parent state/URL
+                                                onFilterChange('product', value ? product : undefined)
                                             }}
                                         >
                                             {product}
@@ -375,7 +460,13 @@ const PurchasesList: React.FC<IProps> = ({ data }) => {
                             ))}
                         </TableHeader>
                         <TableBody>
-                            {table.getRowModel().rows?.length ? (
+                            {isLoading ? (
+                                <TableRow>
+                                    <TableCell colSpan={columns.length} className="h-24 text-center">
+                                        Loading...
+                                    </TableCell>
+                                </TableRow>
+                            ) : table.getRowModel().rows?.length ? (
                                 table.getRowModel().rows.map((row) => (
                                     <TableRow
                                         key={row.id}
@@ -414,7 +505,9 @@ const PurchasesList: React.FC<IProps> = ({ data }) => {
                                         href="#" 
                                         onClick={(e) => {
                                             e.preventDefault();
+                                            const newPage = table.getState().pagination.pageIndex; // Current page index before change
                                             table.previousPage();
+                                            onPageChange(newPage); // Use the page we're going to, not the one we came from
                                         }}
                                     />
                                 ) : (
@@ -445,6 +538,7 @@ const PurchasesList: React.FC<IProps> = ({ data }) => {
                                                 onClick={(e) => {
                                                     e.preventDefault();
                                                     table.setPageIndex(pageIndex);
+                                                    onPageChange(pageIndex + 1); // Convert 0-based to 1-based index
                                                 }}
                                                 isActive={currentPage === pageIndex}
                                             >
@@ -475,7 +569,9 @@ const PurchasesList: React.FC<IProps> = ({ data }) => {
                                         href="#" 
                                         onClick={(e) => {
                                             e.preventDefault();
+                                            const newPageIndex = table.getState().pagination.pageIndex + 1; // Get next page index
                                             table.nextPage();
+                                            onPageChange(newPageIndex + 1); // Convert from 0-based to 1-based and use the page we're going to
                                         }}
                                     />
                                 ) : (
