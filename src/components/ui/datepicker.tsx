@@ -86,7 +86,9 @@ export default function DatePicker({
         }
     }
 
-    const years = Array.from({ length: 121 }, (_, i) => 2025 - i)
+    const currentYear = new Date().getFullYear();
+    const endYear = currentYear + 20;
+    const years = Array.from({ length: endYear - 2000 + 1 }, (_, i) => 2000 + i);
     const months = [
         "January", "February", "March", "April", "May", "June",
         "July", "August", "September", "October", "November", "December"

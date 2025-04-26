@@ -1,6 +1,6 @@
 "use client"
 import { Button } from "@/components/ui/button"
-import { File, Pencil, Info, ArrowUp, Edit, CircleX, CircleCheck } from "lucide-react"
+import { File, Pencil, Info, ArrowUp, Edit, CircleX, CircleCheck, Trash } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import {
     PAYMENT_STATUS_ENUM,
@@ -9,6 +9,7 @@ import {
     useGetOrderByIdQuery,
     useUpdateAMCByIdMutation,
     useUpdateOrderMutation,
+    useDeleteAMCPaymentByIdMutation,
 } from "@/redux/api/order"
 import Typography from "../ui/Typography"
 import OrderDetail from "../Client/Add/Form/OrderDetail"
@@ -16,7 +17,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import type { IAMCObject, IAMCPayment, OrderDetailInputs } from "@/types/order"
 import { Badge } from "../ui/badge"
-import { Dialog, DialogContent, DialogTitle } from "../ui/dialog"
+import { Dialog, DialogContent, DialogTitle, DialogHeader, DialogDescription, DialogFooter } from "../ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import AMCPayment from "./AMCPayment"
 import AmcPaymentReview from "./AmcPaymentReview"
@@ -52,11 +53,12 @@ interface DataTableProps {
     data: IAMCPayment[]
     onEdit: (payment: IAMCPayment) => void
     onInfo: (payment: IAMCPayment, initialAmcRate: number) => void
+    onDelete: (payment: IAMCPayment) => void
     initialAmcRate: number
 }
 
 
-const columns = (onEdit: (payment: IAMCPayment) => void, onInfo: (payment: IAMCPayment, initialAmcRate: number) => void, initialAmcRate: number): ColumnDef<IAMCPayment>[] => [
+const columns = (onEdit: (payment: IAMCPayment) => void, onInfo: (payment: IAMCPayment, initialAmcRate: number) => void, onDelete: (payment: IAMCPayment) => void, initialAmcRate: number): ColumnDef<IAMCPayment>[] => [
     {
         accessorKey: "_id",
         header: "Sr No.",
@@ -188,18 +190,26 @@ const columns = (onEdit: (payment: IAMCPayment) => void, onInfo: (payment: IAMCP
                         <Info className="w-4 h-4 mr-2" />
                         Info
                     </Button>
+                    <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => onDelete(payment)}
+                    >
+                        <Trash className="w-4 h-4 mr-2" />
+                        Delete
+                    </Button>
                 </div>
             )
         }
     }
 ]
 
-const DataTable = ({ data, onEdit, onInfo, initialAmcRate }: DataTableProps) => {
+const DataTable = ({ data, onEdit, onInfo, onDelete, initialAmcRate }: DataTableProps) => {
     const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
 
     const table = useReactTable({
         data,
-        columns: columns(onEdit, onInfo, initialAmcRate),
+        columns: columns(onEdit, onInfo, onDelete, initialAmcRate),
         getCoreRowModel: getCoreRowModel(),
         getFilteredRowModel: getFilteredRowModel(),
         onColumnFiltersChange: setColumnFilters,
@@ -296,9 +306,11 @@ const AmcForm: React.FC<{ orderId: string; defaultValue?: IDefaultValues, amcSta
     const [enablePaymentEdit, setEnablePaymentEdit] = useState<{ payment: IAMCPayment | null, editing: boolean } | null>({ payment: null, editing: false })
     const [selectedPaymentInfo, setSelectedPaymentInfo] = useState<{ payment: IAMCPayment | null, initialAmcRate: number, show: boolean }>({ payment: null, initialAmcRate: 0, show: false })
     const [showPaymentReview, setShowPaymentReview] = useState(false)
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState<{ show: boolean, payment: IAMCPayment | null }>({ show: false, payment: null })
     const [disableInput, setDisableInput] = useState(true)
 
     const [updateAMCByIdApi, { isLoading: isUpdateAMCByIdLoading }] = useUpdateAMCByIdMutation()
+    const [deleteAMCPayment, { isLoading: isDeleting }] = useDeleteAMCPaymentByIdMutation()
 
     const form = useForm<Pick<IAMCObject, "amount">>({
         defaultValues: {
@@ -319,6 +331,33 @@ const AmcForm: React.FC<{ orderId: string; defaultValue?: IDefaultValues, amcSta
             initialAmcRate,
             show: true
         })
+    }
+
+    const handleDelete = (payment: IAMCPayment) => {
+        setShowDeleteConfirm({ show: true, payment });
+    }
+    
+    const confirmDelete = async () => {
+        if (!showDeleteConfirm.payment || !defaultValue?._id) return;
+        
+        try {
+            await deleteAMCPayment({
+                amcId: defaultValue._id,
+                paymentId: showDeleteConfirm.payment._id
+            }).unwrap()
+            
+            toast({
+                variant: "success",
+                title: "Payment deleted successfully",
+            })
+            setShowDeleteConfirm({ show: false, payment: null });
+        } catch (error: any) {
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: error.message || "Something went wrong",
+            })
+        }
     }
 
     const onSubmit = async (data: Pick<IAMCObject, "amount">) => {
@@ -436,6 +475,7 @@ const AmcForm: React.FC<{ orderId: string; defaultValue?: IDefaultValues, amcSta
                             data={defaultValue.payments}
                             onEdit={handleEdit}
                             onInfo={handleInfo}
+                            onDelete={handleDelete}
                             initialAmcRate={defaultValue?.amc_percentage || 0}
                         />
                     ) : (
@@ -534,6 +574,34 @@ const AmcForm: React.FC<{ orderId: string; defaultValue?: IDefaultValues, amcSta
                     </DialogContent>
                 </Dialog>
             )}
+
+            <Dialog open={showDeleteConfirm.show} onOpenChange={(open) => setShowDeleteConfirm({ show: open, payment: showDeleteConfirm.payment })}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Delete Payment</DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to delete this payment? This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="flex justify-between sm:justify-between">
+                        <Button
+                            type="button" 
+                            variant="outline"
+                            onClick={() => setShowDeleteConfirm({ show: false, payment: null })}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="destructive"
+                            onClick={confirmDelete}
+                            loading={{ isLoading: isDeleting, loader: "tailspin" }}
+                        >
+                            Delete
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

@@ -10,7 +10,7 @@ import DatePicker from '../ui/datepicker'
 import { Dialog, DialogContent, DialogTitle } from '../ui/dialog'
 import { toast } from '@/hooks/use-toast'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
-import { ArrowUp } from 'lucide-react'
+import { ArrowUp, Trash } from 'lucide-react'
 import { useAddAmcPaymentsMutation } from '@/redux/api/order'
 
 const FREQUENCY_OPTIONS = [
@@ -107,6 +107,30 @@ const AmcPaymentReview: React.FC<IProps> = ({ amcId, data, handler }) => {
         })
     }
 
+    const handleDelete = (paymentToDelete: IAMCPaymentReview) => {
+        try {
+            const newPayments = updatedPayments.filter(
+                payment => 
+                    !(payment.from_date === paymentToDelete.from_date && 
+                    payment.to_date === paymentToDelete.to_date)
+            );
+            
+            setUpdatedPayments(newPayments);
+            
+            toast({
+                variant: "success",
+                title: "Payment Deleted",
+                description: "Payment has been removed successfully"
+            });
+        } catch (error: any) {
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: error.message || "Something went wrong"
+            });
+        }
+    }
+
     const onAddPayments = async () => {
         try {
             await addAmcPaymentsApi({
@@ -181,13 +205,22 @@ const AmcPaymentReview: React.FC<IProps> = ({ amcId, data, handler }) => {
                                 </Badge>
                             </TableCell>
                             <TableCell>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleEdit(payment)}
-                                >
-                                    Edit
-                                </Button>
+                                <div className="flex gap-2">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleEdit(payment)}
+                                    >
+                                        Edit
+                                    </Button>
+                                    <Button
+                                        variant="destructive"
+                                        size="sm"
+                                        onClick={() => handleDelete(payment)}
+                                    >
+                                        <Trash className="w-4 h-4" />
+                                    </Button>
+                                </div>
                             </TableCell>
                         </TableRow>
                     ))}

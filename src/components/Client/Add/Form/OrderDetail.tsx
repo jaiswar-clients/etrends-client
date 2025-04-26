@@ -22,12 +22,12 @@ import ProductDropdown from '@/components/common/ProductDropdown'
 import { AmountInput } from '@/components/ui/AmountInput'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import DatePicker from '@/components/ui/datepicker'
-import { CircleCheck, CirclePlus, CircleX, Edit, File, IndianRupee, Wrench, X, History } from 'lucide-react'
+import { CircleCheck, CirclePlus, CircleX, Edit, File, IndianRupee, Trash2, Wrench, X, History } from 'lucide-react'
 import { Separator } from '@radix-ui/react-separator'
 import { useToast } from '@/hooks/use-toast'
 import { IPaymentTerm, LicenseDetails, OrderDetailInputs } from '@/types/order'
 import { useAppSelector } from '@/redux/hook'
-import { IOrderObject, PAYMENT_STATUS_ENUM } from '@/redux/api/order'
+import { IOrderObject, PAYMENT_STATUS_ENUM, useDeleteOrderByIdMutation } from '@/redux/api/order'
 import {
     Tooltip,
     TooltipContent,
@@ -36,11 +36,12 @@ import {
 } from "@/components/ui/tooltip"
 import Link from 'next/link'
 import { IProduct } from '@/types/product'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Card, CardContent } from '@/components/ui/card'
 import { useFileUpload } from '@/hooks/useFileUpload'
 import { formatCurrency } from '@/lib/utils'
 import ShowMultipleFilesModal from '@/components/common/ShowMultipleFiles'
+import { useRouter } from 'next/navigation'
 
 interface OrderProps {
     title?: string
@@ -91,12 +92,15 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
     const [showStatusChangeModal, setShowStatusChangeModal] = useState(false);
     const [statusChangeDate, setStatusChangeDate] = useState<Date>(new Date());
     const [showStatusLogsModal, setShowStatusLogsModal] = useState(false);
+    const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
 
+    const router = useRouter();
     const { uploadFile, getFileNameFromUrl } = useFileUpload()
-
     const { toast } = useToast()
     const { products } = useAppSelector(state => state.user)
     const { user } = useAppSelector(state => state.user)
+
+    const [deleteOrderById, { isLoading: isDeleting }] = useDeleteOrderByIdMutation();
 
     const amcHistoryForm = useForm({
         defaultValues: {
@@ -958,6 +962,56 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
         form.setValue("other_documents", otherDocuments)
     }
 
+    const handleDeleteOrder = async () => {
+        if (!defaultValue?._id) return;
+        
+        try {
+            await deleteOrderById(defaultValue._id).unwrap();
+            toast({
+                variant: "success",
+                title: "Order Deleted",
+                description: "The order has been deleted successfully"
+            });
+            setShowDeleteConfirmation(false);
+            // Navigate to previous page or dashboard
+            router.back();
+        } catch (error: any) {
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: error.message || "An error occurred while deleting the order"
+            });
+        }
+    };
+
+    const DeleteConfirmationDialog = () => (
+        <Dialog open={showDeleteConfirmation} onOpenChange={setShowDeleteConfirmation}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle className="text-destructive">Delete Order</DialogTitle>
+                    <DialogDescription>
+                        Are you sure you want to delete this order? This action cannot be undone.
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogFooter className="flex items-center justify-end space-x-2 pt-4">
+                    <Button
+                        variant="outline"
+                        onClick={() => setShowDeleteConfirmation(false)}
+                    >
+                        Cancel
+                    </Button>
+                    <Button
+                        variant="destructive"
+                        onClick={handleDeleteOrder}
+                        loading={{ isLoading: isDeleting, loader: "tailspin" }}
+                    >
+                        Yes, Delete Order
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+
     const finalJSX = (
         <div className="mt-1 p-2">
             {defaultValue?._id && (
@@ -981,7 +1035,15 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
                             </>
                         )}
                     </Button>
-
+                    <Button
+                        type='button'
+                        variant='destructive'
+                        className='w-36 justify-between'
+                        onClick={() => setShowDeleteConfirmation(true)}
+                    >
+                        <Trash2 />
+                        <span>Delete Order</span>
+                    </Button>
                 </div>
             )}
             <Form {...form}>
@@ -1428,6 +1490,7 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
                 </form>
 
             </Form>
+            {DeleteConfirmationDialog()}
         </div>
     )
 

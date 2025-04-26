@@ -274,6 +274,16 @@ export const orderApi = createApi({
       }),
       invalidatesTags: ["AMC_DATA"],
     }),
+    deleteAMCPaymentById: builder.mutation<
+      IResponse,
+      { amcId: string; paymentId: string }
+    >({
+      query: ({ amcId, paymentId }) => ({
+        url: `/amc/${amcId}/payment/${paymentId}`,
+        method: HTTP_REQUEST.DELETE,
+      }),
+      invalidatesTags: ["AMC_DATA"],
+    }),
     getAMCPaymentReview: builder.mutation<
       IResponse<IAMCPaymentReview[]>,
       string
@@ -293,6 +303,13 @@ export const orderApi = createApi({
         body: body.payments,
       }),
       invalidatesTags: ["AMC_PAYMENT_REVIEW", "AMC_DATA"],
+    }),
+    deleteOrderById: builder.mutation<IResponse, string>({
+      query: (id) => ({
+        url: `/${id}`,
+        method: HTTP_REQUEST.DELETE,
+      }),
+      invalidatesTags: ["ORDERS_LIST", "CLIENT_ORDERS_DATA"],
     }),
   }),
 });
@@ -320,4 +337,6 @@ export const {
   useGetAMCPaymentReviewMutation,
   useAddAmcPaymentsMutation,
   useUpdateAMCByIdMutation,
+  useDeleteOrderByIdMutation,
+  useDeleteAMCPaymentByIdMutation,
 } = orderApi;
