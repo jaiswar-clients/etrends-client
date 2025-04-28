@@ -343,7 +343,7 @@ const AmcForm: React.FC<{ orderId: string; defaultValue?: IDefaultValues, amcSta
         try {
             await deleteAMCPayment({
                 amcId: defaultValue._id,
-                paymentId: showDeleteConfirm.payment._id
+                paymentId: showDeleteConfirm.payment._id as string
             }).unwrap()
             
             toast({

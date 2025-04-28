@@ -142,7 +142,7 @@ const AMCPayment = ({ payment, amcId, onClose }: IProps) => {
         try {
             await deleteAMCPayment({
                 amcId,
-                paymentId: payment._id
+                paymentId: payment._id as string
             }).unwrap()
 
             toast({
