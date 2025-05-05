@@ -2,14 +2,6 @@
 
 import {
     ColumnDef,
-    flexRender,
-    getCoreRowModel,
-    useReactTable,
-    getPaginationRowModel,
-    SortingState,
-    ColumnFiltersState,
-    getSortedRowModel,
-    getFilteredRowModel,
     VisibilityState,
 } from '@tanstack/react-table'
 import { ChevronDown } from 'lucide-react'
@@ -20,16 +12,8 @@ import {
     DropdownMenuContent,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { IPurchase, PURCHASE_TYPE } from '@/types/order'
+import { IPurchase, PURCHASE_TYPE, OrderFilterOptions } from '@/types/order'
 import { ORDER_STATUS_ENUM } from '@/types/client'
 import { useState, useMemo, useEffect } from 'react'
 import { Input } from '../ui/input'
@@ -44,28 +28,22 @@ import {
     PaginationNext,
     PaginationPrevious,
 } from "@/components/ui/pagination"
+import { DataTable } from '../ui/data-table'
+import { useGetOrderFiltersOfCompanyQuery } from '@/redux/api/order'
 
-type Purchase = {
-    id: string
-    client: string
-    purchaseType: PURCHASE_TYPE
-    products: string
-    status: string
-    client_id: string
-}
-
-const columns: ColumnDef<Purchase>[] = [
+const columns = (router: ReturnType<typeof useRouter>): ColumnDef<IPurchase>[] => [
     {
-        accessorKey: 'client',
+        accessorKey: 'client_id.name',
         header: 'Client',
-    },
-    {
-        accessorKey: 'purchaseType',
-        header: 'Purchase Type',
+        cell: ({ row }) => row.original.client_id.name
     },
     {
         accessorKey: 'products',
         header: 'Products',
+        cell: ({ row }) => {
+            const products = row.original.products.map(p => p.short_name).join(', ')
+            return products
+        }
     },
     {
         accessorKey: 'status',
@@ -80,9 +58,28 @@ const columns: ColumnDef<Purchase>[] = [
         },
     },
     {
-        accessorKey: 'parent_company',
+        accessorKey: 'client_id.parent_company.name',
         header: 'Parent Company',
-        enableHiding: true,
+        cell: ({ row }) => row.original.client_id.parent_company?.name || 'N/A'
+    },
+    {
+        id: 'actions',
+        header: "Actions",
+        cell: ({ row }) => {
+            const purchase = row.original
+            return (
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={(e) => {
+                        e.stopPropagation(); // Prevent row click toggle
+                        router.push(`/purchases/${purchase._id}?type=${PURCHASE_TYPE.ORDER}&client=${purchase.client_id._id}`)
+                    }}
+                >
+                    View
+                </Button>
+            )
+        }
     }
 ]
 
@@ -95,36 +92,39 @@ interface IProps {
     }
     initialFilters: {
         client?: string;
+        clientId?: string;
         product?: string;
         status?: string;
         purchaseType?: string;
         parentCompany?: string;
+        parentCompanyId?: string;
         amcPending: boolean;
         page: number;
     };
-    onFilterChange: (filterType: 'client' | 'product' | 'status' | 'purchaseType' | 'parentCompany', value: string | undefined) => void;
+    onFilterChange: (filterType: 'client' | 'product' | 'status' | 'purchaseType' | 'parentCompany' | 'clientId' | 'parentCompanyId', value: string | undefined) => void;
     onAmcPendingChange: (value: boolean) => void;
     onPageChange: (page: number) => void;
     isLoading?: boolean;
 }
 
-const PurchasesList: React.FC<IProps> = ({ 
-    data, 
-    pagination, 
+const PurchasesList: React.FC<IProps> = ({
+    data,
+    pagination,
     initialFilters,
     onFilterChange,
     onAmcPendingChange,
     onPageChange,
-    isLoading 
+    isLoading
 }) => {
-    const [sorting, setSorting] = useState<SortingState>([])
-    const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
     const [purchasesData, setPurchasesData] = useState(data)
     const products = useAppSelector(state => state.user.products)
+    const { data: filtersData } = useGetOrderFiltersOfCompanyQuery()
+    const [clientSearch, setClientSearch] = useState("")
+    const [parentSearch, setParentSearch] = useState("")
 
     // Set active tab state from initialFilters
-    const [activeTabFilters, setActiveTabFilters] = useState({ 
-        pending_amc_start_date: initialFilters.amcPending 
+    const [activeTabFilters, setActiveTabFilters] = useState({
+        pending_amc_start_date: initialFilters.amcPending
     })
 
     const router = useRouter()
@@ -140,7 +140,7 @@ const PurchasesList: React.FC<IProps> = ({
     useEffect(() => {
         if (data) {
             const filteredData = id
-                ? data.filter(purchase => purchase.id === id)
+                ? data.filter(purchase => purchase._id === id)
                 : data;
             setPurchasesData(filteredData);
         }
@@ -155,114 +155,51 @@ const PurchasesList: React.FC<IProps> = ({
         }
     }, [activeTabFilters, data])
 
-    useEffect(() => {
-        // Hide parent_company column by default
-        setColumnVisibility((prev) => ({ ...prev, parent_company: false }))
-    }, [])
-
-    // IMPORTANT: Create purchases data before table initialization
-    const purchases = useMemo(() =>
-        purchasesData.map((purchase) => ({
-            id: purchase.id,
-            client: purchase.client.name,
-            purchaseType: purchase.purchase_type,
-            products: purchase.products.map((product) => product.short_name).join(', '),
-            status: purchase.status,
-            client_id: purchase.client._id,
-            amc_start_date: purchase?.amc_start_date,
-            parent_company: purchase?.client?.parent_company?.name || null
-        })) ?? []
-    , [purchasesData])
-
-    // Extract unique clients and products
-    const uniqueClients = useMemo(
-        () => Array.from(new Set(purchasesData.map((d) => d.client.name))),
-        [purchasesData]
-    )
-    const uniqueProducts = useMemo(
-        () => [...new Set(products.map((product) => product.short_name))],
-        [products]
-    )
-
-    const uniquePurchaseTypes = useMemo(
-        () => Array.from(new Set(purchasesData.map((d) => d.purchase_type))),
-        [purchasesData]
-    )
-
+    // Get unique values for status and product filters
     const uniqueStatus = useMemo(
         () => Array.from(new Set(purchasesData.map((d) => d.status))),
         [purchasesData]
     )
 
-    const uniqueParentCompanies = useMemo(
-        () => Array.from(new Set(purchasesData.map((d) => d?.client?.parent_company?.name).filter(Boolean))),
-        [purchasesData]
+    const uniqueProducts = useMemo(
+        () => [...new Set(products.map((product: any) => product.short_name))],
+        [products]
     )
 
-    // Now create the table after all data is prepared
-    const table = useReactTable({
-        data: purchases,
-        columns,
-        onSortingChange: setSorting,
-        onColumnFiltersChange: setColumnFilters,
-        getCoreRowModel: getCoreRowModel(),
-        getPaginationRowModel: getPaginationRowModel(),
-        getSortedRowModel: getSortedRowModel(),
-        getFilteredRowModel: getFilteredRowModel(),
-        onColumnVisibilityChange: setColumnVisibility,
-        onRowSelectionChange: setRowSelection,
-        state: {
-            sorting,
-            columnFilters,
-            columnVisibility,
-            rowSelection,
-        },
-        initialState: {
-            pagination: {
-                pageIndex: initialFilters.page - 1, // Convert 1-based to 0-based index
-                pageSize: pagination.limit
-            }
-        }
-    })
+    // Filter the data based on column filters
+    const filteredData = useMemo(() => {
+        let filtered = [...purchasesData];
 
-    // Set initial table state from URL params after table is initialized
-    useEffect(() => {
-        if (!table) return; // Safety check
-        
+        // Client filter
         if (initialFilters.client) {
-            table.getColumn('client')?.setFilterValue(initialFilters.client)
+            filtered = filtered.filter(item =>
+                item.client_id.name.toLowerCase().includes(initialFilters.client!.toLowerCase())
+            );
         }
+
+        // Product filter
         if (initialFilters.product) {
-            table.getColumn('products')?.setFilterValue(initialFilters.product)
+            filtered = filtered.filter(item =>
+                item.products.some(p => p.short_name === initialFilters.product)
+            );
         }
+
+        // Status filter
         if (initialFilters.status) {
-            table.getColumn('status')?.setFilterValue(initialFilters.status)
+            filtered = filtered.filter(item =>
+                item.status === initialFilters.status
+            );
         }
-        if (initialFilters.purchaseType) {
-            table.getColumn('purchaseType')?.setFilterValue(initialFilters.purchaseType)
-        }
+
+        // Parent Company filter
         if (initialFilters.parentCompany) {
-            table.getColumn('parent_company')?.setFilterValue(initialFilters.parentCompany)
+            filtered = filtered.filter(item =>
+                item.client_id?.parent_company?.name === initialFilters.parentCompany
+            );
         }
-        
-        // Ensure page index is correctly set from initialFilters
-        if (table.getState().pagination.pageIndex !== initialFilters.page - 1) {
-            table.setPageIndex(initialFilters.page - 1);
-        }
-    }, [initialFilters, table])
-    
-    // Ensure table pagination state syncs with URL
-    useEffect(() => {
-        if (!table) return; // Safety check
-        
-        const pageFromUrl = initialFilters.page;
-        const tablePageIndex = table.getState().pagination.pageIndex;
-        
-        // If URL page doesn't match table page, update table
-        if (pageFromUrl - 1 !== tablePageIndex) {
-            table.setPageIndex(pageFromUrl - 1);
-        }
-    }, [initialFilters.page, table]);
+
+        return filtered;
+    }, [purchasesData, initialFilters]);
 
     const onTabFilterChange = (tab: keyof typeof activeTabFilters) => {
         const newValue = !activeTabFilters[tab];
@@ -275,163 +212,218 @@ const PurchasesList: React.FC<IProps> = ({
             onAmcPendingChange(newValue);
         }
     }
-    
+
+    const handleClientSelection = (clientName: string | undefined, clientId: string | undefined) => {
+        onFilterChange('client', clientName);
+        onFilterChange('clientId', clientId);
+        setClientSearch("");
+    }
+
+    const handleParentCompanySelection = (parentName: string | undefined, parentId: string | undefined) => {
+        onFilterChange('parentCompany', parentName);
+        onFilterChange('parentCompanyId', parentId);
+        setParentSearch("");
+    }
+
+    const tableColumns = useMemo(() => columns(router), [router]);
+
+    // Filter client and parent lists based on search
+    const filteredClients = useMemo(() => {
+        if (!filtersData?.data?.clients) return [];
+        return filtersData.data.clients.filter(client => 
+            client.name.toLowerCase().includes(clientSearch.toLowerCase())
+        );
+    }, [filtersData?.data?.clients, clientSearch]);
+
+    const filteredParents = useMemo(() => {
+        if (!filtersData?.data?.parents) return [];
+        return filtersData.data.parents.filter(parent => 
+            parent.name.toLowerCase().includes(parentSearch.toLowerCase())
+        );
+    }, [filtersData?.data?.parents, parentSearch]);
 
     return (
         <div>
             <div className="w-full">
                 <div className="flex items-center justify-between py-4 flex-wrap gap-3">
-                    <Input
-                        placeholder="Filter companies..."
-                        value={(table.getColumn('client')?.getFilterValue() as string) ?? ''}
-                        onChange={(event) => {
-                            const value = event.target.value
-                            // Update local table state
-                            table.getColumn('client')?.setFilterValue(value)
-                            // Update parent state/URL
-                            onFilterChange('client', value || undefined)
-                        }}
-                        className="max-w-sm"
-                    />
-                    <div className="flex item-center gap-4">
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="outline" className="ml-auto capitalize">
-                                    {(table.getColumn('parent_company')?.getFilterValue() as string) || 'Parent'} <ChevronDown className="ml-2 h-4 w-4" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                {uniqueParentCompanies.map((parent) => (
-                                    <DropdownMenuCheckboxItem
-                                        key={parent}
-                                        className="capitalize"
-                                        checked={table.getColumn('parent_company')?.getFilterValue() === parent}
-                                        onCheckedChange={(value) => {
-                                            // Update local table state
-                                            table.getColumn('parent_company')?.setFilterValue(value ? parent : '')
-                                            // Update parent state/URL
-                                            onFilterChange('parentCompany', value ? parent : undefined)
-                                        }}
+                    <div className="flex gap-2 flex-wrap">
+                        {/* Client Filter */}
+                        <div className="relative">
+                            {initialFilters.client ? (
+                                <div className="flex items-center space-x-1 h-10 px-4 py-2 bg-gray-100 rounded-md">
+                                    <span className="text-sm font-medium">{initialFilters.client}</span>
+                                    <button
+                                        onClick={() => handleClientSelection(undefined, undefined)}
+                                        className="ml-1 text-gray-500 hover:text-gray-700"
                                     >
-                                        {parent}
-                                    </DropdownMenuCheckboxItem>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                    </button>
+                                </div>
+                            ) : (
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="outline" className="capitalize min-w-[120px]">
+                                            Client <ChevronDown className="ml-2 h-4 w-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="start" className="w-[250px]">
+                                        <div className="px-2 py-2">
+                                            <Input
+                                                placeholder="Search clients..."
+                                                value={clientSearch}
+                                                onChange={(e) => setClientSearch(e.target.value)}
+                                                className="mb-2"
+                                            />
+                                        </div>
+                                        <div className="max-h-[200px] overflow-y-auto">
+                                            {filteredClients.length > 0 ? (
+                                                filteredClients.map((client) => (
+                                                    <DropdownMenuCheckboxItem
+                                                        key={client._id}
+                                                        className="capitalize"
+                                                        checked={initialFilters.clientId === client._id}
+                                                        onCheckedChange={(value) => {
+                                                            handleClientSelection(value ? client.name : undefined, value ? client._id : undefined);
+                                                        }}
+                                                    >
+                                                        {client.name}
+                                                    </DropdownMenuCheckboxItem>
+                                                ))
+                                            ) : (
+                                                <div className="px-2 py-2 text-sm text-gray-500">No clients found</div>
+                                            )}
+                                        </div>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            )}
+                        </div>
 
-
-                                ))}
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                        {!table.getColumn('products')?.getFilterValue() && (
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button variant="outline" className="ml-auto">
-                                        {(table.getColumn('client')?.getFilterValue() as string) ?? 'Clients'}{' '}
-                                        <ChevronDown className="ml-2 h-4 w-4" />
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                    {uniqueClients.map((client) => (
-                                        <DropdownMenuCheckboxItem
-                                            key={client}
-                                            className="capitalize"
-                                            checked={
-                                                table.getColumn('client')?.getFilterValue() === client
-                                            }
-                                            onCheckedChange={(value) => {
-                                                // Update local table state
-                                                table.getColumn('client')?.setFilterValue(value ? client : '')
-                                                // Update parent state/URL
-                                                onFilterChange('client', value ? client : undefined)
-                                            }}
-                                        >
-                                            {client}
-                                        </DropdownMenuCheckboxItem>
-                                    ))}
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-
-                        )}
-                        {/* Create DropDowndown filter for Status and Order Type */}
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="outline" className="ml-auto capitalize">
-                                    {(table.getColumn('status')?.getFilterValue() as string) || 'Status'} <ChevronDown className="ml-2 h-4 w-4" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                {uniqueStatus.map((status) => (
-                                    <DropdownMenuCheckboxItem
-                                        key={status}
-                                        className="capitalize"
-                                        checked={table.getColumn('status')?.getFilterValue() === status}
-                                        onCheckedChange={(value) => {
-                                            // Update local table state
-                                            table.getColumn('status')?.setFilterValue(value ? status : '')
-                                            // Update parent state/URL
-                                            onFilterChange('status', value ? status : undefined)
-                                        }}
+                        {/* Parent Company Filter */}
+                        <div className="relative">
+                            {initialFilters.parentCompany ? (
+                                <div className="flex items-center space-x-1 h-10 px-4 py-2 bg-gray-100 rounded-md">
+                                    <span className="text-sm font-medium">{initialFilters.parentCompany}</span>
+                                    <button
+                                        onClick={() => handleParentCompanySelection(undefined, undefined)}
+                                        className="ml-1 text-gray-500 hover:text-gray-700"
                                     >
-                                        {status}
-                                    </DropdownMenuCheckboxItem>
-                                ))}
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                    </button>
+                                </div>
+                            ) : (
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="outline" className="capitalize min-w-[120px]">
+                                            Parent <ChevronDown className="ml-2 h-4 w-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="start" className="w-[250px]">
+                                        <div className="px-2 py-2">
+                                            <Input
+                                                placeholder="Search parent companies..."
+                                                value={parentSearch}
+                                                onChange={(e) => setParentSearch(e.target.value)}
+                                                className="mb-2"
+                                            />
+                                        </div>
+                                        <div className="max-h-[200px] overflow-y-auto">
+                                            {filteredParents.length > 0 ? (
+                                                filteredParents.map((parent) => (
+                                                    <DropdownMenuCheckboxItem
+                                                        key={parent._id}
+                                                        className="capitalize"
+                                                        checked={initialFilters.parentCompanyId === parent._id}
+                                                        onCheckedChange={(value) => {
+                                                            handleParentCompanySelection(value ? parent.name : undefined, value ? parent._id : undefined);
+                                                        }}
+                                                    >
+                                                        {parent.name}
+                                                    </DropdownMenuCheckboxItem>
+                                                ))
+                                            ) : (
+                                                <div className="px-2 py-2 text-sm text-gray-500">No parent companies found</div>
+                                            )}
+                                        </div>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            )}
+                        </div>
+                    </div>
 
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="outline" className="ml-auto capitalize">
-                                    {(table.getColumn('purchaseType')?.getFilterValue() as string) || 'Purchase Type'} <ChevronDown className="ml-2 h-4 w-4" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                {uniquePurchaseTypes.map((type) => (
-                                    <DropdownMenuCheckboxItem
-                                        key={type}
-                                        className="capitalize"
-                                        checked={table.getColumn('purchaseType')?.getFilterValue() === type}
-                                        onCheckedChange={(value) => {
-                                            // Update local table state
-                                            table.getColumn('purchaseType')?.setFilterValue(value ? type : '')
-                                            // Update parent state/URL
-                                            onFilterChange('purchaseType', value ? type : undefined)
-                                        }}
+                    <div className="flex items-center gap-3 flex-wrap">
+                        {/* Status Filter */}
+                        <div className="relative">
+                            {initialFilters.status ? (
+                                <div className="flex items-center space-x-1 h-10 px-4 py-2 bg-gray-100 rounded-md">
+                                    <span className="text-sm font-medium capitalize">{initialFilters.status}</span>
+                                    <button
+                                        onClick={() => onFilterChange('status', undefined)}
+                                        className="ml-1 text-gray-500 hover:text-gray-700"
                                     >
-                                        {type}
-                                    </DropdownMenuCheckboxItem>
-                                ))}
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                    </button>
+                                </div>
+                            ) : (
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="outline" className="capitalize min-w-[120px]">
+                                            Status <ChevronDown className="ml-2 h-4 w-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        {uniqueStatus.map((status) => (
+                                            <DropdownMenuCheckboxItem
+                                                key={status}
+                                                className="capitalize"
+                                                checked={initialFilters.status === status}
+                                                onCheckedChange={(value) => {
+                                                    onFilterChange('status', value ? status : undefined)
+                                                }}
+                                            >
+                                                {status}
+                                            </DropdownMenuCheckboxItem>
+                                        ))}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            )}
+                        </div>
 
-
-
-                        {/* Products Dropdown */}
-                        {!table.getColumn('client')?.getFilterValue() && (
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button variant="outline" className="ml-auto ">
-                                        {(table.getColumn('products')?.getFilterValue() as string) || 'Products'} <ChevronDown className="ml-2 h-4 w-4" />
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                    {uniqueProducts.map((product) => (
-                                        <DropdownMenuCheckboxItem
-                                            key={product}
-                                            className="capitalize"
-                                            checked={
-                                                table.getColumn('products')?.getFilterValue() === product
-                                            }
-                                            onCheckedChange={(value) => {
-                                                // Update local table state
-                                                table.getColumn('products')?.setFilterValue(value ? product : '')
-                                                // Update parent state/URL
-                                                onFilterChange('product', value ? product : undefined)
-                                            }}
-                                        >
-                                            {product}
-                                        </DropdownMenuCheckboxItem>
-                                    ))}
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                        )}
+                        {/* Products Filter */}
+                        <div className="relative">
+                            {initialFilters.product ? (
+                                <div className="flex items-center space-x-1 h-10 px-4 py-2 bg-gray-100 rounded-md">
+                                    <span className="text-sm font-medium">{initialFilters.product}</span>
+                                    <button
+                                        onClick={() => onFilterChange('product', undefined)}
+                                        className="ml-1 text-gray-500 hover:text-gray-700"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                    </button>
+                                </div>
+                            ) : (
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="outline" className="capitalize min-w-[120px]">
+                                            Products <ChevronDown className="ml-2 h-4 w-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        {uniqueProducts.map((product: string) => (
+                                            <DropdownMenuCheckboxItem
+                                                key={product}
+                                                className="capitalize"
+                                                checked={initialFilters.product === product}
+                                                onCheckedChange={(value) => {
+                                                    onFilterChange('product', value ? product : undefined)
+                                                }}
+                                            >
+                                                {product}
+                                            </DropdownMenuCheckboxItem>
+                                        ))}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            )}
+                        </div>
                     </div>
                 </div>
                 <div className="flex mb-2">
@@ -441,151 +433,93 @@ const PurchasesList: React.FC<IProps> = ({
                         <span className='text-xs'>AMC Start Date Pending</span>
                     </Button>
                 </div>
-                <div className="rounded-md border">
-                    <Table>
-                        <TableHeader>
-                            {table.getHeaderGroups().map((headerGroup) => (
-                                <TableRow key={headerGroup.id}>
-                                    {headerGroup.headers.map((header) => (
-                                        <TableHead key={header.id}>
-                                            {header.isPlaceholder
-                                                ? null
-                                                : flexRender(
-                                                    header.column.columnDef.header,
-                                                    header.getContext()
-                                                )}
-                                        </TableHead>
-                                    ))}
-                                </TableRow>
-                            ))}
-                        </TableHeader>
-                        <TableBody>
-                            {isLoading ? (
-                                <TableRow>
-                                    <TableCell colSpan={columns.length} className="h-24 text-center">
-                                        Loading...
-                                    </TableCell>
-                                </TableRow>
-                            ) : table.getRowModel().rows?.length ? (
-                                table.getRowModel().rows.map((row) => (
-                                    <TableRow
-                                        key={row.id}
-                                        data-state={row.getIsSelected() && 'selected'}
-                                        onClick={() => router.push(`/purchases/${row.original.id}?type=${row.original.purchaseType}&client=${row.original.client_id}`)}
-                                        className='cursor-pointer'
-                                    >
-                                        {row.getVisibleCells().map((cell) => (
-                                            <TableCell key={cell.id}>
-                                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                            </TableCell>
-                                        ))}
-                                    </TableRow>
-                                ))
-                            ) : (
-                                <TableRow>
-                                    <TableCell colSpan={columns.length} className="h-24 text-center">
-                                        No results.
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </div>
-                
-                {/* Display row count and pagination */}
+
+                {isLoading ? (
+                    <div className="text-center py-10">Loading...</div>
+                ) : (
+                    <DataTable
+                        columns={tableColumns}
+                        data={filteredData}
+                    />
+                )}
+
+                {/* Pagination */}
                 <div className="flex items-center justify-between py-4">
                     <div className="text-sm text-muted-foreground">
-                        Showing {table.getFilteredRowModel().rows.length} of {purchases.length} items
+                        Showing {Math.min(pagination.limit, filteredData.length)} of {pagination.total} items
                     </div>
                     <Pagination>
                         <PaginationContent>
                             <PaginationItem>
-                                {table.getCanPreviousPage() ? (
-                                    <PaginationPrevious 
-                                        href="#" 
-                                        onClick={(e) => {
-                                            e.preventDefault();
-                                            const newPage = table.getState().pagination.pageIndex; // Current page index before change
-                                            table.previousPage();
-                                            onPageChange(newPage); // Use the page we're going to, not the one we came from
-                                        }}
-                                    />
-                                ) : (
-                                    <PaginationPrevious
-                                        href="#"
-                                        onClick={(e) => e.preventDefault()}
-                                        className="opacity-50 cursor-not-allowed"
-                                    />
-                                )}
+                                <PaginationPrevious
+                                    href="#"
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        if (initialFilters.page > 1) {
+                                            onPageChange(initialFilters.page - 1);
+                                        }
+                                    }}
+                                    className={initialFilters.page <= 1 ? "opacity-50 cursor-not-allowed" : ""}
+                                />
                             </PaginationItem>
-                            
+
                             {/* Calculate page numbers to display */}
-                            {Array.from({ length: table.getPageCount() }).map((_, index) => {
-                                // Show limited page numbers with ellipsis for better UX
-                                const pageIndex = index;
-                                const currentPage = table.getState().pagination.pageIndex;
-                                
+                            {Array.from({ length: Math.ceil(pagination.total / pagination.limit) }).map((_, index) => {
+                                const pageNumber = index + 1;
+                                const currentPage = initialFilters.page;
+
                                 // Always show first, last, current and pages around current
                                 if (
-                                    pageIndex === 0 || 
-                                    pageIndex === table.getPageCount() - 1 ||
-                                    Math.abs(pageIndex - currentPage) <= 1
+                                    pageNumber === 1 ||
+                                    pageNumber === Math.ceil(pagination.total / pagination.limit) ||
+                                    Math.abs(pageNumber - currentPage) <= 1
                                 ) {
                                     return (
-                                        <PaginationItem key={pageIndex}>
-                                            <PaginationLink 
+                                        <PaginationItem key={pageNumber}>
+                                            <PaginationLink
                                                 href="#"
                                                 onClick={(e) => {
                                                     e.preventDefault();
-                                                    table.setPageIndex(pageIndex);
-                                                    onPageChange(pageIndex + 1); // Convert 0-based to 1-based index
+                                                    onPageChange(pageNumber);
                                                 }}
-                                                isActive={currentPage === pageIndex}
+                                                isActive={currentPage === pageNumber}
                                             >
-                                                {pageIndex + 1}
+                                                {pageNumber}
                                             </PaginationLink>
                                         </PaginationItem>
                                     );
                                 }
-                                
+
                                 // Show ellipsis for skipped pages
                                 if (
-                                    (pageIndex === 1 && currentPage > 2) ||
-                                    (pageIndex === table.getPageCount() - 2 && currentPage < table.getPageCount() - 3)
+                                    (pageNumber === 2 && currentPage > 3) ||
+                                    (pageNumber === Math.ceil(pagination.total / pagination.limit) - 1 && currentPage < Math.ceil(pagination.total / pagination.limit) - 2)
                                 ) {
                                     return (
-                                        <PaginationItem key={pageIndex}>
+                                        <PaginationItem key={pageNumber}>
                                             <PaginationEllipsis />
                                         </PaginationItem>
                                     );
                                 }
-                                
+
                                 return null;
                             })}
-                            
+
                             <PaginationItem>
-                                {table.getCanNextPage() ? (
-                                    <PaginationNext 
-                                        href="#" 
-                                        onClick={(e) => {
-                                            e.preventDefault();
-                                            const newPageIndex = table.getState().pagination.pageIndex + 1; // Get next page index
-                                            table.nextPage();
-                                            onPageChange(newPageIndex + 1); // Convert from 0-based to 1-based and use the page we're going to
-                                        }}
-                                    />
-                                ) : (
-                                    <PaginationNext
-                                        href="#"
-                                        onClick={(e) => e.preventDefault()}
-                                        className="opacity-50 cursor-not-allowed"
-                                    />
-                                )}
+                                <PaginationNext
+                                    href="#"
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        if (initialFilters.page < Math.ceil(pagination.total / pagination.limit)) {
+                                            onPageChange(initialFilters.page + 1);
+                                        }
+                                    }}
+                                    className={initialFilters.page >= Math.ceil(pagination.total / pagination.limit) ? "opacity-50 cursor-not-allowed" : ""}
+                                />
                             </PaginationItem>
                         </PaginationContent>
                     </Pagination>
                 </div>
-
             </div>
         </div>
     )

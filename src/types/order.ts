@@ -68,8 +68,8 @@ export interface IAdditionalServiceObject {
   order_id: string;
 }
 
-export interface IOrderObject {
-  products: string[];
+export interface IOrderObject<P = string> {
+  products: P[];
   base_cost: number;
   amc_rate: {
     percentage: number;
@@ -228,15 +228,10 @@ export interface IUpdatePendingPaymentRequest {
   payment_receive_date: Date;
 }
 
-export interface IPurchase {
-  client: Omit<IClientDataObject, "orders">;
-  purchase_type: PURCHASE_TYPE;
-  products: IPurchase["purchase_type"] extends PURCHASE_TYPE.ADDITIONAL_SERVICE
-    ? { name: string }[]
-    : IProduct[];
-  status: string;
-  amc_start_date?: string | Date;
-  id: string;
+export interface IPurchase extends IOrderObject<IProduct> {
+  client_id: IClientDataObject & {
+    parent_company?: IClientDataObject;
+  };
 }
 
 export interface IPaymentTerm {
@@ -323,4 +318,23 @@ export interface IAMCPaymentReview {
   amc_rate_amount: number;
   amc_frequency: number;
   total_cost: number;
+}
+
+export interface IOrderFilterCompanyResponse {
+  parents: {
+    _id: string;
+    name: string;
+  }[];
+  clients: {
+    _id: string;
+    name: string;
+  }[];
+}
+
+export interface OrderFilterOptions {
+  parentCompanyId?: string;
+  clientId?: string;
+  clientName?: string;
+  productId?: string;
+  status?: ORDER_STATUS_ENUM;
 }

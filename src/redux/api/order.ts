@@ -20,6 +20,8 @@ import {
   IPendingPaymentType,
   IAMCPayment,
   IAMCPaymentReview,
+  IOrderFilterCompanyResponse,
+  OrderFilterOptions,
 } from "@/types/order";
 
 // Re-export types that are used by other components
@@ -78,10 +80,12 @@ export const orderApi = createApi({
           pages: number;
         };
       }>,
-      { page?: number; limit?: number }
+      { page?: number; limit?: number; filters?: OrderFilterOptions }
     >({
       query: (body) =>
-        `/all-orders?page=${body.page || 1}&limit=${body.limit || 10}`,
+        `/all-orders?page=${body.page || 1}&limit=${
+          body.limit || 10
+        }&filters=${JSON.stringify(body.filters)}`,
       providesTags: ["ORDERS_LIST"],
     }),
     createOrder: builder.mutation<IResponse, CreateOrderRequest>({
@@ -311,6 +315,15 @@ export const orderApi = createApi({
       }),
       invalidatesTags: ["ORDERS_LIST", "CLIENT_ORDERS_DATA"],
     }),
+    getOrderFiltersOfCompany: builder.query<
+      IResponse<IOrderFilterCompanyResponse>,
+      void
+    >({
+      query: () => ({
+        url: `/filters/company-data`,
+        method: HTTP_REQUEST.GET,
+      }),
+    }),
   }),
 });
 
@@ -339,4 +352,5 @@ export const {
   useUpdateAMCByIdMutation,
   useDeleteOrderByIdMutation,
   useDeleteAMCPaymentByIdMutation,
+  useGetOrderFiltersOfCompanyQuery,
 } = orderApi;

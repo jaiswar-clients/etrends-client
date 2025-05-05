@@ -27,6 +27,7 @@ import {
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import PurchasesList from './PurchasesList'
 import { useGetAllOrdersWithAttributesQuery } from '@/redux/api/order'
+import { OrderFilterOptions } from '@/types/order'
 
 const dropdownItems = [
     { href: '/purchases/new/order', label: 'Order' },
@@ -64,35 +65,53 @@ const Purchase: React.FC<IProps> = ({ page: initialPage }) => {
     // Get initial filter values from URL
     const [queryArgs, setQueryArgs] = useState(() => {
         const initialClientFilter = searchParams?.get('client')
+        const initialClientIdFilter = searchParams?.get('clientId')
         const initialProductFilter = searchParams?.get('product')
         const initialStatusFilter = searchParams?.get('status')
         const initialPurchaseTypeFilter = searchParams?.get('purchaseType')
         const initialParentCompanyFilter = searchParams?.get('parentCompany')
+        const initialParentCompanyIdFilter = searchParams?.get('parentCompanyId')
         const initialAmcPendingFilter = searchParams?.get('amcPending') === 'true'
         const urlPage = searchParams?.get('page')
         
         return {
             client: initialClientFilter || undefined,
+            clientId: initialClientIdFilter || undefined,
             product: initialProductFilter || undefined,
             status: initialStatusFilter || undefined,
             purchaseType: initialPurchaseTypeFilter || undefined,
             parentCompany: initialParentCompanyFilter || undefined,
+            parentCompanyId: initialParentCompanyIdFilter || undefined,
             amcPending: initialAmcPendingFilter,
             page: urlPage ? parseInt(urlPage) : (initialPage || 1)
         }
     })
 
-    const { data, refetch, isFetching } = useGetAllOrdersWithAttributesQuery({ page: queryArgs.page })
+    // Prepare filters for API query
+    const apiFilters: OrderFilterOptions = {
+        clientId: queryArgs.clientId,
+        clientName: queryArgs.client,
+        parentCompanyId: queryArgs.parentCompanyId,
+        status: queryArgs.status as any,
+        productId: queryArgs.product ? queryArgs.product : undefined, // Use product name as identifier
+    }
+
+    const { data, refetch, isFetching } = useGetAllOrdersWithAttributesQuery({ 
+        page: queryArgs.page,
+        filters: apiFilters
+    })
     const { data: clientsList } = useGetClientsQuery({ all: true })
 
     // Effect to update URL when queryArgs change
     useEffect(() => {
         const queryString = createQueryString({
             client: queryArgs.client,
+            clientId: queryArgs.clientId,
             product: queryArgs.product,
             status: queryArgs.status,
             purchaseType: queryArgs.purchaseType,
             parentCompany: queryArgs.parentCompany,
+            parentCompanyId: queryArgs.parentCompanyId,
             amcPending: queryArgs.amcPending ? 'true' : undefined,
             page: queryArgs.page
         })
@@ -121,7 +140,7 @@ const Purchase: React.FC<IProps> = ({ page: initialPage }) => {
     }
 
     const handleFilterChange = (
-        filterType: 'client' | 'product' | 'status' | 'purchaseType' | 'parentCompany',
+        filterType: 'client' | 'product' | 'status' | 'purchaseType' | 'parentCompany' | 'clientId' | 'parentCompanyId',
         value: string | undefined
     ) => {
         setQueryArgs(prev => ({ ...prev, [filterType]: value, page: 1 })) // Reset page on filter change
