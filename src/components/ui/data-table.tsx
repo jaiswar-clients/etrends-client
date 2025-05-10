@@ -88,6 +88,7 @@ export function DataTable<TData, TValue>({
         year: 'numeric'
       });
     } catch (e) {
+      console.error(e)
       return 'Invalid Date';
     }
   }

@@ -27,7 +27,6 @@ import {
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import PurchasesList from './PurchasesList'
 import { useGetAllOrdersWithAttributesQuery } from '@/redux/api/order'
-import { OrderFilterOptions } from '@/types/order'
 
 const dropdownItems = [
     { href: '/purchases/new/order', label: 'Order' },
@@ -72,6 +71,9 @@ const Purchase: React.FC<IProps> = ({ page: initialPage }) => {
         const initialParentCompanyFilter = searchParams?.get('parentCompany')
         const initialParentCompanyIdFilter = searchParams?.get('parentCompanyId')
         const initialAmcPendingFilter = searchParams?.get('amcPending') === 'true'
+        const initialFY = searchParams?.get('fy')
+        const initialStartDate = searchParams?.get('startDate')
+        const initialEndDate = searchParams?.get('endDate')
         const urlPage = searchParams?.get('page')
         
         return {
@@ -83,22 +85,24 @@ const Purchase: React.FC<IProps> = ({ page: initialPage }) => {
             parentCompany: initialParentCompanyFilter || undefined,
             parentCompanyId: initialParentCompanyIdFilter || undefined,
             amcPending: initialAmcPendingFilter,
+            fy: initialFY || undefined,
+            startDate: initialStartDate || undefined,
+            endDate: initialEndDate || undefined,
             page: urlPage ? parseInt(urlPage) : (initialPage || 1)
         }
     })
 
     // Prepare filters for API query
-    const apiFilters: OrderFilterOptions = {
-        clientId: queryArgs.clientId,
-        clientName: queryArgs.client,
-        parentCompanyId: queryArgs.parentCompanyId,
-        status: queryArgs.status as any,
-        productId: queryArgs.product ? queryArgs.product : undefined, // Use product name as identifier
-    }
-
     const { data, refetch, isFetching } = useGetAllOrdersWithAttributesQuery({ 
         page: queryArgs.page,
-        filters: apiFilters
+        limit: 10, // Assuming a default limit or get it from queryArgs if available
+        parent_company_id: queryArgs.parentCompanyId,
+        client_id: queryArgs.clientId,
+        client_name: queryArgs.client,
+        product_id: queryArgs.product,
+        status: queryArgs.status as any, // Keep as any if ORDER_STATUS_ENUM is handled by the hook
+        startDate: queryArgs.startDate,
+        endDate: queryArgs.endDate
     })
     const { data: clientsList } = useGetClientsQuery({ all: true })
 
@@ -113,6 +117,9 @@ const Purchase: React.FC<IProps> = ({ page: initialPage }) => {
             parentCompany: queryArgs.parentCompany,
             parentCompanyId: queryArgs.parentCompanyId,
             amcPending: queryArgs.amcPending ? 'true' : undefined,
+            fy: queryArgs.fy,
+            startDate: queryArgs.startDate,
+            endDate: queryArgs.endDate,
             page: queryArgs.page
         })
         
@@ -149,6 +156,24 @@ const Purchase: React.FC<IProps> = ({ page: initialPage }) => {
     const handleAmcPendingChange = (value: boolean) => {
         setQueryArgs(prev => ({ ...prev, amcPending: value, page: 1 }))
     }
+
+    const handleFYFilterChange = (fy: string | undefined) => {
+        setQueryArgs(prev => ({ ...prev, fy, page: 1 }))
+    }
+
+    const handleCustomDateChange = (startDate: string, endDate: string) => {
+        setQueryArgs(prev => ({
+            ...prev,
+            startDate,
+            endDate,
+            page: 1
+        }))
+    }
+
+    const dateRangeSelector = React.useMemo(() => ({
+        startDate: queryArgs.startDate ? new Date(queryArgs.startDate) : new Date(new Date().setFullYear(new Date().getFullYear() - 1)),
+        endDate: queryArgs.endDate ? new Date(queryArgs.endDate) : new Date()
+    }), [queryArgs.startDate, queryArgs.endDate]);
 
     const handlePageChange = (page: number) => {
         setQueryArgs(prev => ({ ...prev, page }))
@@ -212,6 +237,10 @@ const Purchase: React.FC<IProps> = ({ page: initialPage }) => {
                 onAmcPendingChange={handleAmcPendingChange}
                 onPageChange={handlePageChange}
                 isLoading={isFetching}
+                selectedFY={queryArgs.fy}
+                onFYFilterChange={handleFYFilterChange}
+                onCustomDateChange={handleCustomDateChange}
+                dateRange={dateRangeSelector}
             />
         </div>
     )

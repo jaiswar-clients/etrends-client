@@ -2,7 +2,6 @@
 
 import {
     ColumnDef,
-    VisibilityState,
 } from '@tanstack/react-table'
 import { ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -13,11 +12,11 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Badge } from '@/components/ui/badge'
-import { IPurchase, PURCHASE_TYPE, OrderFilterOptions } from '@/types/order'
+import { IPurchase, PURCHASE_TYPE } from '@/types/order'
 import { ORDER_STATUS_ENUM } from '@/types/client'
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { Input } from '../ui/input'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { useAppSelector } from '@/redux/hook'
 import {
     Pagination,
@@ -30,6 +29,7 @@ import {
 } from "@/components/ui/pagination"
 import { DataTable } from '../ui/data-table'
 import { useGetOrderFiltersOfCompanyQuery } from '@/redux/api/order'
+import FinancialYearFilter from '../common/FinancialYearFilter'
 
 const columns = (router: ReturnType<typeof useRouter>): ColumnDef<IPurchase>[] => [
     {
@@ -100,11 +100,21 @@ interface IProps {
         parentCompanyId?: string;
         amcPending: boolean;
         page: number;
+        fy?: string;
+        startDate?: string;
+        endDate?: string;
     };
     onFilterChange: (filterType: 'client' | 'product' | 'status' | 'purchaseType' | 'parentCompany' | 'clientId' | 'parentCompanyId', value: string | undefined) => void;
     onAmcPendingChange: (value: boolean) => void;
     onPageChange: (page: number) => void;
     isLoading?: boolean;
+    selectedFY?: string;
+    onFYFilterChange: (fy: string | undefined) => void;
+    onCustomDateChange: (startDate: string, endDate: string) => void;
+    dateRange: {
+        startDate: Date;
+        endDate: Date;
+    };
 }
 
 const PurchasesList: React.FC<IProps> = ({
@@ -114,9 +124,12 @@ const PurchasesList: React.FC<IProps> = ({
     onFilterChange,
     onAmcPendingChange,
     onPageChange,
-    isLoading
+    isLoading,
+    selectedFY,
+    onFYFilterChange,
+    onCustomDateChange,
+    dateRange
 }) => {
-    const [purchasesData, setPurchasesData] = useState(data)
     const products = useAppSelector(state => state.user.products)
     const { data: filtersData } = useGetOrderFiltersOfCompanyQuery()
     const [clientSearch, setClientSearch] = useState("")
@@ -129,77 +142,16 @@ const PurchasesList: React.FC<IProps> = ({
 
     const router = useRouter()
 
-    const [columnVisibility, setColumnVisibility] =
-        useState<VisibilityState>({})
-    const [rowSelection, setRowSelection] = useState({})
-
-    const searchParams = useSearchParams()
-    const id = searchParams.get('id')
-
-    // Apply initial data filters
-    useEffect(() => {
-        if (data) {
-            const filteredData = id
-                ? data.filter(purchase => purchase._id === id)
-                : data;
-            setPurchasesData(filteredData);
-        }
-    }, [data, id]);
-
-    useEffect(() => {
-        if (activeTabFilters.pending_amc_start_date) {
-            const filteredData = data.filter(purchase => purchase.amc_start_date === null)
-            setPurchasesData(filteredData)
-        } else {
-            setPurchasesData(data)
-        }
-    }, [activeTabFilters, data])
-
     // Get unique values for status and product filters
     const uniqueStatus = useMemo(
-        () => Array.from(new Set(purchasesData.map((d) => d.status))),
-        [purchasesData]
+        () => Array.from(new Set(data.map((d) => d.status))),
+        [data]
     )
 
     const uniqueProducts = useMemo(
         () => [...new Set(products.map((product: any) => product.short_name))],
         [products]
     )
-
-    // Filter the data based on column filters
-    const filteredData = useMemo(() => {
-        let filtered = [...purchasesData];
-
-        // Client filter
-        if (initialFilters.client) {
-            filtered = filtered.filter(item =>
-                item.client_id.name.toLowerCase().includes(initialFilters.client!.toLowerCase())
-            );
-        }
-
-        // Product filter
-        if (initialFilters.product) {
-            filtered = filtered.filter(item =>
-                item.products.some(p => p.short_name === initialFilters.product)
-            );
-        }
-
-        // Status filter
-        if (initialFilters.status) {
-            filtered = filtered.filter(item =>
-                item.status === initialFilters.status
-            );
-        }
-
-        // Parent Company filter
-        if (initialFilters.parentCompany) {
-            filtered = filtered.filter(item =>
-                item.client_id?.parent_company?.name === initialFilters.parentCompany
-            );
-        }
-
-        return filtered;
-    }, [purchasesData, initialFilters]);
 
     const onTabFilterChange = (tab: keyof typeof activeTabFilters) => {
         const newValue = !activeTabFilters[tab];
@@ -230,14 +182,14 @@ const PurchasesList: React.FC<IProps> = ({
     // Filter client and parent lists based on search
     const filteredClients = useMemo(() => {
         if (!filtersData?.data?.clients) return [];
-        return filtersData.data.clients.filter(client => 
+        return filtersData.data.clients.filter(client =>
             client.name.toLowerCase().includes(clientSearch.toLowerCase())
         );
     }, [filtersData?.data?.clients, clientSearch]);
 
     const filteredParents = useMemo(() => {
         if (!filtersData?.data?.parents) return [];
-        return filtersData.data.parents.filter(parent => 
+        return filtersData.data.parents.filter(parent =>
             parent.name.toLowerCase().includes(parentSearch.toLowerCase())
         );
     }, [filtersData?.data?.parents, parentSearch]);
@@ -247,6 +199,15 @@ const PurchasesList: React.FC<IProps> = ({
             <div className="w-full">
                 <div className="flex items-center justify-between py-4 flex-wrap gap-3">
                     <div className="flex gap-2 flex-wrap">
+                        {/* Financial Year Filter */}
+                        <FinancialYearFilter
+                            selectedFY={selectedFY}
+                            onFYFilterChange={onFYFilterChange}
+                            onCustomDateChange={onCustomDateChange}
+                            dateRange={dateRange}
+                            buttonLabel="Financial Year"
+                        />
+
                         {/* Client Filter */}
                         <div className="relative">
                             {initialFilters.client ? (
@@ -439,14 +400,14 @@ const PurchasesList: React.FC<IProps> = ({
                 ) : (
                     <DataTable
                         columns={tableColumns}
-                        data={filteredData}
+                        data={data}
                     />
                 )}
 
                 {/* Pagination */}
                 <div className="flex items-center justify-between py-4">
                     <div className="text-sm text-muted-foreground">
-                        Showing {Math.min(pagination.limit, filteredData.length)} of {pagination.total} items
+                        Showing {Math.min(pagination.limit, data.length)} of {pagination.total} items
                     </div>
                     <Pagination>
                         <PaginationContent>

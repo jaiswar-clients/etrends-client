@@ -21,7 +21,6 @@ import {
   IAMCPayment,
   IAMCPaymentReview,
   IOrderFilterCompanyResponse,
-  OrderFilterOptions,
 } from "@/types/order";
 
 // Re-export types that are used by other components
@@ -40,6 +39,7 @@ import { ILicenseInputs } from "@/components/Purchase/Form/LicenseForm";
 import { IAdditionalServiceInputs } from "@/components/Purchase/Form/AdditionalServiceForm";
 import { ICustomizationInputs } from "@/components/Purchase/Form/CustomizationForm";
 import { AMC_FILTER } from "@/components/AMC/AMC";
+import { ORDER_STATUS_ENUM } from "@/types/client";
 
 const orderUrl = `${process.env.NEXT_PUBLIC_API_URL}/orders`;
 
@@ -80,12 +80,32 @@ export const orderApi = createApi({
           pages: number;
         };
       }>,
-      { page?: number; limit?: number; filters?: OrderFilterOptions }
+      {
+        page?: number;
+        limit?: number;
+        parent_company_id?: string;
+        client_id?: string;
+        client_name?: string;
+        product_id?: string;
+        status?: ORDER_STATUS_ENUM;
+        startDate?: string;
+        endDate?: string;
+      }
     >({
-      query: (body) =>
-        `/all-orders?page=${body.page || 1}&limit=${
-          body.limit || 10
-        }&filters=${JSON.stringify(body.filters)}`,
+      query: (body) => {
+        const params = new URLSearchParams();
+        if (body.page) params.append("page", body.page.toString());
+        if (body.limit) params.append("limit", body.limit.toString());
+        if (body.parent_company_id)
+          params.append("parent_company_id", body.parent_company_id);
+        if (body.client_id) params.append("client_id", body.client_id);
+        if (body.client_name) params.append("client_name", body.client_name);
+        if (body.product_id) params.append("product_id", body.product_id);
+        if (body.status) params.append("status", body.status);
+        if (body.startDate) params.append("startDate", body.startDate);
+        if (body.endDate) params.append("endDate", body.endDate);
+        return `/all-orders?${params.toString()}`;
+      },
       providesTags: ["ORDERS_LIST"],
     }),
     createOrder: builder.mutation<IResponse, CreateOrderRequest>({
@@ -217,28 +237,54 @@ export const orderApi = createApi({
           pages: number;
         };
         data: TransformedAMCObject[];
+        total_amount: {
+          [key in AMC_FILTER]: number;
+        } & {
+          total?: number;
+        };
       }>,
       {
         page?: number;
         limit?: number;
         filter?: AMC_FILTER;
-        options: { upcoming: number; startDate?: Date; endDate?: Date };
+        options: { startDate?: string; endDate?: string };
+        client_id?: string;
+        product_id?: string;
       }
     >({
       query: (body) =>
         `/all-amc?page=${body.page || 1}&limit=${10}&filter=${
           body.filter
-        }&upcoming=${body.options.upcoming}&startDate=${
-          body.options.startDate
-        }&endDate=${body.options.endDate}`,
+        }&startDate=${body.options.startDate}&endDate=${
+          body.options.endDate
+        }&client_id=${body.client_id || ""}&product_id=${
+          body.product_id || ""
+        }`,
       providesTags: ["AMC_LIST"],
     }),
     getAllPendingPayments: builder.query<
       IResponse<IPendingPaymentResponse>,
-      { page?: number; limit?: number }
+      {
+        page?: number;
+        limit?: number;
+        startDate?: string;
+        endDate?: string;
+        clientId?: string;
+        clientName?: string; // Added clientName for potential future use, though API might only use clientId
+        type?: "order" | "amc" | "all"; // Added type filter
+      }
     >({
-      query: (body) =>
-        `/pending-payments?page=${body.page || 1}&limit=${body.limit || 10}`,
+      query: (body) => {
+        const params = new URLSearchParams();
+        if (body.page) params.append("page", body.page.toString());
+        if (body.limit) params.append("limit", body.limit.toString());
+        if (body.startDate) params.append("startDate", body.startDate);
+        if (body.endDate) params.append("endDate", body.endDate);
+        if (body.clientId) params.append("clientId", body.clientId);
+        if (body.type) params.append("type", body.type);
+        // if (body.clientName) params.append('clientName', body.clientName); // Uncomment if API supports clientName filter
+        return `/pending-payments?${params.toString()}`;
+      },
       providesTags: ["PENDING_PAYMENTS_LIST"],
     }),
     updatePendingPayment: builder.mutation<
@@ -324,6 +370,26 @@ export const orderApi = createApi({
         method: HTTP_REQUEST.GET,
       }),
     }),
+    exportAmcToExcel: builder.mutation<
+      Blob,
+      {
+        filter: string;
+        startDate?: string;
+        endDate?: string;
+        client_id?: string;
+        product_id?: string;
+      }
+    >({
+      query: (params) => ({
+        url: `/export-amc`,
+        method: HTTP_REQUEST.GET,
+        params,
+        responseHandler: async (response) => {
+          const blob = await response.blob();
+          return blob;
+        },
+      }),
+    }),
   }),
 });
 
@@ -353,4 +419,5 @@ export const {
   useDeleteOrderByIdMutation,
   useDeleteAMCPaymentByIdMutation,
   useGetOrderFiltersOfCompanyQuery,
+  useExportAmcToExcelMutation,
 } = orderApi;

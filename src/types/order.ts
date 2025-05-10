@@ -320,15 +320,14 @@ export interface IAMCPaymentReview {
   total_cost: number;
 }
 
+export interface IFilteredClient {
+  _id: string;
+  name: string;
+}
+
 export interface IOrderFilterCompanyResponse {
-  parents: {
-    _id: string;
-    name: string;
-  }[];
-  clients: {
-    _id: string;
-    name: string;
-  }[];
+  parents: IFilteredClient[];
+  clients: IFilteredClient[];
 }
 
 export interface OrderFilterOptions {
@@ -337,4 +336,6 @@ export interface OrderFilterOptions {
   clientName?: string;
   productId?: string;
   status?: ORDER_STATUS_ENUM;
+  startDate?: string;
+  endDate?: string;
 }
