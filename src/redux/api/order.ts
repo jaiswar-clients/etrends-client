@@ -31,6 +31,7 @@ export type {
   IPendingPaymentPagination,
   IPendingPaymentType,
   IUpdatePendingPaymentRequest,
+  ICreateAmcPaymentsResponse,
 };
 export { PAYMENT_STATUS_ENUM };
 
@@ -42,6 +43,34 @@ import { AMC_FILTER } from "@/components/AMC/AMC";
 import { ORDER_STATUS_ENUM } from "@/types/client";
 
 const orderUrl = `${process.env.NEXT_PUBLIC_API_URL}/orders`;
+
+// Add new interface for the AMC payments creation response
+interface ICreateAmcPaymentsResponse {
+  tillYear: number;
+  totalAmcsProcessed: number;
+  successfulAmcs: number;
+  failedAmcs: number;
+  totalNewPaymentsCreated: number;
+  results: Array<{
+    amcId: string;
+    success: boolean;
+    newPaymentsCreated: number;
+    totalPayments: number;
+    tillYear: number;
+    lastAmcPayment: {
+      from_date: string;
+      to_date: string;
+      status: string;
+      amc_rate_applied: number;
+      amc_rate_amount: number;
+      total_cost: number;
+      _id: string;
+      id: string;
+    };
+    amcStartDate: string;
+    message: string;
+  }>;
+}
 
 export const orderApi = createApi({
   reducerPath: "order",
@@ -390,6 +419,28 @@ export const orderApi = createApi({
         },
       }),
     }),
+    createAmcPaymentsForAllAmcs: builder.mutation<
+      IResponse<ICreateAmcPaymentsResponse>,
+      { till_year: number }
+    >({
+      query: (body) => ({
+        url: `/amc/update-amc-payments-for-all-amcs`,
+        method: HTTP_REQUEST.POST,
+        body,
+      }),
+      invalidatesTags: ["AMC_LIST", "AMC_DATA", "PENDING_PAYMENTS_LIST"],
+    }),
+    createAmcPaymentsByAmcId: builder.mutation<
+      IResponse<ICreateAmcPaymentsResponse>,
+      { id: string; till_year: number }
+    >({
+      query: ({ id, till_year }) => ({
+        url: `/amc/${id}/update-amc-payments`,
+        method: HTTP_REQUEST.POST,
+        body: { till_year },
+      }),
+      invalidatesTags: ["AMC_DATA", "AMC_PAYMENT_REVIEW", "PENDING_PAYMENTS_LIST"],
+    }),
   }),
 });
 
@@ -420,4 +471,6 @@ export const {
   useDeleteAMCPaymentByIdMutation,
   useGetOrderFiltersOfCompanyQuery,
   useExportAmcToExcelMutation,
+  useCreateAmcPaymentsForAllAmcsMutation,
+  useCreateAmcPaymentsByAmcIdMutation,
 } = orderApi;

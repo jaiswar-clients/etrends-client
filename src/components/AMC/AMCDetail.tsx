@@ -21,6 +21,7 @@ import { Dialog, DialogContent, DialogTitle, DialogHeader, DialogDescription, Di
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import AMCPayment from "./AMCPayment"
 import AmcPaymentReview from "./AmcPaymentReview"
+import CreateAmcPaymentsIndividualDialog from "./CreateAmcPaymentsIndividualDialog"
 import {
     ColumnDef,
     ColumnFiltersState,
@@ -471,20 +472,35 @@ const AmcForm: React.FC<{ orderId: string; defaultValue?: IDefaultValues, amcSta
                     <Typography variant="h2" className="mb-4">Payments</Typography>
 
                     {defaultValue?.payments?.length ? (
-                        <DataTable
-                            data={defaultValue.payments}
-                            onEdit={handleEdit}
-                            onInfo={handleInfo}
-                            onDelete={handleDelete}
-                            initialAmcRate={defaultValue?.amc_percentage || 0}
-                        />
+                        <>
+                            <div className="flex items-center gap-2 mb-4">
+                                <CreateAmcPaymentsIndividualDialog 
+                                    amcId={defaultValue._id} 
+                                    clientName={defaultValue.client}
+                                />
+                            </div>
+                            <DataTable
+                                data={defaultValue.payments}
+                                onEdit={handleEdit}
+                                onInfo={handleInfo}
+                                onDelete={handleDelete}
+                                initialAmcRate={defaultValue?.amc_percentage || 0}
+                            />
+                        </>
                     ) : (
-                        <Button variant="outline" onClick={async () => {
-                            await getAMCPaymentReviewApi(orderId).unwrap()
-                            setShowPaymentReview(true)
-                        }} loading={{ isLoading: isGetAMCPaymentReviewLoading, loader: "tailspin" }}>
-                            Review and Add Payments
-                        </Button>
+                        <div className="flex items-center gap-2">
+                            <Button variant="outline" onClick={async () => {
+                                await getAMCPaymentReviewApi(orderId).unwrap()
+                                setShowPaymentReview(true)
+                            }} loading={{ isLoading: isGetAMCPaymentReviewLoading, loader: "tailspin" }}>
+                                Review and Add Payments
+                            </Button>
+                            
+                            <CreateAmcPaymentsIndividualDialog 
+                                amcId={defaultValue._id} 
+                                clientName={defaultValue.client}
+                            />
+                        </div>
                     )}
                 </div>
             </div>

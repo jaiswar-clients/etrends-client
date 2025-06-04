@@ -52,6 +52,7 @@ import {
     CardTitle,
 } from "@/components/ui/card"
 import ExportDialog from './ExportDialog'
+import CreateAmcPaymentsDialog from './CreateAmcPaymentsDialog'
 import { useToast } from '@/hooks/use-toast'
 import { RootState } from '@/redux/store'
 import FinancialYearFilter, { generateFinancialYears } from '../common/FinancialYearFilter'
@@ -522,14 +523,18 @@ const AMCList: React.FC<IProps> = ({
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
                 <h1 className="text-2xl font-bold tracking-tight">AMC List</h1>
 
-                <Button
-                    onClick={handleExportClick}
-                    className="bg-green-600 hover:bg-green-700 shadow-sm transition-all"
-                    disabled={isDownloading}
-                >
-                    <FileSpreadsheet className="mr-2 h-4 w-4" />
-                    {isDownloading ? "Preparing Excel..." : "Export to Excel"}
-                </Button>
+                <div className="flex items-center gap-2">
+                    <CreateAmcPaymentsDialog />
+                    
+                    <Button
+                        onClick={handleExportClick}
+                        className="bg-green-600 hover:bg-green-700 shadow-sm transition-all"
+                        disabled={isDownloading}
+                    >
+                        <FileSpreadsheet className="mr-2 h-4 w-4" />
+                        {isDownloading ? "Preparing Excel..." : "Export to Excel"}
+                    </Button>
+                </div>
             </div>
 
             {/* Filters */}
