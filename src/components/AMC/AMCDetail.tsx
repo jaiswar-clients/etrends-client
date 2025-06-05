@@ -497,8 +497,8 @@ const AmcForm: React.FC<{ orderId: string; defaultValue?: IDefaultValues, amcSta
                             </Button>
                             
                             <CreateAmcPaymentsIndividualDialog 
-                                amcId={defaultValue._id} 
-                                clientName={defaultValue.client}
+                                amcId={defaultValue?._id || ""} 
+                                clientName={defaultValue?.client || ""}
                             />
                         </div>
                     )}

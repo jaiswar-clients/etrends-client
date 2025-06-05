@@ -102,7 +102,7 @@ export default function CreateAmcPaymentsIndividualDialog({
           </DialogTitle>
           <DialogDescription>
             Create payment schedules for this AMC till the specified year. The system will generate 
-            payments for periods that don't already have payment records.
+            payments for periods that don&apos;t already have payment records.
           </DialogDescription>
         </DialogHeader>
 

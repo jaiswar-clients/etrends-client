@@ -85,7 +85,7 @@ export default function CreateAmcPaymentsDialog({ children }: CreateAmcPaymentsD
           </DialogTitle>
           <DialogDescription>
             Create AMC payments for all AMCs till the specified year. This will generate payment schedules 
-            for all active AMCs that don't already have payments extending to the target year.
+            for all active AMCs that don&apos;t already have payments extending to the target year.
           </DialogDescription>
         </DialogHeader>
 
@@ -109,7 +109,7 @@ export default function CreateAmcPaymentsDialog({ children }: CreateAmcPaymentsD
                     </FormControl>
                     <FormDescription>
                       Enter the year till which you want to create AMC payments. 
-                      The system will create payments for all AMCs that don't already have 
+                      The system will create payments for all AMCs that don&apos;t already have 
                       payments extending to this year.
                     </FormDescription>
                     <FormMessage />
