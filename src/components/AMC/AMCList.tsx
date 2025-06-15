@@ -143,39 +143,66 @@ const AMCList: React.FC<IProps> = ({
         }));
     };
 
-    // Filter payments based on current filters
+    // Filter payments based on current filters - matching backend logic exactly
     const getFilteredPayments = (payments: any[], filters: string[]) => {
         if (!payments || !Array.isArray(payments)) return [];
 
-        // If a date range is selected (either from FY or custom)
+        // Process date filters - matching backend logic
         const startDate = dateRangeSelector.startDate ? new Date(dateRangeSelector.startDate) : null;
         const endDate = dateRangeSelector.endDate ? new Date(dateRangeSelector.endDate) : null;
+        
+        if (startDate) startDate.setHours(0, 0, 0, 0);
+        if (endDate) endDate.setHours(23, 59, 59, 999);
 
-        return payments.filter(payment => {
-            // Filter by payment status
-            if (filters.length > 0 && !filters.includes(payment.status)) {
-                return false;
-            }
+        const filteredResults = payments.filter(payment => {
+            // If no filters are selected, don't show any payments
+            if (filters.length === 0) return false;
 
-            // Filter by date range if both dates are provided
-            if (startDate && endDate) {
+            // Check this specific payment against each of the user's selected filters
+            let paymentMatchedAnyFilter = false;
+
+            for (const filterType of filters) {
                 const paymentFromDate = new Date(payment.from_date);
-                const paymentToDate = new Date(payment.to_date);
+                const dateInRange = 
+                    (!startDate || paymentFromDate >= startDate) &&
+                    (!endDate || paymentFromDate <= endDate);
 
-                // Check if payment period overlaps with the selected date range
-                const isInDateRange = (
-                    (paymentFromDate <= endDate && paymentFromDate >= startDate) ||
-                    (paymentToDate <= endDate && paymentToDate >= startDate) ||
-                    (paymentFromDate <= startDate && paymentToDate >= endDate)
-                );
+                let currentFilterMatch = false;
 
-                if (!isInDateRange) {
-                    return false;
+                // Direct string comparison instead of enum comparison
+                switch (filterType) {
+                    case 'paid':
+                        currentFilterMatch = 
+                            payment.status === 'paid' &&
+                            ((!startDate && !endDate) || dateInRange);
+                        break;
+                    case 'pending':
+                        currentFilterMatch = 
+                            payment.status === 'pending' &&
+                            ((!startDate && !endDate) || dateInRange);
+                        break;
+                    case 'proforma':
+                        currentFilterMatch = 
+                            payment.status === 'proforma' &&
+                            ((!startDate && !endDate) || dateInRange);
+                        break;
+                    case 'invoice':
+                        currentFilterMatch = 
+                            payment.status === 'invoice' &&
+                            ((!startDate && !endDate) || dateInRange);
+                        break;
+                }
+
+                if (currentFilterMatch) {
+                    paymentMatchedAnyFilter = true;
+                    break; // No need to check other filters for this payment
                 }
             }
 
-            return true;
+            return paymentMatchedAnyFilter;
         });
+
+        return filteredResults;
     };
 
     // Format the date for display
@@ -189,7 +216,7 @@ const AMCList: React.FC<IProps> = ({
     };
 
     const tableData = useMemo(() => {
-        return data.map((d) => ({
+        const mappedData = data.map((d) => ({
             id: d._id,
             client: d.client.name,
             order: d.products.map((p) => p.short_name).join(', '),
@@ -198,6 +225,15 @@ const AMCList: React.FC<IProps> = ({
             amount: formatCurrency(d.amount),
             amcObject: d // Store the full AMC object
         }))
+        
+        // Set all rows to be collapsed by default for better readability
+        const defaultExpandedState: Record<string, boolean> = {}
+        mappedData.forEach(row => {
+            defaultExpandedState[row.id] = false
+        })
+        setExpandedRows(defaultExpandedState)
+        
+        return mappedData
     }, [data])
 
     const uniqueProducts = useMemo(
@@ -253,28 +289,6 @@ const AMCList: React.FC<IProps> = ({
             header: 'Products',
         },
         {
-            accessorKey: 'status',
-            header: 'Payment Status',
-            cell: ({ row }) => {
-                const status = row.getValue('status') as PAYMENT_STATUS_ENUM
-                if (!status) return null;
-
-                const paymentStatusColor = (status: PAYMENT_STATUS_ENUM) => {
-                    if (status === PAYMENT_STATUS_ENUM.PAID) return "bg-green-700"
-                    if (status === PAYMENT_STATUS_ENUM.PENDING) return "bg-red-600"
-                    if (status === PAYMENT_STATUS_ENUM.proforma) return "bg-yellow-600"
-                    if (status === PAYMENT_STATUS_ENUM.INVOICE) return "bg-blue-600"
-                    return "";
-                }
-
-                return (
-                    <div className={`px-2 py-1 rounded-md text-center max-w-24 text-white text-xs font-medium ${paymentStatusColor(status)}`}>
-                        {status}
-                    </div>
-                )
-            },
-        },
-        {
             accessorKey: "amount",
             header: "Amount"
         },
@@ -327,17 +341,6 @@ const AMCList: React.FC<IProps> = ({
         }
         if (initialProductFilter) {
             table.getColumn('order')?.setFilterValue(initialProductFilter)
-        }
-        // Set status filter based on activeFilters from props
-        if (activeFilters.includes(AMC_FILTER.PROFORMA)) {
-            table.getColumn('status')?.setFilterValue(PAYMENT_STATUS_ENUM.proforma)
-        } else if (activeFilters.includes(AMC_FILTER.INVOICE)) {
-            table.getColumn('status')?.setFilterValue(PAYMENT_STATUS_ENUM.INVOICE)
-        } else {
-            // Clear status filter if not proforma or invoice
-            if (table.getColumn('status')?.getFilterValue()) {
-                table.getColumn('status')?.setFilterValue(undefined)
-            }
         }
     }, [initialClientFilter, initialProductFilter, activeFilters, table])
 
@@ -537,6 +540,63 @@ const AMCList: React.FC<IProps> = ({
                 </div>
             </div>
 
+            {/* Active Filters Indicator - Business Clarity */}
+            {(activeFilters.length > 0 || initialClientFilter || initialProductFilter || selectedFY) && (
+                <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <h3 className="text-sm font-medium text-blue-900 mb-2">Active Filters:</h3>
+                    <div className="flex flex-wrap gap-2">
+                        {activeFilters.map(filter => (
+                            <span key={filter} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                {filter.charAt(0).toUpperCase() + filter.slice(1)}
+                                <button
+                                    onClick={() => handleFilterChange(filter, false)}
+                                    className="ml-1.5 h-3 w-3 rounded-full bg-blue-600 text-white hover:bg-blue-700 flex items-center justify-center"
+                                    aria-label={`Remove ${filter} filter`}
+                                >
+                                    ×
+                                </button>
+                            </span>
+                        ))}
+                        {selectedFY && (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                {selectedFinancialYear}
+                                <button
+                                    onClick={() => onFYFilterChange(undefined)}
+                                    className="ml-1.5 h-3 w-3 rounded-full bg-green-600 text-white hover:bg-green-700 flex items-center justify-center"
+                                    aria-label="Remove financial year filter"
+                                >
+                                    ×
+                                </button>
+                            </span>
+                        )}
+                        {initialClientFilter && (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                {clientName}
+                                <button
+                                    onClick={() => handleClientSelection(undefined)}
+                                    className="ml-1.5 h-3 w-3 rounded-full bg-purple-600 text-white hover:bg-purple-700 flex items-center justify-center"
+                                    aria-label="Remove client filter"
+                                >
+                                    ×
+                                </button>
+                            </span>
+                        )}
+                        {initialProductFilter && (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                                {productName}
+                                <button
+                                    onClick={() => onProductFilterChange(undefined)}
+                                    className="ml-1.5 h-3 w-3 rounded-full bg-orange-600 text-white hover:bg-orange-700 flex items-center justify-center"
+                                    aria-label="Remove product filter"
+                                >
+                                    ×
+                                </button>
+                            </span>
+                        )}
+                    </div>
+                </div>
+            )}
+
             {/* Filters */}
             <div className="flex items-center justify-between py-4 flex-wrap gap-3">
                 <div className="flex items-center gap-2">
@@ -667,19 +727,48 @@ const AMCList: React.FC<IProps> = ({
                 />
             </div>
 
-            <div className="rounded-md border">
+            <div className="rounded-md border border-gray-200 shadow-sm overflow-hidden">
                 <Table>
-                    <TableHeader>
+                    <TableHeader className="bg-gray-50">
                         {table.getHeaderGroups().map((headerGroup) => (
-                            <TableRow key={headerGroup.id}>
-                                {headerGroup.headers.map((header) => (
-                                    <TableHead key={header.id}>
-                                        {header.isPlaceholder
-                                            ? null
-                                            : flexRender(
-                                                header.column.columnDef.header,
-                                                header.getContext()
-                                            )}
+                            <TableRow key={headerGroup.id} className="border-b border-gray-200">
+                                {headerGroup.headers.map((header, index) => (
+                                    <TableHead key={header.id} className={`py-3 font-medium text-gray-700 text-sm ${
+                                        index === 0 ? 'pl-6' : ''
+                                    } ${index === headerGroup.headers.length - 1 ? 'pr-6' : ''}`}>
+                                        {header.id === 'expander' ? (
+                                            <div className="flex items-center">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => {
+                                                        const allExpanded = Object.values(expandedRows).every(val => val);
+                                                        const newState: Record<string, boolean> = {};
+                                                        tableData.forEach(row => {
+                                                            if (row.amcObject.payments && 
+                                                                getFilteredPayments(row.amcObject.payments || [], activeFilters).length > 0) {
+                                                                newState[row.id] = !allExpanded;
+                                                            }
+                                                        });
+                                                        setExpandedRows(newState);
+                                                    }}
+                                                    className="h-8 w-8 p-0 hover:bg-blue-100"
+                                                >
+                                                    {Object.values(expandedRows).some(val => val) ? 
+                                                        <ChevronDown className="h-4 w-4 text-blue-600" /> :
+                                                        <ChevronRight className="h-4 w-4 text-gray-600" />
+                                                    }
+                                                </Button>
+                                                <span className="ml-2 text-sm">All</span>
+                                            </div>
+                                        ) : (
+                                            header.isPlaceholder
+                                                ? null
+                                                : flexRender(
+                                                    header.column.columnDef.header,
+                                                    header.getContext()
+                                                )
+                                        )}
                                     </TableHead>
                                 ))}
                             </TableRow>
@@ -698,52 +787,62 @@ const AMCList: React.FC<IProps> = ({
                         ) : tableData.length > 0 ? (
                             tableData.map((row) => (
                                 <React.Fragment key={row.id}>
-                                    <TableRow className="cursor-pointer">
-                                        <TableCell>
+                                    <TableRow className="cursor-pointer hover:bg-blue-50 transition-colors duration-200 border-b border-gray-200">
+                                        <TableCell className="py-3">
                                             {row.amcObject.payments &&
-                                                getFilteredPayments(row.amcObject.payments, activeFilters).length > 0 && (
+                                                getFilteredPayments(row.amcObject.payments || [], activeFilters).length > 0 && (
                                                     <Button
                                                         variant="ghost"
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             toggleRowExpansion(row.id);
                                                         }}
-                                                        className="h-8 w-8 p-0"
+                                                        className="h-8 w-8 p-0 hover:bg-blue-100 transition-colors duration-200"
                                                     >
                                                         {expandedRows[row.id] ?
-                                                            <ChevronDown className="h-4 w-4" /> :
-                                                            <ChevronRight className="h-4 w-4" />
+                                                            <ChevronDown className="h-4 w-4 text-blue-600" /> :
+                                                            <ChevronRight className="h-4 w-4 text-gray-600 hover:text-blue-600" />
                                                         }
                                                     </Button>
                                                 )}
                                         </TableCell>
-                                        <TableCell>{row.client}</TableCell>
-                                        <TableCell>{row.order}</TableCell>
-                                        <TableCell>
-                                            {row.status && (
-                                                <div className={`px-2 py-1 rounded-md text-center max-w-24 text-white text-xs font-medium ${row.status === PAYMENT_STATUS_ENUM.PAID ? "bg-green-700" :
-                                                        row.status === PAYMENT_STATUS_ENUM.PENDING ? "bg-red-600" :
-                                                            row.status === PAYMENT_STATUS_ENUM.proforma ? "bg-yellow-600" :
-                                                                row.status === PAYMENT_STATUS_ENUM.INVOICE ? "bg-blue-600" : ""
-                                                    }`}>
-                                                    {row.status}
+                                        <TableCell className="py-3">
+                                            <div className="flex items-center space-x-3">
+                                                <div className="font-semibold text-gray-900 text-sm">
+                                                    {row.client}
                                                 </div>
-                                            )}
+                                                {row.amcObject.payments && row.amcObject.payments.length > 0 && (
+                                                    <div className="flex items-center space-x-1">
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                                            {getFilteredPayments(row.amcObject.payments || [], activeFilters).length}/{row.amcObject.payments.length}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </TableCell>
-                                        <TableCell>{row.amount}</TableCell>
-                                        <TableCell>
+                                        <TableCell className="py-3">
+                                            <div className="text-gray-700 text-sm">
+                                                {row.order}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="py-3">
+                                            <div className="font-semibold text-gray-900">
+                                                {row.amount}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="py-3">
                                             <div className="flex items-center justify-center space-x-2">
                                                 <Button
                                                     variant="outline"
                                                     size="sm"
-                                                    className="h-8"
+                                                    className="h-9 px-4 hover:bg-blue-50 hover:border-blue-300 transition-colors duration-200"
                                                     onClick={(e) => {
                                                         e.stopPropagation();
                                                         router.push(`/amc/${row.orderId}`);
                                                     }}
                                                 >
-                                                    <Eye className="h-4 w-4 mr-1" />
-                                                    View
+                                                    <Eye className="h-4 w-4 mr-2" />
+                                                    View Details
                                                 </Button>
                                             </div>
                                         </TableCell>
@@ -751,59 +850,163 @@ const AMCList: React.FC<IProps> = ({
 
                                     {/* Expanded row for payments */}
                                     {expandedRows[row.id] && (
-                                        <TableRow className="bg-gray-50">
+                                        <TableRow className="bg-gradient-to-r from-gray-50 to-gray-100">
                                             <TableCell colSpan={columns.length} className="p-0">
-                                                <div className="p-4">
-                                                    <h4 className="text-sm font-medium mb-2">Payment History</h4>
-                                                    <div className="rounded-md border overflow-hidden">
-                                                        <Table>
-                                                            <TableHeader>
-                                                                <TableRow className="bg-gray-100">
-                                                                    <TableHead className="py-2">Period</TableHead>
-                                                                    <TableHead className="py-2">Status</TableHead>
-                                                                    <TableHead className="py-2">AMC Rate</TableHead>
-                                                                    <TableHead className="py-2">Amount</TableHead>
-                                                                    <TableHead className="py-2">Invoice #</TableHead>
-                                                                </TableRow>
-                                                            </TableHeader>
-                                                            <TableBody>
-                                                                {row.amcObject.payments &&
-                                                                    getFilteredPayments(row.amcObject.payments, activeFilters).map((payment) => (
-                                                                        <TableRow key={payment._id} className="hover:bg-gray-100">
-                                                                            <TableCell className="py-2">
-                                                                                {formatDate(payment.from_date)} - {formatDate(payment.to_date)}
-                                                                            </TableCell>
-                                                                            <TableCell className="py-2">
-                                                                                <div className={`px-2 py-1 rounded-md text-center max-w-24 text-white text-xs font-medium ${payment.status === PAYMENT_STATUS_ENUM.PAID ? "bg-green-700" :
-                                                                                        payment.status === PAYMENT_STATUS_ENUM.PENDING ? "bg-red-600" :
-                                                                                            payment.status === PAYMENT_STATUS_ENUM.proforma ? "bg-yellow-600" :
-                                                                                                payment.status === PAYMENT_STATUS_ENUM.INVOICE ? "bg-blue-600" : ""
-                                                                                    }`}>
-                                                                                    {payment.status}
-                                                                                </div>
-                                                                            </TableCell>
-                                                                            <TableCell className="py-2">
-                                                                                {payment.amc_rate_applied}%
-                                                                            </TableCell>
-                                                                            <TableCell className="py-2">
-                                                                                {formatCurrency(payment.amc_rate_amount)}
-                                                                            </TableCell>
-                                                                            <TableCell className="py-2">
-                                                                                {payment.invoice_number || '-'}
-                                                                            </TableCell>
-                                                                        </TableRow>
-                                                                    ))}
+                                                <div className="p-6 bg-white border-l-4 border-blue-500 ml-4 mr-4 mb-2 rounded-r-lg shadow-sm">
+                                                    {/* Header Section */}
+                                                    <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-200">
+                                                        <div className="flex items-center space-x-3">
+                                                            <div className="w-2 h-8 bg-blue-500 rounded-full"></div>
+                                                            <div>
+                                                                <h4 className="text-base font-semibold text-gray-900">Payment History</h4>
+                                                                <p className="text-xs text-gray-600">
+                                                                    {row.client} • {row.order}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <div className="text-xs text-gray-600">
+                                                                {getFilteredPayments(row.amcObject.payments || [], activeFilters).length}/{row.amcObject.payments?.length || 0}
+                                                            </div>
+                                                            <div className="text-base font-bold text-gray-900">
+                                                                {row.amount}
+                                                            </div>
+                                                        </div>
+                                                    </div>
 
-                                                                {(!row.amcObject.payments ||
-                                                                    getFilteredPayments(row.amcObject.payments, activeFilters).length === 0) && (
-                                                                        <TableRow>
-                                                                            <TableCell colSpan={5} className="text-center py-4">
-                                                                                No payments found matching the current filters.
-                                                                            </TableCell>
-                                                                        </TableRow>
-                                                                    )}
-                                                            </TableBody>
-                                                        </Table>
+                                                    {/* Payment Cards Grid */}
+                                                    <div className="space-y-3">
+                                                        {row.amcObject.payments &&
+                                                            getFilteredPayments(row.amcObject.payments || [], activeFilters).map((payment, index) => {
+                                                                // Determine which filters this payment matches
+                                                                const matchingFilters = activeFilters.filter(filter => {
+                                                                    const paymentFromDate = new Date(payment.from_date);
+                                                                    const startDate = dateRangeSelector.startDate ? new Date(dateRangeSelector.startDate) : null;
+                                                                    const endDate = dateRangeSelector.endDate ? new Date(dateRangeSelector.endDate) : null;
+                                                                    if (startDate) startDate.setHours(0, 0, 0, 0);
+                                                                    if (endDate) endDate.setHours(23, 59, 59, 999);
+                                                                    
+                                                                    const dateInRange = 
+                                                                        (!startDate || paymentFromDate >= startDate) &&
+                                                                        (!endDate || paymentFromDate <= endDate);
+
+                                                                    return (
+                                                                        payment.status === filter &&
+                                                                        ((!startDate && !endDate) || dateInRange)
+                                                                    );
+                                                                });
+
+                                                                // Status styling
+                                                                const getStatusStyle = (status: string) => {
+                                                                    switch (status) {
+                                                                        case 'paid':
+                                                                            return 'bg-green-100 text-green-800 border-green-200';
+                                                                        case 'pending':
+                                                                            return 'bg-red-100 text-red-800 border-red-200';
+                                                                        case 'proforma':
+                                                                            return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+                                                                        case 'invoice':
+                                                                            return 'bg-blue-100 text-blue-800 border-blue-200';
+                                                                        default:
+                                                                            return 'bg-gray-100 text-gray-800 border-gray-200';
+                                                                    }
+                                                                };
+
+                                                                const getStatusIcon = (status: string) => {
+                                                                    switch (status) {
+                                                                        case 'paid':
+                                                                            return '✓';
+                                                                        case 'pending':
+                                                                            return '⏱';
+                                                                        case 'proforma':
+                                                                            return '📋';
+                                                                        case 'invoice':
+                                                                            return '📄';
+                                                                        default:
+                                                                            return '•';
+                                                                    }
+                                                                };
+
+                                                                return (
+                                                                    <div key={payment._id} className={`p-4 rounded-lg border-2 hover:shadow-md transition-all duration-200 ${getStatusStyle(payment.status)}`}>
+                                                                        <div className="flex items-start justify-between">
+                                                                            {/* Left Section - Payment Info */}
+                                                                            <div className="flex-1">
+                                                                                <div className="flex items-center mb-2">
+                                                                                    <span className="text-base mr-2">{getStatusIcon(payment.status)}</span>
+                                                                                    <div className="flex items-center space-x-3">
+                                                                                        <span className="font-medium text-gray-900 text-sm">
+                                                                                            Payment #{index + 1}
+                                                                                        </span>
+                                                                                        <span className={`px-2 py-1 rounded-full text-xs font-medium uppercase tracking-wide ${payment.status === 'paid' ? 'bg-green-600 text-white' :
+                                                                                                payment.status === 'pending' ? 'bg-red-600 text-white' :
+                                                                                                    payment.status === 'proforma' ? 'bg-yellow-600 text-white' :
+                                                                                                        payment.status === 'invoice' ? 'bg-blue-600 text-white' : 'bg-gray-600 text-white'
+                                                                                            }`}>
+                                                                                            {payment.status}
+                                                                                        </span>
+                                                                                    </div>
+                                                                                </div>
+
+                                                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                                                                                    <div>
+                                                                                        <span className="text-gray-600 font-medium">Period:</span>
+                                                                                        <div className="font-medium text-gray-900 text-sm">
+                                                                                            {formatDate(payment.from_date)} - {formatDate(payment.to_date)}
+                                                                                        </div>
+                                                                                    </div>
+                                                                                    
+                                                                                    <div>
+                                                                                        <span className="text-gray-600 font-medium">AMC Rate:</span>
+                                                                                        <div className="font-medium text-gray-900 text-sm">
+                                                                                            {payment.amc_rate_applied?.toFixed(2) || 0}%
+                                                                                        </div>
+                                                                                    </div>
+
+                                                                                    <div>
+                                                                                        <span className="text-gray-600 font-medium">Invoice:</span>
+                                                                                        <div className="font-medium text-gray-900 text-sm">
+                                                                                            {payment.invoice_number || 'Not generated'}
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+
+                                                                            {/* Right Section - Amount & Status */}
+                                                                            <div className="text-right ml-4">
+                                                                                <div className="text-lg font-bold text-gray-900 mb-1">
+                                                                                    {formatCurrency(payment.amc_rate_amount)}
+                                                                                </div>
+                                                                                
+                                                                                {matchingFilters.length > 0 && (
+                                                                                    <div className="flex flex-wrap gap-1 justify-end">
+                                                                                        {matchingFilters.map(filter => (
+                                                                                            <span key={filter} className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-white bg-opacity-80 text-gray-700 border">
+                                                                                                {filter}
+                                                                                            </span>
+                                                                                        ))}
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })}
+
+                                                        {(!row.amcObject.payments ||
+                                                            getFilteredPayments(row.amcObject.payments || [], activeFilters).length === 0) && (
+                                                                <div className="text-center py-12">
+                                                                    <div className="w-16 h-16 mx-auto mb-4 text-gray-300">
+                                                                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                                        </svg>
+                                                                    </div>
+                                                                    <h3 className="text-lg font-medium text-gray-600 mb-2">No payments found</h3>
+                                                                    <p className="text-gray-500">
+                                                                        Try adjusting your filters.
+                                                                    </p>
+                                                                </div>
+                                                            )}
                                                     </div>
                                                 </div>
                                             </TableCell>

@@ -23,12 +23,12 @@ const LayoutWithQuery = ({ children }: Readonly<{
   }, [data])
 
   useEffect(() => {
-    if (!user.token) {
+    if (!user?.token) {
       router.push('/auth/login')
     }
   }, [user, router])
 
-  if(!user.token) return null
+  if(!user?.token) return null
 
   return (
     <SidebarProvider>

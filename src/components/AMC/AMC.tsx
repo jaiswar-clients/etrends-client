@@ -111,12 +111,29 @@ const AMC = () => {
     }
 
     const handleFYFilterChange = (fy: string | undefined) => {
-        setQueryArgs(prevArgs => ({ ...prevArgs, fy, page: 1 }))
+        setQueryArgs(prevArgs => {
+            if (!fy) {
+                // When clearing FY filter, also clear the date options to reset to default
+                return {
+                    ...prevArgs,
+                    fy: undefined,
+                    options: {}, // Clear the date options
+                    page: 1
+                }
+            } else {
+                return {
+                    ...prevArgs,
+                    fy,
+                    page: 1
+                }
+            }
+        })
     }
 
     const handleCustomDateChange = (startDate: string, endDate: string) => {
         setQueryArgs(prevArgs => ({
             ...prevArgs,
+            fy: undefined, // Clear FY when custom dates are selected
             options: {
                 startDate,
                 endDate
