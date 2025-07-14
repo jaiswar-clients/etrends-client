@@ -63,11 +63,11 @@ const FinancialYearFilter: React.FC<FinancialYearFilterProps> = ({
 }) => {
     useEffect(() => {
         if (!selectedFY) {
-            const currentFY = getCurrentFinancialYear();
-            if (currentFY) {
-                onFYFilterChange(currentFY.id);
-                onCustomDateChange(currentFY.startDate, currentFY.endDate);
-            }
+            // const currentFY = getCurrentFinancialYear();
+            // if (currentFY) {
+            //     onFYFilterChange(currentFY.id);
+            //     onCustomDateChange(currentFY.startDate, currentFY.endDate);
+            // }
         }
     });
 
