@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -26,6 +26,23 @@ export const generateFinancialYears = () => {
 
 const financialYears = generateFinancialYears();
 
+const getCurrentFinancialYear = () => {
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth(); // 0-11
+
+    let startYear;
+    if (currentMonth < 3) { // Before April (Jan, Feb, Mar)
+        startYear = currentYear - 1;
+    } else { // April or after
+        startYear = currentYear;
+    }
+    
+    const financialYear = financialYears.find(fy => fy.id === `FY${startYear}-${startYear + 1}`);
+    return financialYear;
+};
+
+
 interface FinancialYearFilterProps {
     selectedFY?: string;
     onFYFilterChange: (fy: string | undefined) => void;
@@ -44,6 +61,16 @@ const FinancialYearFilter: React.FC<FinancialYearFilterProps> = ({
     dateRange,
     buttonLabel = "Financial Year"
 }) => {
+    useEffect(() => {
+        if (!selectedFY) {
+            const currentFY = getCurrentFinancialYear();
+            if (currentFY) {
+                onFYFilterChange(currentFY.id);
+                onCustomDateChange(currentFY.startDate, currentFY.endDate);
+            }
+        }
+    });
+
     const handleCustomDateRangeChange = (range: { startDate: Date | null, endDate: Date | null }) => {
         if (range.startDate && range.endDate) {
             onCustomDateChange(

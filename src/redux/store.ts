@@ -18,6 +18,7 @@ import { orderApi } from "./api/order";
 import { productApi } from "./api/product";
 import { reminderApi } from "./api/reminder";
 import { reportApi } from "./api/report";
+import { orderAiApi } from "./api/orderAi";
 
 const rootReducer = combineReducers({
   user: userSlice,
@@ -28,6 +29,7 @@ const rootReducer = combineReducers({
   [productApi.reducerPath]: productApi.reducer,
   [reminderApi.reducerPath]: reminderApi.reducer,
   [reportApi.reducerPath]: reportApi.reducer,
+  [orderAiApi.reducerPath]: orderAiApi.reducer,
 });
 
 const persistConfig = {
@@ -41,6 +43,7 @@ const persistConfig = {
     productApi.reducerPath,
     reminderApi.reducerPath,
     reportApi.reducerPath,
+    orderAiApi.reducerPath,
   ],
 };
 
@@ -63,7 +66,8 @@ export const makeStore = () =>
         .concat(orderApi.middleware)
         .concat(productApi.middleware)
         .concat(reminderApi.middleware)
-        .concat(reportApi.middleware),
+        .concat(reportApi.middleware)
+        .concat(orderAiApi.middleware),
   });
 
 // Infer the type of makeStore

@@ -29,33 +29,62 @@ const Client = () => {
     // Get initial filters from URL
     const [queryArgs, setQueryArgs] = useState(() => {
         const initialClientFilter = searchParams?.get('client')
+        const initialClientIdFilter = searchParams?.get('clientId')
         const initialProductFilter = searchParams?.get('product')
+        const initialProductIdFilter = searchParams?.get('productId')
         const initialIndustryFilter = searchParams?.get('industry')
         const initialParentCompanyFilter = searchParams?.get('parentCompany')
+        const initialParentCompanyIdFilter = searchParams?.get('parentCompanyId')
+        const initialHasOrdersFilter = searchParams?.get('hasOrders') === 'true'
+        const initialFY = searchParams?.get('fy')
+        const initialStartDate = searchParams?.get('startDate')
+        const initialEndDate = searchParams?.get('endDate')
         const urlPage = searchParams?.get('page')
         
         return {
             client: initialClientFilter || undefined,
+            clientId: initialClientIdFilter || undefined,
             product: initialProductFilter || undefined,
+            productId: initialProductIdFilter || undefined,
             industry: initialIndustryFilter || undefined,
             parentCompany: initialParentCompanyFilter || undefined,
+            parentCompanyId: initialParentCompanyIdFilter || undefined,
+            hasOrders: initialHasOrdersFilter,
+            fy: initialFY || undefined,
+            startDate: initialStartDate || undefined,
+            endDate: initialEndDate || undefined,
             page: urlPage ? parseInt(urlPage) : 1
         }
     })
     
+    // Prepare filters for API query
     const { data, isSuccess, refetch, isFetching } = useGetClientsQuery({ 
         limit: 10, 
         page: queryArgs.page, 
-        all: true 
+        all: false, // Changed to false to enable pagination
+        parent_company_id: queryArgs.parentCompanyId,
+        client_name: queryArgs.client,
+        industry: queryArgs.industry,
+        product_id: queryArgs.productId,
+        startDate: queryArgs.startDate,
+        endDate: queryArgs.endDate,
+        has_orders: queryArgs.hasOrders ? 'true' : undefined
     })
     
     // Effect to update URL when filters change
     useEffect(() => {
         const queryString = createQueryString({
             client: queryArgs.client,
+            clientId: queryArgs.clientId,
             product: queryArgs.product,
+            productId: queryArgs.productId,
             industry: queryArgs.industry,
             parentCompany: queryArgs.parentCompany,
+            parentCompanyId: queryArgs.parentCompanyId,
+            hasOrders: queryArgs.hasOrders ? 'true' : undefined,
+            fy: queryArgs.fy,
+            startDate: queryArgs.startDate,
+            endDate: queryArgs.endDate,
             page: queryArgs.page
         })
         
@@ -69,11 +98,33 @@ const Client = () => {
     }, [queryArgs.page, refetch])
     
     const handleFilterChange = (
-        filterType: 'client' | 'product' | 'industry' | 'parentCompany',
+        filterType: 'client' | 'product' | 'industry' | 'parentCompany' | 'clientId' | 'productId' | 'parentCompanyId',
         value: string | undefined
     ) => {
         setQueryArgs(prev => ({ ...prev, [filterType]: value, page: 1 })) // Reset page on filter change
     }
+    
+    const handleHasOrdersChange = (value: boolean) => {
+        setQueryArgs(prev => ({ ...prev, hasOrders: value, page: 1 }))
+    }
+    
+    const handleFYFilterChange = (fy: string | undefined) => {
+        setQueryArgs(prev => ({ ...prev, fy, page: 1 }))
+    }
+
+    const handleCustomDateChange = (startDate: string, endDate: string) => {
+        setQueryArgs(prev => ({
+            ...prev,
+            startDate,
+            endDate,
+            page: 1
+        }))
+    }
+
+    const dateRangeSelector = React.useMemo(() => ({
+        startDate: queryArgs.startDate ? new Date(queryArgs.startDate) : new Date(new Date().setFullYear(new Date().getFullYear() - 1)),
+        endDate: queryArgs.endDate ? new Date(queryArgs.endDate) : new Date()
+    }), [queryArgs.startDate, queryArgs.endDate]);
     
     const handlePageChange = (page: number) => {
         setQueryArgs(prev => ({ ...prev, page }))
@@ -96,11 +147,17 @@ const Client = () => {
             {
                 isSuccess && (
                     <ClientList 
-                        data={data?.data} 
+                        data={data?.data.clients ?? []}
+                        pagination={data?.data.pagination ?? { total: 0, page: 1, limit: 10, pages: 1 }}
                         initialFilters={queryArgs}
                         onFilterChange={handleFilterChange}
+                        onHasOrdersChange={handleHasOrdersChange}
                         onPageChange={handlePageChange}
                         isLoading={isFetching}
+                        selectedFY={queryArgs.fy}
+                        onFYFilterChange={handleFYFilterChange}
+                        onCustomDateChange={handleCustomDateChange}
+                        dateRange={dateRangeSelector}
                     />
                 )
             }

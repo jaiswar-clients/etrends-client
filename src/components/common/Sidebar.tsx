@@ -20,7 +20,7 @@ import { Avatar, AvatarImage } from "../ui/avatar"
 import { AvatarFallback } from "@radix-ui/react-avatar"
 import { usePathname } from "next/navigation"
 import { useAppSelector } from "@/redux/hook"
-import { Bell, CircleDashed } from "lucide-react"
+import { Bell, CircleDashed, Bot } from "lucide-react"
 
 // Menu items.
 const items = [
@@ -53,6 +53,11 @@ const items = [
         title: "Reports",
         url: "reports",
         icon: TbReportAnalytics,
+    },
+    {
+        title: "AI Reports",
+        url: "ai-reports",
+        icon: Bot,
     },
     {
         title: "Products",

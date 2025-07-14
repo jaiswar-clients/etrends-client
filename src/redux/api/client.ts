@@ -62,6 +62,27 @@ export type GetAllClientResponse = Pick<
   | "parent_company"
 >;
 
+// Add new interfaces for filtering
+export interface IClientFilterCompanyResponse {
+  parents: IFilteredClient[];
+  clients: IFilteredClient[];
+}
+
+export interface IFilteredClient {
+  _id: string;
+  name: string;
+}
+
+// Update the clients response to include pagination
+export interface IGetClientsResponse {
+  clients: GetAllClientResponse[];
+  pagination: {
+    total: number;
+    limit: number;
+    page: number;
+    pages: number;
+  };
+}
 
 export const clientApi = createApi({
   reducerPath: "client",
@@ -80,12 +101,60 @@ export const clientApi = createApi({
       providesTags: ["CLIENT_DETAIL"],
     }),
     getClients: builder.query<
-      IResponse<GetAllClientResponse[]>,
-      { limit?: number; page?: number; all?: boolean }
+      IResponse<IGetClientsResponse>,
+      {
+        page?: number;
+        limit?: number;
+        all?: boolean;
+        parent_company_id?: string;
+        client_name?: string;
+        industry?: string;
+        product_id?: string;
+        startDate?: string;
+        endDate?: string;
+        has_orders?: string;
+      }
     >({
-      query: ({ limit = 10, page = 1, all = false } = {}) =>
-        `/?limit=${limit}&page=${page}&all=${all}`,
+      query: (params) => {
+        const {
+          limit = 10,
+          page = 1,
+          all = false,
+          parent_company_id,
+          client_name,
+          industry,
+          product_id,
+          startDate,
+          endDate,
+          has_orders,
+        } = params;
+
+        const queryParams = new URLSearchParams();
+        queryParams.append("limit", limit.toString());
+        queryParams.append("page", page.toString());
+        queryParams.append("all", all.toString());
+        
+        if (parent_company_id) queryParams.append("parent_company_id", parent_company_id);
+        if (client_name) queryParams.append("client_name", client_name);
+        if (industry) queryParams.append("industry", industry);
+        if (product_id) queryParams.append("product_id", product_id);
+        if (startDate) queryParams.append("startDate", startDate);
+        if (endDate) queryParams.append("endDate", endDate);
+        if (has_orders) queryParams.append("has_orders", has_orders);
+
+        return `/?${queryParams.toString()}`;
+      },
       providesTags: ["CLIENT_LIST"],
+    }),
+    // Add new endpoint for client filters
+    getClientFiltersOfCompany: builder.query<
+      IResponse<IClientFilterCompanyResponse>,
+      void
+    >({
+      query: () => ({
+        url: "/filters/company-data",
+        method: HTTP_REQUEST.GET,
+      }),
     }),
     addClient: builder.mutation<IResponse, ClientDetailsInputs>({
       query: (body: ClientDetailsInputs) => ({
@@ -142,6 +211,7 @@ export const {
   useGetClientByIdQuery,
   useUpdateClientMutation,
   useGetClientsQuery,
+  useGetClientFiltersOfCompanyQuery,
   useGetPurchasedProductsByClientQuery,
   useGetAllParentCompaniesQuery,
   useGetProfitFromClientQuery,

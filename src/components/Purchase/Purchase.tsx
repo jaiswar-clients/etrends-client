@@ -213,7 +213,7 @@ const Purchase: React.FC<IProps> = ({ page: initialPage }) => {
                                 <SelectValue placeholder="Select Client" />
                             </SelectTrigger>
                             <SelectContent className="w-full">
-                                {clientsList?.data.map((client) => (
+                                {clientsList?.data.clients.map((client) => (
                                     <SelectItem key={client._id} value={client._id}>
                                         {client.name}
                                     </SelectItem>
