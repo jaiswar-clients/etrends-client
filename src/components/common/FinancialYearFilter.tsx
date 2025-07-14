@@ -26,21 +26,21 @@ export const generateFinancialYears = () => {
 
 const financialYears = generateFinancialYears();
 
-const getCurrentFinancialYear = () => {
-    const today = new Date();
-    const currentYear = today.getFullYear();
-    const currentMonth = today.getMonth(); // 0-11
+// const getCurrentFinancialYear = () => {
+//     const today = new Date();
+//     const currentYear = today.getFullYear();
+//     const currentMonth = today.getMonth(); // 0-11
 
-    let startYear;
-    if (currentMonth < 3) { // Before April (Jan, Feb, Mar)
-        startYear = currentYear - 1;
-    } else { // April or after
-        startYear = currentYear;
-    }
+//     let startYear;
+//     if (currentMonth < 3) { // Before April (Jan, Feb, Mar)
+//         startYear = currentYear - 1;
+//     } else { // April or after
+//         startYear = currentYear;
+//     }
     
-    const financialYear = financialYears.find(fy => fy.id === `FY${startYear}-${startYear + 1}`);
-    return financialYear;
-};
+//     const financialYear = financialYears.find(fy => fy.id === `FY${startYear}-${startYear + 1}`);
+//     return financialYear;
+// };
 
 
 interface FinancialYearFilterProps {
