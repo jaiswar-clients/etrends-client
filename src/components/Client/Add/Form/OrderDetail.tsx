@@ -22,7 +22,7 @@ import ProductDropdown from '@/components/common/ProductDropdown'
 import { AmountInput } from '@/components/ui/AmountInput'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import DatePicker from '@/components/ui/datepicker'
-import { CircleCheck, CirclePlus, CircleX, Edit, File, IndianRupee, Trash2, Wrench, X, History } from 'lucide-react'
+import { CircleCheck, CirclePlus, CircleX, Edit, File, IndianRupee, Trash2, Wrench, X, History, Clock } from 'lucide-react'
 import { Separator } from '@radix-ui/react-separator'
 import { useToast } from '@/hooks/use-toast'
 import { IPaymentTerm, LicenseDetails, OrderDetailInputs } from '@/types/order'
@@ -37,6 +37,7 @@ import {
 import Link from 'next/link'
 import { IProduct } from '@/types/product'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Card, CardContent } from '@/components/ui/card'
 import { useFileUpload } from '@/hooks/useFileUpload'
 import { formatCurrency } from '@/lib/utils'
@@ -93,6 +94,7 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
     const [statusChangeDate, setStatusChangeDate] = useState<Date>(new Date());
     const [showStatusLogsModal, setShowStatusLogsModal] = useState(false);
     const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+    const [showAmcRateHistoryModal, setShowAmcRateHistoryModal] = useState(false);
 
     const router = useRouter();
     const { uploadFile, getFileNameFromUrl } = useFileUpload()
@@ -904,6 +906,50 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
         </Dialog>
     );
 
+    const AmcRateHistoryModal = () => (
+        <Dialog open={showAmcRateHistoryModal} onOpenChange={(val) => !val && setShowAmcRateHistoryModal(false)}>
+            <DialogContent className="max-w-4xl">
+                <DialogTitle>AMC Rate History</DialogTitle>
+                <DialogDescription>
+                    History of all AMC rate changes for this order
+                </DialogDescription>
+                <div className="mt-4">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Date</TableHead>
+                                <TableHead>Percentage</TableHead>
+                                <TableHead>Amount</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {(defaultValue?.amc_rate_history || []).map((history, index) => (
+                                <TableRow key={index}>
+                                    <TableCell>
+                                        {new Date(history.date).toLocaleDateString('en-US', {
+                                            year: 'numeric',
+                                            month: 'long',
+                                            day: 'numeric',
+                                            hour: '2-digit',
+                                            minute: '2-digit'
+                                        })}
+                                    </TableCell>
+                                    <TableCell>{history.percentage}%</TableCell>
+                                    <TableCell>{formatCurrency(history.amount)}</TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </div>
+                <DialogFooter>
+                    <Button type="button" onClick={() => setShowAmcRateHistoryModal(false)}>
+                        Close
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+
     const getSelectedProducts = useCallback(() => {
         const selectedProducts = form.watch("products") || [];
         return products.filter(product => selectedProducts.includes(product._id))
@@ -1106,7 +1152,21 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
                                     name="amc_rate"
                                     render={({ field }) => (
                                         <FormItem className='w-full relative mb-4 md:mb-0'>
-                                            <FormLabel className='text-gray-500'>AMC Rate ({formatCurrency(form.watch("amc_rate.amount"))})</FormLabel>
+                                            <FormLabel className='text-gray-500 flex items-center gap-2'>
+                                                AMC Rate ({formatCurrency(form.watch("amc_rate.amount"))})
+                                                {defaultValue?.amc_rate_history && defaultValue?.amc_rate_history?.length > 0 && (
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="flex items-center gap-1"
+                                                        onClick={() => setShowAmcRateHistoryModal(true)}
+                                                    >
+                                                        <Clock className="w-3 h-3" />
+                                                        History
+                                                    </Button>
+                                                )}
+                                            </FormLabel>
                                             <FormControl>
                                                 <AmountInput
                                                     className='bg-white'
@@ -1509,6 +1569,7 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
                         {AmcHistoryModal()}
                         {StatusChangeModal()}
                         {StatusLogsModal()}
+                        {AmcRateHistoryModal()}
                         {finalJSX}
                     </AccordionContent>
                 </AccordionItem>

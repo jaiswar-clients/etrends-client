@@ -133,8 +133,9 @@ export const clientApi = createApi({
         queryParams.append("limit", limit.toString());
         queryParams.append("page", page.toString());
         queryParams.append("all", all.toString());
-        
-        if (parent_company_id) queryParams.append("parent_company_id", parent_company_id);
+
+        if (parent_company_id)
+          queryParams.append("parent_company_id", parent_company_id);
         if (client_name) queryParams.append("client_name", client_name);
         if (industry) queryParams.append("industry", industry);
         if (product_id) queryParams.append("product_id", product_id);
@@ -203,6 +204,17 @@ export const clientApi = createApi({
         url: "/generate-client-id",
       }),
     }),
+    checkClientName: builder.query<
+      IResponse<{
+        exists: boolean;
+        clients: Pick<IClientDataObject, "name" | "_id">[];
+      }>,
+      string
+    >({
+      query: (name) => ({
+        url: `/check-client-name?name=${name}`,
+      }),
+    }),
   }),
 });
 
@@ -216,4 +228,5 @@ export const {
   useGetAllParentCompaniesQuery,
   useGetProfitFromClientQuery,
   useGenerateNewClientIdQuery,
+  useCheckClientNameQuery
 } = clientApi;

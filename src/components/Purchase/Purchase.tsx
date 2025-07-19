@@ -72,7 +72,7 @@ const Purchase: React.FC<IProps> = ({ page: initialPage }) => {
         const initialParentCompanyIdFilter = searchParams?.get('parentCompanyId')
         const initialAmcPendingFilter = searchParams?.get('amcPending') === 'true'
         const initialFY = searchParams?.get('fy')
-        const initialStartDate = searchParams?.get('startDate')
+        const initialStartDate = searchParams?.get('startDate') 
         const initialEndDate = searchParams?.get('endDate')
         const urlPage = searchParams?.get('page')
         

@@ -419,6 +419,28 @@ export const orderApi = createApi({
         },
       }),
     }),
+    exportPurchasesToExcel: builder.mutation<
+      Blob,
+      {
+        parent_company_id?: string;
+        client_id?: string;
+        client_name?: string;
+        product_id?: string;
+        status?: ORDER_STATUS_ENUM;
+        startDate?: string;
+        endDate?: string;
+      }
+    >({
+      query: (params) => ({
+        url: `/export-purchases`,
+        method: HTTP_REQUEST.GET,
+        params,
+        responseHandler: async (response) => {
+          const blob = await response.blob();
+          return blob;
+        },
+      }),
+    }),
     createAmcPaymentsForAllAmcs: builder.mutation<
       IResponse<ICreateAmcPaymentsResponse>,
       { till_year: number }
@@ -471,6 +493,7 @@ export const {
   useDeleteAMCPaymentByIdMutation,
   useGetOrderFiltersOfCompanyQuery,
   useExportAmcToExcelMutation,
+  useExportPurchasesToExcelMutation,
   useCreateAmcPaymentsForAllAmcsMutation,
   useCreateAmcPaymentsByAmcIdMutation,
 } = orderApi;
