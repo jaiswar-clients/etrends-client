@@ -389,7 +389,7 @@ export default function DataTableWithModalAndPagination({
                                                                 <TableHead>Type</TableHead>
                                                                 <TableHead>Status</TableHead>
                                                                 <TableHead className="text-right">Amount</TableHead>
-                                                                <TableHead>Payment Date</TableHead>
+                                                                <TableHead>Expected Payment Date</TableHead>
                                                             </TableRow>
                                                         </TableHeader>
                                                         <TableBody>
@@ -404,7 +404,7 @@ export default function DataTableWithModalAndPagination({
                                                                 >
                                                                     <TableCell className="w-10"></TableCell>
                                                                     <TableCell>{payment.name}</TableCell>
-                                                                    <TableCell>{payment.type}</TableCell>
+                                                                    <TableCell>{payment.type==="order" ? "Invoice" : "AMC"}</TableCell>
                                                                     <TableCell>
                                                                         <span className={`${paymentStatusColor(payment.status)} text-white px-2 py-1 rounded-md text-xs`}>
                                                                             {payment.status}
@@ -547,7 +547,7 @@ export default function DataTableWithModalAndPagination({
                                         <TableCell>{formatCurrency(selectedItem.pending_amount)}</TableCell>
                                     </TableRow>
                                     <TableRow>
-                                        <TableCell className="font-medium">Payment Date</TableCell>
+                                        <TableCell className="font-medium">Expected Payment Date</TableCell>
                                         <TableCell>{formatDate(selectedItem.payment_date)}</TableCell>
                                     </TableRow>
                                 </TableBody>
