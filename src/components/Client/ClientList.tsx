@@ -65,7 +65,15 @@ interface IProps {
     };
 }
 
-const columns = (router: ReturnType<typeof useRouter>): ColumnDef<GetAllClientResponse>[] => [
+const columns = (router: ReturnType<typeof useRouter>, pageNumber: number, limit: number): ColumnDef<GetAllClientResponse>[] => [
+    {
+        id: 'serial',
+        header: 'Sr. No.',
+        cell: ({ row }) => {
+            const serialNumber = (pageNumber - 1) * limit + row.index + 1;
+            return <div className="text-center">{serialNumber}</div>;
+        },
+    },
     {
         accessorKey: 'name',
         header: 'Name',
@@ -196,7 +204,7 @@ const ClientList: React.FC<IProps> = ({
         onFilterChange('productId', productName);
     }
 
-    const tableColumns = useMemo(() => columns(router), [router]);
+    const tableColumns = useMemo(() => columns(router, initialFilters.page, pagination.limit), [router, initialFilters.page, pagination.limit]);
 
     // Filter client and parent lists based on search
     const filteredClients = useMemo(() => {
@@ -428,10 +436,7 @@ const ClientList: React.FC<IProps> = ({
             )}
 
             {/* Pagination */}
-            <div className="flex items-center justify-between py-4">
-                <div className="text-sm text-muted-foreground">
-                    Showing {Math.min(pagination.limit, data.length)} of {pagination.total} items
-                </div>
+            <div className="flex items-center justify-end py-4">
                 <Pagination>
                     <PaginationContent>
                         <PaginationItem>

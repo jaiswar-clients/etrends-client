@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react'
 import AMCList from './AMCList'
 import { useGetAllAMCQuery, useGetOrderFiltersOfCompanyQuery } from '@/redux/api/order'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
+import { generateFinancialYears } from '@/components/common/FinancialYearFilter'
 
 export enum AMC_FILTER {
     PAID = 'paid',
@@ -44,6 +45,29 @@ const AMC = () => {
         if (initialStartDate) options.startDate = initialStartDate
         if (initialEndDate) options.endDate = initialEndDate
 
+        // If FY is not in URL but dates are present, check if dates match a financial year
+        let detectedFY = initialFY;
+        if (!initialFY && initialStartDate && initialEndDate) {
+            const financialYears = generateFinancialYears();
+            const matchingFY = financialYears.find(fy => {
+                const normalizeDate = (dateStr: string) => {
+                    const d = new Date(dateStr);
+                    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+                };
+                
+                const fyStart = normalizeDate(fy.startDate);
+                const fyEnd = normalizeDate(fy.endDate);
+                const inputStart = normalizeDate(initialStartDate);
+                const inputEnd = normalizeDate(initialEndDate);
+                
+                return fyStart.getTime() === inputStart.getTime() && 
+                       fyEnd.getTime() === inputEnd.getTime();
+            });
+            if (matchingFY) {
+                detectedFY = matchingFY.id;
+            }
+        }
+
         return {
             page: initialPage ? Number(initialPage) : 1,
             limit: 10,
@@ -51,7 +75,7 @@ const AMC = () => {
             options,
             client_id: initialClientId ?? undefined,
             product_id: initialProductId ?? undefined,
-            fy: initialFY ?? undefined
+            fy: detectedFY ?? undefined
         }
     })
 
@@ -131,15 +155,37 @@ const AMC = () => {
     }
 
     const handleCustomDateChange = (startDate: string, endDate: string) => {
-        setQueryArgs(prevArgs => ({
-            ...prevArgs,
-            fy: undefined, // Clear FY when custom dates are selected
-            options: {
-                startDate,
-                endDate
-            },
-            page: 1
-        }))
+        setQueryArgs(prevArgs => {
+            // Check if the dates match a financial year
+            const financialYears = generateFinancialYears();
+            const matchingFY = financialYears.find(fy => {
+                // Compare dates by normalizing to date-only (ignoring time)
+                const normalizeDate = (dateStr: string) => {
+                    const d = new Date(dateStr);
+                    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+                };
+                
+                const fyStart = normalizeDate(fy.startDate);
+                const fyEnd = normalizeDate(fy.endDate);
+                const inputStart = normalizeDate(startDate);
+                const inputEnd = normalizeDate(endDate);
+                
+                // Compare date values (time set to 00:00:00)
+                return fyStart.getTime() === inputStart.getTime() && 
+                       fyEnd.getTime() === inputEnd.getTime();
+            });
+
+            return {
+                ...prevArgs,
+                // Set FY if dates match a financial year, otherwise clear it
+                fy: matchingFY ? matchingFY.id : undefined,
+                options: {
+                    startDate,
+                    endDate
+                },
+                page: 1
+            }
+        })
     }
 
     const dateRangeSelector = React.useMemo(() => ({

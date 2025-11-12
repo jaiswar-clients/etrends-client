@@ -35,8 +35,17 @@ import { useToast } from "@/hooks/use-toast";
 import { useAppSelector } from "@/redux/hook";
 
 const columns = (
-  router: ReturnType<typeof useRouter>
+  router: ReturnType<typeof useRouter>,
+  pagination: { page: number; limit: number }
 ): ColumnDef<IPurchase>[] => [
+  {
+    id: "sr_no",
+    header: "Sr. No.",
+    cell: ({ row }) => {
+      const serialNumber = (pagination.page - 1) * pagination.limit + row.index + 1;
+      return serialNumber;
+    },
+  },
   {
     accessorKey: "client_id.name",
     header: "Client",
@@ -214,7 +223,7 @@ const PurchasesList: React.FC<IProps> = ({
     setParentSearch("");
   };
 
-  const tableColumns = useMemo(() => columns(router), [router]);
+  const tableColumns = useMemo(() => columns(router, pagination), [router, pagination]);
 
   // Handle Excel export
   const handleExportClick = async () => {
@@ -600,11 +609,7 @@ const PurchasesList: React.FC<IProps> = ({
         )}
 
         {/* Pagination */}
-        <div className="flex items-center justify-between py-4">
-          <div className="text-sm text-muted-foreground">
-            Showing {Math.min(pagination.limit, data.length)} of{" "}
-            {pagination.total} items
-          </div>
+        <div className="flex items-center justify-end py-4">
           <Pagination>
             <PaginationContent>
               <PaginationItem>

@@ -87,6 +87,12 @@ export interface IOrderObject<P = string> {
     date: Date;
     user: string;
   }[];
+  amc_start_logs?: {
+    from: Date;
+    to: Date;
+    date: Date;
+    user: string;
+  }[];
   payment_terms: {
     name: string;
     percentage_from_base_cost: number;
@@ -171,6 +177,12 @@ export interface IAMCObject {
   last_payment?: IAMCPayment;
   amount: number;
   start_date: Date;
+  amc_start_logs?: {
+    from: Date;
+    to: Date;
+    date: Date;
+    user: string;
+  }[];
   products: IProduct[];
   payments?: IAMCPayment[];
   createdAt?: string;
@@ -287,6 +299,12 @@ export interface OrderDetailInputs {
     url: string;
   }[];
   amc_start_date?: Date;
+  amc_start_logs?: {
+    from: Date;
+    to: Date;
+    date: Date;
+    user: string;
+  }[];
 }
 
 export interface LicenseDetails {

@@ -592,7 +592,7 @@ const AMCList: React.FC<IProps> = ({
             ))}
             {selectedFY && (
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                {selectedFinancialYear}
+                Financial Year: {selectedFinancialYear}
                 <button
                   onClick={() => onFYFilterChange(undefined)}
                   className="ml-1.5 h-3 w-3 rounded-full bg-green-600 text-white hover:bg-green-700 flex items-center justify-center"
@@ -1185,16 +1185,7 @@ const AMCList: React.FC<IProps> = ({
         </Table>
       </div>
 
-      <div className="flex items-center justify-between py-4">
-        <div className="text-sm text-muted-foreground">
-          Showing {tableData.length} of {pagination.total} items
-          {pagination.total > 0 && (
-            <span>
-              {" "}
-              (Page {currentPage} of {pagination.pages})
-            </span>
-          )}
-        </div>
+      <div className="flex items-center justify-end py-4">
         <Pagination>
           <PaginationContent>
             <PaginationItem>

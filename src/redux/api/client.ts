@@ -215,6 +215,35 @@ export const clientApi = createApi({
         url: `/check-client-name?name=${name}`,
       }),
     }),
+    exportClients: builder.mutation<void, {
+      parent_company_id?: string;
+      client_name?: string;
+      industry?: string;
+      product_id?: string;
+      startDate?: string;
+      endDate?: string;
+      has_orders?: string;
+    }>({
+      query: (params) => {
+        const queryParams = new URLSearchParams();
+        queryParams.append("all", "true");
+        
+        if (params.parent_company_id)
+          queryParams.append("parent_company_id", params.parent_company_id);
+        if (params.client_name) queryParams.append("client_name", params.client_name);
+        if (params.industry) queryParams.append("industry", params.industry);
+        if (params.product_id) queryParams.append("product_id", params.product_id);
+        if (params.startDate) queryParams.append("startDate", params.startDate);
+        if (params.endDate) queryParams.append("endDate", params.endDate);
+        if (params.has_orders) queryParams.append("has_orders", params.has_orders);
+
+        return {
+          url: `/export?${queryParams.toString()}`,
+          method: HTTP_REQUEST.GET,
+          responseHandler: (response) => response.blob(),
+        };
+      },
+    }),
   }),
 });
 
@@ -228,5 +257,6 @@ export const {
   useGetAllParentCompaniesQuery,
   useGetProfitFromClientQuery,
   useGenerateNewClientIdQuery,
-  useCheckClientNameQuery
+  useCheckClientNameQuery,
+  useExportClientsMutation
 } = clientApi;

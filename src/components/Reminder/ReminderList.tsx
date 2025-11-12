@@ -228,10 +228,7 @@ const ReminderList: React.FC<IProps> = ({ data }) => {
             </Dialog>
 
             {/* Add pagination controls */}
-            <div className="flex items-center justify-between py-4">
-                <div className="text-sm text-muted-foreground">
-                    Showing {table.getFilteredRowModel().rows.length} of {tableData.length} items
-                </div>
+            <div className="flex items-center justify-end py-4">
                 <Pagination>
                     <PaginationContent>
                         <PaginationItem>

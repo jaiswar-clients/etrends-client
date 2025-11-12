@@ -95,6 +95,10 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
     const [showStatusLogsModal, setShowStatusLogsModal] = useState(false);
     const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
     const [showAmcRateHistoryModal, setShowAmcRateHistoryModal] = useState(false);
+    const [initialAmcStartDate, setInitialAmcStartDate] = useState<Date | null>(null);
+    const [showAmcStartChangeModal, setShowAmcStartChangeModal] = useState(false);
+    const [amcStartChangeDate, setAmcStartChangeDate] = useState<Date>(new Date());
+    const [showAmcStartLogsModal, setShowAmcStartLogsModal] = useState(false);
 
     const router = useRouter();
     const { uploadFile, getFileNameFromUrl } = useFileUpload()
@@ -116,11 +120,18 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
         }
     });
 
+    const amcStartChangeForm = useForm({
+        defaultValues: {
+            change_date: amcStartChangeDate
+        }
+    });
+
     useEffect(() => {
         if (defaultValue?._id) {
             setDisableInput(true)
             setInitialAmcRate(defaultValue.amc_rate);
             setInitialStatus(defaultValue.status as ORDER_STATUS_ENUM);
+            setInitialAmcStartDate(defaultValue.amc_start_date ? new Date(defaultValue.amc_start_date) : null);
         }
     }, [defaultValue])
 
@@ -180,7 +191,8 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
         licenses_with_base_price: 0,
         purchased_date: new Date(),
         amc_rate_history: [],
-        status_logs: []
+        status_logs: [],
+        amc_start_logs: []
     }
 
     const values = useMemo(() => defaultValue ? {
@@ -200,6 +212,12 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
         amc_rate_history: defaultValue.amc_rate_history || [],
         amc_rate_change_frequency_in_years: defaultValue.amc_rate_change_frequency_in_years || 0,
         status_logs: defaultValue.status_logs || [],
+        amc_start_logs: (defaultValue.amc_start_logs || []).map(log => ({
+            ...log,
+            from: log.from ? new Date(log.from) : undefined,
+            to: log.to ? new Date(log.to) : undefined,
+            date: log.date ? new Date(log.date) : undefined,
+        })),
     } : undefined, [defaultValue])
 
 
@@ -231,6 +249,7 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
     }
 
     const agreementsData = form.watch("agreements")
+    const amcStartLogs = form.watch("amc_start_logs")
 
     const addPaymentTerm = () => {
         appendPaymentTerm({
@@ -588,10 +607,30 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
             training_and_implementation_cost: Number(data.training_and_implementation_cost) || 0,
             cost_per_license: Number(data.cost_per_license) || 0,
             licenses_with_base_price: Number(data.licenses_with_base_price) || 0,
-            amc_rate_change_frequency_in_years: Number(data.amc_rate_change_frequency_in_years) || 0
+            amc_rate_change_frequency_in_years: Number(data.amc_rate_change_frequency_in_years) || 0,
+            amc_start_logs: (data.amc_start_logs || []).map((log: any) => ({
+                ...log,
+                from: log.from ? new Date(log.from) : undefined,
+                to: log.to ? new Date(log.to) : undefined,
+                date: log.date ? new Date(log.date) : new Date(),
+                user: log.user || user?._id || ''
+            }))
         };
 
         return transformedData;
+    };
+
+    const hasAmcStartDateChanged = () => {
+        const currentStartDate = form.getValues("amc_start_date");
+
+        if (!initialAmcStartDate && !currentStartDate) return false;
+        if (!initialAmcStartDate && currentStartDate) return true;
+        if (initialAmcStartDate && !currentStartDate) return true;
+
+        return (
+            new Date(initialAmcStartDate as Date).getTime() !==
+            new Date(currentStartDate as Date).getTime()
+        );
     };
 
     const hasAmcRateChanged = () => {
@@ -609,6 +648,13 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
 
     const onSubmit: SubmitHandler<OrderDetailInputs & LicenseDetails> = async (data) => {
         if (defaultValue?._id) {
+            if (hasAmcStartDateChanged()) {
+                const currentDate = new Date();
+                setAmcStartChangeDate(currentDate);
+                amcStartChangeForm.setValue("change_date", currentDate);
+                setShowAmcStartChangeModal(true);
+                return;
+            }
             if (hasAmcRateChanged()) {
                 setShowAmcHistoryModal(true);
                 return;
@@ -647,6 +693,49 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
             })
         }
     }
+
+    const handleAmcStartChangeSubmit = async () => {
+        const data = form.getValues();
+
+        const updatedLogs = [
+            ...(data.amc_start_logs || []),
+            {
+                from: initialAmcStartDate || data.amc_start_date,
+                to: data.amc_start_date,
+                date: amcStartChangeDate,
+                user: user?._id || ''
+            }
+        ];
+
+        form.setValue("amc_start_logs", updatedLogs, { shouldDirty: true });
+
+        const transformedData = transformFormData({
+            ...data,
+            amc_start_logs: updatedLogs
+        });
+
+        if (!transformedData) return;
+
+        try {
+            if (defaultValue?._id && updateHandler) {
+                await updateHandler({ ...transformedData });
+                toast({
+                    variant: "success",
+                    title: "Order Updated",
+                });
+                form.setValue("amc_start_logs", updatedLogs, { shouldDirty: false });
+                setShowAmcStartChangeModal(false);
+                setDisableInput(true);
+                setInitialAmcStartDate(data.amc_start_date || null);
+            }
+        } catch (error: any) {
+            toast({
+                variant: "destructive",
+                title: "Error Occurred while updating the order",
+                description: error?.message || `Please try again and if error still persists contact the developer`
+            });
+        }
+    };
 
     const handleAmcHistorySubmit = async () => {
         const data = form.getValues();
@@ -726,6 +815,66 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
             });
         }
     };
+
+    const AmcStartChangeModal = () => (
+        <Dialog open={showAmcStartChangeModal} onOpenChange={(val) => !val && setShowAmcStartChangeModal(false)}>
+            <DialogContent>
+                <DialogTitle>AMC Start Date Change</DialogTitle>
+                <DialogDescription>
+                    Please specify when the AMC start date changed from {initialAmcStartDate ? new Date(initialAmcStartDate).toLocaleDateString() : "N/A"} to {form.getValues("amc_start_date") ? new Date(form.getValues("amc_start_date") as Date).toLocaleDateString() : "N/A"}.
+                </DialogDescription>
+                <Form {...amcStartChangeForm}>
+                    <form onSubmit={amcStartChangeForm.handleSubmit(() => handleAmcStartChangeSubmit())}>
+                        <div className="mt-4">
+                            <FormField
+                                control={amcStartChangeForm.control}
+                                name="change_date"
+                                render={({ field }) => (
+                                    <FormItem className='w-full'>
+                                        <FormLabel className="text-gray-500">Change Date</FormLabel>
+                                        <FormControl>
+                                            <DatePicker
+                                                date={field.value}
+                                                onDateChange={(date: Date | undefined) => {
+                                                    if (date) {
+                                                        setAmcStartChangeDate(date);
+                                                        field.onChange(date);
+                                                    }
+                                                }}
+                                                placeholder='Select date of change'
+                                            />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <div className="mt-4">
+                                <Typography variant="h4" className="mb-2">AMC Start Date Change Details:</Typography>
+                                <div className="space-y-2 text-sm">
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-medium">Previous Start Date:</span>
+                                        <p>{initialAmcStartDate ? new Date(initialAmcStartDate).toLocaleDateString() : "N/A"}</p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-medium">New Start Date:</span>
+                                        <p>{form.getValues("amc_start_date") ? new Date(form.getValues("amc_start_date") as Date).toLocaleDateString() : "N/A"}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <DialogFooter className="mt-4">
+                            <Button type="button" variant="outline" onClick={() => setShowAmcStartChangeModal(false)}>
+                                Cancel
+                            </Button>
+                            <Button type="submit">
+                                Save Changes
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </Form>
+            </DialogContent>
+        </Dialog>
+    );
 
     const AmcHistoryModal = () => (
         <Dialog open={showAmcHistoryModal} onOpenChange={(val) => !val && setShowAmcHistoryModal(false)}>
@@ -899,6 +1048,56 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
                 </div>
                 <DialogFooter>
                     <Button type="button" onClick={() => setShowStatusLogsModal(false)}>
+                        Close
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+
+    const AmcStartLogsModal = () => (
+        <Dialog open={showAmcStartLogsModal} onOpenChange={(val) => !val && setShowAmcStartLogsModal(false)}>
+            <DialogContent>
+                <DialogTitle>AMC Start Date History</DialogTitle>
+                <DialogDescription>
+                    History of all AMC start date changes for this order
+                </DialogDescription>
+                <div className="mt-4 space-y-4">
+                    {(amcStartLogs || []).map((log: any, index: number) => (
+                        <Card key={index}>
+                            <CardContent className="p-4">
+                                <div className="flex flex-col space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-medium">From:</span>
+                                            <span>{log.from ? new Date(log.from).toLocaleDateString() : "N/A"}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-medium">To:</span>
+                                            <span>{log.to ? new Date(log.to).toLocaleDateString() : "N/A"}</span>
+                                        </div>
+                                    </div>
+                                    <div className="text-sm text-gray-500">
+                                        Changed on: {log.date ? new Date(log.date).toLocaleDateString('en-US', {
+                                            year: 'numeric',
+                                            month: 'long',
+                                            day: 'numeric',
+                                            hour: '2-digit',
+                                            minute: '2-digit'
+                                        }) : "N/A"}
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    ))}
+                    {(!amcStartLogs || amcStartLogs.length === 0) && (
+                        <Typography variant="p" className="text-sm text-gray-500">
+                            No start date changes recorded yet.
+                        </Typography>
+                    )}
+                </div>
+                <DialogFooter>
+                    <Button type="button" onClick={() => setShowAmcStartLogsModal(false)}>
                         Close
                     </Button>
                 </DialogFooter>
@@ -1450,7 +1649,21 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
                                         name={`amc_start_date`}
                                         render={({ field }) => (
                                             <FormItem className='w-full relative mb-4 md:mb-0'>
-                                                <FormLabel className='text-gray-500'>AMC Start Date</FormLabel>
+                                                <FormLabel className='text-gray-500 flex items-center gap-2'>
+                                                    AMC Start Date
+                                                    {(amcStartLogs && amcStartLogs.length > 0) && (
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="flex items-center gap-1"
+                                                            onClick={() => setShowAmcStartLogsModal(true)}
+                                                        >
+                                                            <History className="w-3 h-3" />
+                                                            History
+                                                        </Button>
+                                                    )}
+                                                </FormLabel>
                                                 <FormControl>
                                                     <DatePicker date={field.value} onDateChange={field.onChange} placeholder='Pick a Date' disabled={disableInput} />
                                                 </FormControl>
@@ -1566,6 +1779,8 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
                         <Typography variant='h1'>{title ?? "Order Details"}</Typography>
                     </AccordionTrigger>
                     <AccordionContent>
+                        {AmcStartChangeModal()}
+                        {AmcStartLogsModal()}
                         {AmcHistoryModal()}
                         {StatusChangeModal()}
                         {StatusLogsModal()}

@@ -3,15 +3,21 @@ import React, { useState, useEffect } from 'react'
 import Typography from '../ui/Typography'
 import ClientList from './ClientList'
 import { Button } from '../ui/button'
-import { Plus } from 'lucide-react'
+import { Plus, FileSpreadsheet } from 'lucide-react'
 import Link from 'next/link'
 import { useGetClientsQuery } from '@/redux/api/client'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
+import { useToast } from '@/hooks/use-toast'
+import { RootState } from '@/redux/store'
+import { useAppSelector } from '@/redux/hook'
 
 const Client = () => {
     const router = useRouter()
     const pathname = usePathname()
     const searchParams = useSearchParams()
+    const { toast } = useToast()
+    const authToken = useAppSelector((state: RootState) => state.user.user.token)
+    const [isDownloading, setIsDownloading] = useState(false)
     
     // Function to update query params
     const createQueryString = (params: Record<string, string | number | undefined>) => {
@@ -130,16 +136,111 @@ const Client = () => {
         setQueryArgs(prev => ({ ...prev, page }))
     }
     
+    // Handle Excel export
+    const handleExportClick = async () => {
+        setIsDownloading(true)
+        try {
+            // Show a toast to indicate that the export is in progress
+            toast({
+                title: "Preparing export",
+                description: "Generating Excel file with your client data...",
+                variant: "default",
+                duration: 3000,
+            })
+
+            // Construct query parameters
+            const params = new URLSearchParams({
+                all: "true",
+            })
+            
+            if (queryArgs.parentCompanyId) {
+                params.append("parent_company_id", queryArgs.parentCompanyId)
+            }
+            if (queryArgs.client) {
+                params.append("client_name", queryArgs.client)
+            }
+            if (queryArgs.industry) {
+                params.append("industry", queryArgs.industry)
+            }
+            if (queryArgs.productId) {
+                params.append("product_id", queryArgs.productId)
+            }
+            if (queryArgs.startDate) {
+                params.append("startDate", queryArgs.startDate)
+            }
+            if (queryArgs.endDate) {
+                params.append("endDate", queryArgs.endDate)
+            }
+            if (queryArgs.hasOrders) {
+                params.append("has_orders", "true")
+            }
+
+            const exportUrl = `${process.env.NEXT_PUBLIC_API_URL}/clients/export?${params.toString()}`
+
+            // Perform direct fetch
+            const response = await fetch(exportUrl, {
+                method: "GET",
+                headers: {
+                    Authorization: `Bearer ${authToken}`,
+                },
+            })
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`)
+            }
+
+            const blob = await response.blob()
+
+            // Handle the download
+            const url = window.URL.createObjectURL(blob)
+            const link = document.createElement("a")
+            const currentDate = new Date().toISOString().split("T")[0]
+            link.href = url
+            link.setAttribute("download", `Client_Export_${currentDate}.xlsx`)
+            document.body.appendChild(link)
+            link.click()
+
+            // Clean up
+            document.body.removeChild(link)
+            window.URL.revokeObjectURL(url)
+
+            toast({
+                title: "Export successful",
+                description: "Your client data has been exported to Excel.",
+                variant: "default",
+            })
+        } catch (error) {
+            console.error("Export error:", error)
+            toast({
+                title: "Export failed",
+                description: "There was an error exporting the data. Please try again or check the console for details.",
+                variant: "destructive",
+            })
+        } finally {
+            setIsDownloading(false)
+        }
+    }
+    
     return (
         <div>
             <div className="flex items-center justify-between">
                 <Typography variant='h1' className='text-2xl md:text-3xl'>Client List</Typography>
-                <Link passHref href={"/clients/add"}>
-                    <Button>
-                        <Plus />
-                        Add Client
+                <div className="flex items-center gap-2">
+                    <Button
+                        onClick={handleExportClick}
+                        className="bg-green-600 hover:bg-green-700 shadow-sm transition-all"
+                        disabled={isDownloading}
+                    >
+                        <FileSpreadsheet className="mr-2 h-4 w-4" />
+                        {isDownloading ? "Preparing Excel..." : "Export to Excel"}
                     </Button>
-                </Link>
+                    <Link passHref href={"/clients/add"}>
+                        <Button>
+                            <Plus />
+                            Add Client
+                        </Button>
+                    </Link>
+                </div>
             </div>
 
             <br />
