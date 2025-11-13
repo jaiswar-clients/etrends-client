@@ -31,7 +31,7 @@ const LayoutWithQuery = ({ children }: Readonly<{
   if(!user?.token) return null
 
   return (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={false}>
       <AppSidebar />
       <SidebarTrigger />
       <main className="md:p-6 p-2 mt-5 w-full">{children}</main>

@@ -8,6 +8,7 @@ import {
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
+    useSidebar,
 } from "@/components/ui/sidebar"
 import { MdAddShoppingCart, MdOutlinePeopleAlt } from "react-icons/md"
 import { GoPackage } from "react-icons/go"
@@ -21,6 +22,7 @@ import { AvatarFallback } from "@radix-ui/react-avatar"
 import { usePathname } from "next/navigation"
 import { useAppSelector } from "@/redux/hook"
 import { Bell, CircleDashed, Bot } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 // Menu items.
 const items = [
@@ -71,6 +73,8 @@ export function AppSidebar() {
     const isAuthPage = pathname.startsWith("/auth")
 
     const { user } = useAppSelector(state => state.user)
+    const { state } = useSidebar()
+    const isCollapsed = state === "collapsed"
 
     if (isAuthPage) return null
 
@@ -79,7 +83,7 @@ export function AppSidebar() {
     }
 
     return (
-        <Sidebar>
+        <Sidebar collapsible="icon">
             <SidebarHeader>
                 <Image src="/images/logo.png" width={200} height={100} alt="logo" />
             </SidebarHeader>
@@ -91,6 +95,7 @@ export function AppSidebar() {
                                 asChild
                                 className="[&>svg]:size-5 !data-[active=true]:bg-black[data-active=true] "
                                 isActive={isActive(item.url)}
+                                tooltip={item.title}
                             >
                                 <Link href={`/${item.url}`} className="mb-2">
                                     <item.icon
@@ -112,17 +117,24 @@ export function AppSidebar() {
                 </SidebarMenu>
             </SidebarContent>
             <SidebarFooter>
-                <div className="flex gap-2 cursor-pointer">
-                    <Avatar className="w-16 h-16">
+                <div
+                    className={cn(
+                        "flex items-center gap-2 cursor-pointer rounded-md p-2 transition-all duration-200",
+                        isCollapsed && "justify-center"
+                    )}
+                >
+                    <Avatar className={cn("h-16 w-16 transition-all duration-200", isCollapsed && "h-10 w-10")}>
                         <AvatarImage src="https://github.com/shadcn.png" />
                         <AvatarFallback>CN</AvatarFallback>
                     </Avatar>
-                    <div className="">
-                        <Typography variant="h3">{user.name}</Typography>
-                        <Typography variant="p" className="text-xs">
-                            {user.designation}
-                        </Typography>
-                    </div>
+                    {!isCollapsed && (
+                        <div className="flex flex-col">
+                            <Typography variant="h3">{user.name}</Typography>
+                            <Typography variant="p" className="text-xs">
+                                {user.designation}
+                            </Typography>
+                        </div>
+                    )}
                 </div>
             </SidebarFooter>
         </Sidebar>
