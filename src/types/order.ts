@@ -88,9 +88,9 @@ export interface IOrderObject<P = string> {
     user: string;
   }[];
   amc_start_logs?: {
-    from: Date;
-    to: Date;
-    date: Date;
+    from: Date | undefined;
+    to: Date | undefined;
+    date: Date | undefined;
     user: string;
   }[];
   payment_terms: {
@@ -178,9 +178,9 @@ export interface IAMCObject {
   amount: number;
   start_date: Date;
   amc_start_logs?: {
-    from: Date;
-    to: Date;
-    date: Date;
+    from: Date | undefined;
+    to: Date | undefined;
+    date: Date | undefined;
     user: string;
   }[];
   products: IProduct[];
@@ -300,9 +300,9 @@ export interface OrderDetailInputs {
   }[];
   amc_start_date?: Date;
   amc_start_logs?: {
-    from: Date;
-    to: Date;
-    date: Date;
+    from: Date | undefined;
+    to: Date | undefined;
+    date: Date | undefined;
     user: string;
   }[];
 }
