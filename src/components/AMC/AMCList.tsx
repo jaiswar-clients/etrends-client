@@ -78,7 +78,7 @@ interface IProps {
   data: TransformedAMCObject[];
   changeFilter: (
     filters: string[],
-    options?: { startDate?: string; endDate?: string }
+    options?: { startDate?: string; endDate?: string },
   ) => void;
   onPageChange: (page: number) => void;
   currentPage: number;
@@ -245,14 +245,14 @@ const AMCList: React.FC<IProps> = ({
 
   const uniqueProducts = useMemo(
     () => [...new Set(products.map((product) => product.short_name))],
-    [products]
+    [products],
   );
 
   // Filter clients based on search
   const filteredClients = useMemo(() => {
     if (!companyData?.clients) return [];
     return companyData.clients.filter((client) =>
-      client.name.toLowerCase().includes(clientSearch.toLowerCase())
+      client.name.toLowerCase().includes(clientSearch.toLowerCase()),
     );
   }, [companyData?.clients, clientSearch]);
 
@@ -324,7 +324,7 @@ const AMCList: React.FC<IProps> = ({
         },
       },
     ],
-    [expandedRows, activeFilters, router, getFilteredPayments]
+    [expandedRows, activeFilters, router, getFilteredPayments],
   );
 
   const table = useReactTable({
@@ -465,7 +465,7 @@ const AMCList: React.FC<IProps> = ({
   const clientName = useMemo(() => {
     if (!initialClientFilter || !companyData?.clients) return undefined;
     const client = companyData.clients.find(
-      (c) => c._id === initialClientFilter
+      (c) => c._id === initialClientFilter,
     );
     return client?.name;
   }, [initialClientFilter, companyData?.clients]);
@@ -704,7 +704,7 @@ const AMCList: React.FC<IProps> = ({
                           checked={initialClientFilter === client.name}
                           onCheckedChange={(value) => {
                             handleClientSelection(
-                              value ? client._id : undefined
+                              value ? client._id : undefined,
                             );
                           }}
                         >
@@ -805,7 +805,7 @@ const AMCList: React.FC<IProps> = ({
                           size="sm"
                           onClick={() => {
                             const allExpanded = Object.values(
-                              expandedRows
+                              expandedRows,
                             ).every((val) => val);
                             const newState: Record<string, boolean> = {};
                             tableData.forEach((row) => {
@@ -813,7 +813,7 @@ const AMCList: React.FC<IProps> = ({
                                 row.amcObject.payments &&
                                 getFilteredPayments(
                                   row.amcObject.payments || [],
-                                  activeFilters
+                                  activeFilters,
                                 ).length > 0
                               ) {
                                 newState[row.id] = !allExpanded;
@@ -834,7 +834,7 @@ const AMCList: React.FC<IProps> = ({
                     ) : header.isPlaceholder ? null : (
                       flexRender(
                         header.column.columnDef.header,
-                        header.getContext()
+                        header.getContext(),
                       )
                     )}
                   </TableHead>
@@ -863,7 +863,7 @@ const AMCList: React.FC<IProps> = ({
                       {row.amcObject.payments &&
                         getFilteredPayments(
                           row.amcObject.payments || [],
-                          activeFilters
+                          activeFilters,
                         ).length > 0 && (
                           <Button
                             variant="ghost"
@@ -937,7 +937,7 @@ const AMCList: React.FC<IProps> = ({
                                 {
                                   getFilteredPayments(
                                     row.amcObject.payments || [],
-                                    activeFilters
+                                    activeFilters,
                                   ).length
                                 }
                                 /{row.amcObject.payments?.length || 0}
@@ -953,13 +953,13 @@ const AMCList: React.FC<IProps> = ({
                             {row.amcObject.payments &&
                               getFilteredPayments(
                                 row.amcObject.payments || [],
-                                activeFilters
+                                activeFilters,
                               ).map((payment, index) => {
                                 // Determine which filters this payment matches
                                 const matchingFilters = activeFilters.filter(
                                   (filter) => {
                                     const paymentFromDate = new Date(
-                                      payment.from_date
+                                      payment.from_date,
                                     );
                                     const startDate =
                                       dateRangeSelector.startDate
@@ -982,7 +982,7 @@ const AMCList: React.FC<IProps> = ({
                                       payment.status === filter &&
                                       ((!startDate && !endDate) || dateInRange)
                                     );
-                                  }
+                                  },
                                 );
 
                                 // Status styling
@@ -1020,7 +1020,7 @@ const AMCList: React.FC<IProps> = ({
                                   <div
                                     key={payment._id}
                                     className={`p-4 rounded-lg border-2 hover:shadow-md transition-all duration-200 ${getStatusStyle(
-                                      payment.status
+                                      payment.status,
                                     )}`}
                                   >
                                     <div className="flex items-start justify-between">
@@ -1039,13 +1039,14 @@ const AMCList: React.FC<IProps> = ({
                                                 payment.status === "paid"
                                                   ? "bg-green-600 text-white"
                                                   : payment.status === "pending"
-                                                  ? "bg-red-600 text-white"
-                                                  : payment.status ===
-                                                    "proforma"
-                                                  ? "bg-yellow-600 text-white"
-                                                  : payment.status === "invoice"
-                                                  ? "bg-blue-600 text-white"
-                                                  : "bg-gray-600 text-white"
+                                                    ? "bg-red-600 text-white"
+                                                    : payment.status ===
+                                                        "proforma"
+                                                      ? "bg-yellow-600 text-white"
+                                                      : payment.status ===
+                                                          "invoice"
+                                                        ? "bg-blue-600 text-white"
+                                                        : "bg-gray-600 text-white"
                                               }`}
                                             >
                                               {payment.status}
@@ -1070,7 +1071,7 @@ const AMCList: React.FC<IProps> = ({
                                             </span>
                                             <div className="font-medium text-gray-900 text-sm">
                                               {payment.amc_rate_applied?.toFixed(
-                                                2
+                                                2,
                                               ) || 0}
                                               %
                                             </div>
@@ -1092,7 +1093,7 @@ const AMCList: React.FC<IProps> = ({
                                       <div className="text-right ml-4">
                                         <div className="text-lg font-bold text-gray-900 mb-1">
                                           {formatCurrency(
-                                            payment.amc_rate_amount
+                                            payment.amc_rate_amount,
                                           )}
                                         </div>
 
@@ -1117,7 +1118,7 @@ const AMCList: React.FC<IProps> = ({
                             {(!row.amcObject.payments ||
                               getFilteredPayments(
                                 row.amcObject.payments || [],
-                                activeFilters
+                                activeFilters,
                               ).length === 0) && (
                               <div className="text-center py-12">
                                 <div className="w-16 h-16 mx-auto mb-4 text-gray-300">
@@ -1188,14 +1189,16 @@ const AMCList: React.FC<IProps> = ({
       {/* Table Footer - Items Info & Pagination */}
       <div className="flex items-center justify-between py-4 border-t">
         {/* Items Count Display */}
-        <div className="text-sm text-muted-foreground">
+        <div className="text-sm text-muted-foreground whitespace-nowrap">
           <span className="font-medium text-foreground">
             {tableData.length > 0
               ? `Showing ${Math.min((currentPage - 1) * pagination.limit + 1, pagination.total)}-${Math.min(currentPage * pagination.limit, pagination.total)}`
               : "Showing 0-0"}
           </span>
           <span className="mx-2">of</span>
-          <span className="font-medium text-foreground">{pagination.total}</span>
+          <span className="font-medium text-foreground">
+            {pagination.total}
+          </span>
           <span className="ml-1">items</span>
         </div>
 

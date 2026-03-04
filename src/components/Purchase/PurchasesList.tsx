@@ -36,13 +36,14 @@ import { useAppSelector } from "@/redux/hook";
 
 const columns = (
   router: ReturnType<typeof useRouter>,
-  pagination: { page: number; limit: number }
+  pagination: { page: number; limit: number },
 ): ColumnDef<IPurchase>[] => [
   {
     id: "sr_no",
     header: "Sr. No.",
     cell: ({ row }) => {
-      const serialNumber = (pagination.page - 1) * pagination.limit + row.index + 1;
+      const serialNumber =
+        (pagination.page - 1) * pagination.limit + row.index + 1;
       return serialNumber;
     },
   },
@@ -72,8 +73,8 @@ const columns = (
             status === ORDER_STATUS_ENUM.ACTIVE
               ? "success"
               : status === ORDER_STATUS_ENUM.INACTIVE
-              ? "destructive"
-              : "default"
+                ? "destructive"
+                : "default"
           }
         >
           {status}
@@ -98,7 +99,7 @@ const columns = (
           onClick={(e) => {
             e.stopPropagation(); // Prevent row click toggle
             router.push(
-              `/purchases/${purchase._id}?type=${PURCHASE_TYPE.ORDER}&client=${purchase.client_id._id}`
+              `/purchases/${purchase._id}?type=${PURCHASE_TYPE.ORDER}&client=${purchase.client_id._id}`,
             );
           }}
         >
@@ -139,7 +140,7 @@ interface IProps {
       | "parentCompany"
       | "clientId"
       | "parentCompanyId",
-    value: string | undefined
+    value: string | undefined,
   ) => void;
   onAmcPendingChange: (value: boolean) => void;
   onPageChange: (page: number) => void;
@@ -185,12 +186,12 @@ const PurchasesList: React.FC<IProps> = ({
   // Get unique values for status and product filters
   const uniqueStatus = useMemo(
     () => Array.from(new Set(data.map((d) => d.status))),
-    [data]
+    [data],
   );
 
   const uniqueProducts = useMemo(
     () => [...new Set(products.map((product: any) => product.short_name))],
-    [products]
+    [products],
   );
 
   const onTabFilterChange = (tab: keyof typeof activeTabFilters) => {
@@ -207,7 +208,7 @@ const PurchasesList: React.FC<IProps> = ({
 
   const handleClientSelection = (
     clientName: string | undefined,
-    clientId: string | undefined
+    clientId: string | undefined,
   ) => {
     onFilterChange("client", clientName);
     onFilterChange("clientId", clientId);
@@ -216,14 +217,17 @@ const PurchasesList: React.FC<IProps> = ({
 
   const handleParentCompanySelection = (
     parentName: string | undefined,
-    parentId: string | undefined
+    parentId: string | undefined,
   ) => {
     onFilterChange("parentCompany", parentName);
     onFilterChange("parentCompanyId", parentId);
     setParentSearch("");
   };
 
-  const tableColumns = useMemo(() => columns(router, pagination), [router, pagination]);
+  const tableColumns = useMemo(
+    () => columns(router, pagination),
+    [router, pagination],
+  );
 
   // Handle Excel export
   const handleExportClick = async () => {
@@ -285,14 +289,14 @@ const PurchasesList: React.FC<IProps> = ({
   const filteredClients = useMemo(() => {
     if (!filtersData?.data?.clients) return [];
     return filtersData.data.clients.filter((client) =>
-      client.name.toLowerCase().includes(clientSearch.toLowerCase())
+      client.name.toLowerCase().includes(clientSearch.toLowerCase()),
     );
   }, [filtersData?.data?.clients, clientSearch]);
 
   const filteredParents = useMemo(() => {
     if (!filtersData?.data?.parents) return [];
     return filtersData.data.parents.filter((parent) =>
-      parent.name.toLowerCase().includes(parentSearch.toLowerCase())
+      parent.name.toLowerCase().includes(parentSearch.toLowerCase()),
     );
   }, [filtersData?.data?.parents, parentSearch]);
 
@@ -366,7 +370,7 @@ const PurchasesList: React.FC<IProps> = ({
                             onCheckedChange={(value) => {
                               handleClientSelection(
                                 value ? client.name : undefined,
-                                value ? client._id : undefined
+                                value ? client._id : undefined,
                               );
                             }}
                           >
@@ -444,7 +448,7 @@ const PurchasesList: React.FC<IProps> = ({
                             onCheckedChange={(value) => {
                               handleParentCompanySelection(
                                 value ? parent.name : undefined,
-                                value ? parent._id : undefined
+                                value ? parent._id : undefined,
                               );
                             }}
                           >
@@ -565,7 +569,7 @@ const PurchasesList: React.FC<IProps> = ({
                         onCheckedChange={(value) => {
                           onFilterChange(
                             "product",
-                            value ? product : undefined
+                            value ? product : undefined,
                           );
                         }}
                       >
@@ -611,17 +615,16 @@ const PurchasesList: React.FC<IProps> = ({
         {/* Pagination */}
         <div className="flex items-center justify-between py-4 border-t">
           {/* Items Count Display */}
-          <div className="text-sm text-muted-foreground">
+          <div className="text-sm text-muted-foreground whitespace-nowrap">
             <span className="font-medium text-foreground">
               {data.length > 0
-                ? `${Math.min((initialFilters.page - 1) * pagination.limit + 1, pagination.total)}-${Math.min(
-                    initialFilters.page * pagination.limit,
-                    pagination.total
-                  )}`
+                ? `${Math.min((initialFilters.page - 1) * pagination.limit + 1, pagination.total)}-${Math.min(initialFilters.page * pagination.limit, pagination.total)}`
                 : "0-0"}
             </span>
             <span className="mx-2">of</span>
-            <span className="font-medium text-foreground">{pagination.total}</span>
+            <span className="font-medium text-foreground">
+              {pagination.total}
+            </span>
             <span className="ml-1">items</span>
           </div>
 
