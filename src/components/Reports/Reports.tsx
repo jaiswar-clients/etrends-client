@@ -22,19 +22,65 @@ import { Button } from '../ui/button'
 
 export const generateYears = () => {
     const currentYear = new Date().getFullYear();
-    const years = [];
-    for (let i = currentYear; i >= currentYear - 15; i--) {
-        years.push(i);
+    const fiscalYears = [];
+
+    const currentMonth = new Date().getMonth();
+    const fiscalYearStart = currentMonth < 3 ? currentYear - 1 : currentYear;
+
+    for (let i = fiscalYearStart; i >= fiscalYearStart - 15; i--) {
+        const endYear = i + 1;
+        const label = `FY${(i % 100).toString().padStart(2, '0')}-${(endYear % 100).toString().padStart(2, '0')}`;
+        fiscalYears.push({
+            label: label,
+            value: i.toString()
+        });
     }
-    return years;
+    return fiscalYears;
 };
 
-export const generateQuarters = (year: number) => {
-    const quarters = [];
-    for (let i = 1; i <= 4; i++) {
-        quarters.push(`Q${i} ${year}`);
+export const generateQuarters = (fiscalYearStart: number) => {
+    const fiscalYearLabel = `${(fiscalYearStart % 100).toString().padStart(2, '0')}-${((fiscalYearStart + 1) % 100).toString().padStart(2, '0')}`;
+
+    return [
+        {
+            label: `Q1 FY${fiscalYearLabel} (Apr-Jun)`,
+            value: `Q1 ${fiscalYearStart}`
+        },
+        {
+            label: `Q2 FY${fiscalYearLabel} (Jul-Sep)`,
+            value: `Q2 ${fiscalYearStart}`
+        },
+        {
+            label: `Q3 FY${fiscalYearLabel} (Oct-Dec)`,
+            value: `Q3 ${fiscalYearStart}`
+        },
+        {
+            label: `Q4 FY${fiscalYearLabel} (Jan-Mar)`,
+            value: `Q4 ${fiscalYearStart}`
+        },
+    ];
+};
+
+const getCurrentFiscalQuarter = () => {
+    const now = new Date();
+    const month = now.getMonth();
+    const fiscalYearStart = month < 3 ? now.getFullYear() - 1 : now.getFullYear();
+
+    let quarterNumber;
+    if (month >= 3 && month <= 5) {
+        quarterNumber = 1;
+    } else if (month >= 6 && month <= 8) {
+        quarterNumber = 2;
+    } else if (month >= 9 && month <= 11) {
+        quarterNumber = 3;
+    } else {
+        quarterNumber = 4;
     }
-    return quarters;
+
+    return {
+        quarter: `Q${quarterNumber} ${fiscalYearStart}`,
+        year: fiscalYearStart
+    };
 };
 
 export const filterOptions = [
@@ -70,7 +116,16 @@ export const SelectComponent = ({
 );
 
 const Reports = () => {
-    const [filters, setFilters] = useState<IReportQueries>({ filter: "monthly", options: {} })
+    const [filters, setFilters] = useState<IReportQueries>(() => {
+    const currentMonth = new Date().getMonth();
+    const currentYear = new Date().getFullYear();
+    const fiscalYearStart = currentMonth < 3 ? currentYear - 1 : currentYear;
+
+    return {
+        filter: "monthly",
+        options: { year: fiscalYearStart }
+    };
+})
 
     const {
         data: totalBillingApiRes,
@@ -161,12 +216,14 @@ const Reports = () => {
             pdf.setFontSize(12);
             pdf.text(`Filter: ${capitalizeFirstLetter(filters.filter)}`, pdf.internal.pageSize.width - 40, 10);
 
-            if (filters.filter === 'quarterly') {
-                pdf.text(`Quarter: ${filters.options?.quarter}`, pdf.internal.pageSize.width - 40, 15);
+            if (filters.filter !== 'all') {
+                const yearStart = Number(filters.options?.year);
+                const yearEnd = yearStart + 1;
+                pdf.text(`Fiscal Year: FY${(yearStart % 100).toString().padStart(2, '0')}-${(yearEnd % 100).toString().padStart(2, '0')}`, pdf.internal.pageSize.width - 40, filters.filter === 'quarterly' ? 20 : 15);
             }
 
-            if (filters.filter !== 'all') {
-                pdf.text(`Year: ${filters.options?.year}`, pdf.internal.pageSize.width - 40, filters.filter === 'quarterly' ? 20 : 15);
+            if (filters.filter === 'quarterly') {
+                pdf.text(`Quarter: ${filters.options?.quarter}`, pdf.internal.pageSize.width - 40, 15);
             }
 
             // Add the chart image to the PDF
@@ -252,11 +309,9 @@ const Reports = () => {
         const updatedFilters = { ...filters };
 
         if (value === "quarterly") {
-            const quarterIndex = Math.floor(new Date().getMonth() / 3) || 0;
-            const quarter = generateQuarters(new Date().getFullYear())[quarterIndex];
-            const year = new Date().getFullYear();
+            const currentQuarter = getCurrentFiscalQuarter();
             updatedFilters.filter = value as "quarterly" | "yearly" | "all";
-            updatedFilters.options = { ...updatedFilters.options, year, quarter };
+            updatedFilters.options = { ...updatedFilters.options, year: currentQuarter.year, quarter: currentQuarter.quarter };
         } else {
             updatedFilters.filter = value as "monthly" | "yearly" | "all";
         }
@@ -284,23 +339,17 @@ const Reports = () => {
                             onValueChange={(value) => onOptionChange("quarter", value)}
                             placeholder={filters.options?.quarter || "Select a Quarter"}
                             options={
-                                generateQuarters(Number(filters.options?.year) || new Date().getFullYear()).map(
-                                    (q) => ({
-                                        value: q,
-                                        label: q,
-                                    })
-                                )
+                                generateQuarters(Number(filters.options?.year) || getCurrentFiscalQuarter().year)
                             }
                         />
                     )}
                     {filters.filter !== "all" && (
                         <SelectComponent
                             onValueChange={(value) => onOptionChange("year", value)}
-                            placeholder={filters.options?.year?.toString() || "Select a Year"}
-                            options={generateYears().map((year) => ({
-                                value: year.toString(),
-                                label: year.toString(),
-                            }))}
+                            placeholder={filters.options?.year
+                                ? `FY${((Number(filters.options.year) % 100)).toString().padStart(2, '0')}-${((Number(filters.options.year) + 1) % 100).toString().padStart(2, '0')}`
+                                : "Select Fiscal Year"}
+                            options={generateYears()}
                         />
                     )}
 

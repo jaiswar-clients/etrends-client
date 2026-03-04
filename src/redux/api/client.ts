@@ -174,6 +174,13 @@ export const clientApi = createApi({
       }),
       invalidatesTags: ["CLIENT_DETAIL", "CLIENT_LIST", "PARENT_COMPANY_LIST"],
     }),
+    deleteClient: builder.mutation<IResponse, string>({
+      query: (id: string) => ({
+        url: `/${id}`,
+        method: HTTP_REQUEST.DELETE,
+      }),
+      invalidatesTags: ["CLIENT_DETAIL", "CLIENT_LIST", "PARENT_COMPANY_LIST"],
+    }),
     getPurchasedProductsByClient: builder.query<
       IResponse<
         (IProduct & {
@@ -252,6 +259,7 @@ export const {
   useAddClientMutation,
   useGetClientByIdQuery,
   useUpdateClientMutation,
+  useDeleteClientMutation,
   useGetClientsQuery,
   useGetClientFiltersOfCompanyQuery,
   useGetPurchasedProductsByClientQuery,
