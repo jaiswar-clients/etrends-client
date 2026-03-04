@@ -609,7 +609,23 @@ const PurchasesList: React.FC<IProps> = ({
         )}
 
         {/* Pagination */}
-        <div className="flex items-center justify-end py-4">
+        <div className="flex items-center justify-between py-4 border-t">
+          {/* Items Count Display */}
+          <div className="text-sm text-muted-foreground">
+            <span className="font-medium text-foreground">
+              {data.length > 0
+                ? `${Math.min((initialFilters.page - 1) * pagination.limit + 1, pagination.total)}-${Math.min(
+                    initialFilters.page * pagination.limit,
+                    pagination.total
+                  )}`
+                : "0-0"}
+            </span>
+            <span className="mx-2">of</span>
+            <span className="font-medium text-foreground">{pagination.total}</span>
+            <span className="ml-1">items</span>
+          </div>
+
+          {/* Pagination */}
           <Pagination>
             <PaginationContent>
               <PaginationItem>

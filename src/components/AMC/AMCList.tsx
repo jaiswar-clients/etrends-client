@@ -1185,7 +1185,21 @@ const AMCList: React.FC<IProps> = ({
         </Table>
       </div>
 
-      <div className="flex items-center justify-end py-4">
+      {/* Table Footer - Items Info & Pagination */}
+      <div className="flex items-center justify-between py-4 border-t">
+        {/* Items Count Display */}
+        <div className="text-sm text-muted-foreground">
+          <span className="font-medium text-foreground">
+            {tableData.length > 0
+              ? `Showing ${Math.min((currentPage - 1) * pagination.limit + 1, pagination.total)}-${Math.min(currentPage * pagination.limit, pagination.total)}`
+              : "Showing 0-0"}
+          </span>
+          <span className="mx-2">of</span>
+          <span className="font-medium text-foreground">{pagination.total}</span>
+          <span className="ml-1">items</span>
+        </div>
+
+        {/* Pagination */}
         <Pagination>
           <PaginationContent>
             <PaginationItem>

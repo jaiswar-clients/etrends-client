@@ -237,28 +237,67 @@ const ProductList: React.FC<IProps> = ({ products, deleteProduct }) => {
                     </TableBody>
                 </Table>
             </div>
-            <div className="flex items-center justify-end space-x-2 py-4">
-                <div className="flex-1 text-sm text-muted-foreground">
-                    {table.getFilteredSelectedRowModel().rows.length} of{' '}
-                    {table.getFilteredRowModel().rows.length} row(s) selected.
+            {/* Table Footer - Items Info & Pagination */}
+            <div className="flex items-center justify-between py-4 border-t">
+                {/* Items Count Display */}
+                <div className="text-sm text-muted-foreground">
+                    {table.getFilteredSelectedRowModel().rows.length > 0 ? (
+                        <>
+                            <span className="font-medium text-foreground">
+                                {table.getFilteredSelectedRowModel().rows.length}
+                            </span>
+                            <span className="mx-2">of</span>
+                            <span className="font-medium text-foreground">
+                                {table.getFilteredRowModel().rows.length}
+                            </span>
+                            <span className="ml-1">row(s) selected</span>
+                        </>
+                    ) : (
+                        <>
+                            <span className="font-medium text-foreground">
+                                {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1}-{Math.min(
+                                    (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
+                                    table.getFilteredRowModel().rows.length
+                                )}
+                            </span>
+                            <span className="mx-2">of</span>
+                            <span className="font-medium text-foreground">
+                                {table.getFilteredRowModel().rows.length}
+                            </span>
+                            <span className="ml-1">items</span>
+                        </>
+                    )}
                 </div>
-                <div className="space-x-2">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => table.previousPage()}
-                        disabled={!table.getCanPreviousPage()}
-                    >
-                        Previous
-                    </Button>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => table.nextPage()}
-                        disabled={!table.getCanNextPage()}
-                    >
-                        Next
-                    </Button>
+
+                {/* Page Navigation */}
+                <div className="flex items-center gap-4">
+                    <div className="flex items-baseline gap-1 text-sm">
+                        <span className="text-muted-foreground">Page</span>
+                        <span className="font-medium">
+                            {table.getState().pagination.pageIndex + 1}
+                        </span>
+                        <span className="text-muted-foreground">
+                            of {table.getPageCount()}
+                        </span>
+                    </div>
+                    <div className="space-x-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => table.previousPage()}
+                            disabled={!table.getCanPreviousPage()}
+                        >
+                            Previous
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => table.nextPage()}
+                            disabled={!table.getCanNextPage()}
+                        >
+                            Next
+                        </Button>
+                    </div>
                 </div>
             </div>
         </div>

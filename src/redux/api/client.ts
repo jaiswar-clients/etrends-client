@@ -51,10 +51,11 @@ export interface IClientProfit {
 type IUpdateClientRequest = ClientDetailsInputs & { id: string };
 
 export type GetAllClientResponse = Pick<
-  IClientDataObject & { products: string[]; parent_company?: string },
+  IClientDataObject & { products: string[]; parent_company?: string; client_id?: string },
   | "name"
   | "_id"
   | "createdAt"
+  | "client_id"
   | "industry"
   | "orders"
   | "products"

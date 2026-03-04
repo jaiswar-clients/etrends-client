@@ -80,6 +80,11 @@ const columns = (router: ReturnType<typeof useRouter>, pageNumber: number, limit
         cell: ({ row }) => <div>{row.getValue('name')}</div>,
     },
     {
+        id: 'client_id',
+        header: 'Client ID',
+        cell: ({ row }) => <div className="font-mono text-xs">{row.original.client_id || '-'}</div>,
+    },
+    {
         accessorKey: 'parent_company',
         header: 'Parent Company',
         cell: ({ row }) => <div className="capitalize">{row.original.parent_company || '-'}</div>,
@@ -133,8 +138,8 @@ const columns = (router: ReturnType<typeof useRouter>, pageNumber: number, limit
     }
 ]
 
-const ClientList: React.FC<IProps> = ({ 
-    data, 
+const ClientList: React.FC<IProps> = ({
+    data,
     pagination,
     initialFilters,
     onFilterChange,
@@ -150,11 +155,6 @@ const ClientList: React.FC<IProps> = ({
     const { data: filtersData } = useGetOrderFiltersOfCompanyQuery()
     const [clientSearch, setClientSearch] = useState("")
     const [parentSearch, setParentSearch] = useState("")
-
-    // Set active tab state from initialFilters
-    const [activeTabFilters, setActiveTabFilters] = useState({
-        has_orders: initialFilters.hasOrders
-    })
 
     const router = useRouter()
 
@@ -174,18 +174,6 @@ const ClientList: React.FC<IProps> = ({
         return Array.from(productMap.values());
     }, [products]);
 
-
-    const onTabFilterChange = (tab: keyof typeof activeTabFilters) => {
-        const newValue = !activeTabFilters[tab];
-        setActiveTabFilters((prev) => ({
-            ...prev,
-            [tab]: newValue,
-        }));
-        // Also call parent component callback
-        if (tab === 'has_orders') {
-            onHasOrdersChange(newValue);
-        }
-    }
 
     const handleClientSelection = (clientName: string | undefined, clientId: string | undefined) => {
         onFilterChange('client', clientName);
@@ -413,18 +401,6 @@ const ClientList: React.FC<IProps> = ({
                     </div>
                 </div>
             </div>
-            <div className="flex mb-2">
-                <Button 
-                    className='rounded-full !py-1 h-auto' 
-                    variant={activeTabFilters.has_orders ? "secondary" : "outline"} 
-                    size={"sm"} 
-                    onClick={() => {
-                        onTabFilterChange('has_orders')
-                    }}
-                >
-                    <span className='text-xs'>Has Orders</span>
-                </Button>
-            </div>
 
             {isLoading ? (
                 <div className="text-center py-10">Loading...</div>
@@ -436,7 +412,23 @@ const ClientList: React.FC<IProps> = ({
             )}
 
             {/* Pagination */}
-            <div className="flex items-center justify-end py-4">
+            <div className="flex items-center justify-between  py-4 border-t">
+                {/* Items Count Display */}
+                <div className=" text-muted-foreground max-w-52">
+                    <span className="font-medium text-foreground">
+                        {data.length > 0
+                            ? `${Math.min((initialFilters.page - 1) * pagination.limit + 1, pagination.total)}-${Math.min(
+                                initialFilters.page * pagination.limit,
+                                pagination.total
+                            )}`
+                            : "0-0"}
+                    </span>
+                    <span className="mx-2">of</span>
+                    <span className="font-medium text-foreground">{pagination.total}</span>
+                    <span className="ml-1">items</span>
+                </div>
+
+                {/* Pagination */}
                 <Pagination>
                     <PaginationContent>
                         <PaginationItem>

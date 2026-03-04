@@ -181,11 +181,62 @@ const ExternalReminderList: React.FC<IProps> = ({ data }) => {
                             ))
                         ) : (
                             <TableRow>
-                                <td>No data</td>
+                                <td colSpan={5} className="h-24 text-center text-muted-foreground">
+                                    No data found
+                                </td>
                             </TableRow>
                         )}
                     </TableBody>
                 </Table>
+            </div>
+
+            {/* Table Footer - Items Info & Pagination */}
+            <div className="flex items-center justify-between py-4 border-t">
+                {/* Items Count Display */}
+                <div className="text-sm text-muted-foreground">
+                    <span className="font-medium text-foreground">
+                        {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1}-{Math.min(
+                            (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
+                            table.getFilteredRowModel().rows.length
+                        )}
+                    </span>
+                    <span className="mx-2">of</span>
+                    <span className="font-medium text-foreground">
+                        {table.getFilteredRowModel().rows.length}
+                    </span>
+                    <span className="ml-1">items</span>
+                </div>
+
+                {/* Page Navigation */}
+                <div className="flex items-center gap-4">
+                    <div className="flex items-baseline gap-1 text-sm">
+                        <span className="text-muted-foreground">Page</span>
+                        <span className="font-medium">
+                            {table.getState().pagination.pageIndex + 1}
+                        </span>
+                        <span className="text-muted-foreground">
+                            of {table.getPageCount()}
+                        </span>
+                    </div>
+                    <div className="space-x-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => table.previousPage()}
+                            disabled={!table.getCanPreviousPage()}
+                        >
+                            Previous
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => table.nextPage()}
+                            disabled={!table.getCanNextPage()}
+                        >
+                            Next
+                        </Button>
+                    </div>
+                </div>
             </div>
             <Dialog
                 open={detailsModal.show}
