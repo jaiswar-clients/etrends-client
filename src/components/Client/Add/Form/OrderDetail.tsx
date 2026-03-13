@@ -52,6 +52,8 @@ interface OrderProps {
     removeAccordion?: boolean
     defaultOpen?: boolean
     isLoading: boolean
+    onPurchaseOrderNumberChange?: (value: string) => void
+    onProductsChange?: (products: IProduct[]) => void
 }
 
 const StatusOptions = [
@@ -83,7 +85,7 @@ type RenderFormFieldNameType = keyof OrderDetailInputs | keyof LicenseDetails |
     | `other_documents.${number}.url` | `other_documents.${number}.title`
 
 
-const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updateHandler, removeAccordion, defaultOpen = false, isLoading = false }) => {
+const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updateHandler, removeAccordion, defaultOpen = false, isLoading = false, onPurchaseOrderNumberChange, onProductsChange }) => {
     const [disableInput, setDisableInput] = useState(false);
     const [isPercentage, setIsPercentage] = useState({ amc_rate: true })
     const [showAmcHistoryModal, setShowAmcHistoryModal] = useState(false);
@@ -443,6 +445,10 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
                 handler();
             } else {
                 field.onChange(e);
+                // Handle purchase_order_number onchange
+                if (fieldName === 'purchase_order_number' && onPurchaseOrderNumberChange) {
+                    onPurchaseOrderNumberChange(e.target.value);
+                }
             }
         };
 
@@ -1157,6 +1163,12 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
     const getProductById = (id: string) => products.find(product => product._id === id);
 
     const onProductSelectHandler = (selectedProducts: IProduct[]) => {
+        // Call the onchange callback if provided
+        if (onProductsChange && selectedProducts.length > 0) {
+            onProductsChange(selectedProducts);
+        }
+
+        // Clear existing base cost separation
         // Clear existing base cost separation
         const currentFields = form.getValues("base_cost_seperation") || [];
 

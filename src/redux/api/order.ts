@@ -463,6 +463,23 @@ export const orderApi = createApi({
       }),
       invalidatesTags: ["AMC_DATA", "AMC_PAYMENT_REVIEW", "PENDING_PAYMENTS_LIST"],
     }),
+    checkDuplicates: builder.mutation<
+      IResponse<{ hasDuplicate: boolean; duplicateRecords: any[] }>,
+      {
+        clientId: string;
+        purchaseType: 'order' | 'license' | 'customization' | 'additional-service';
+        purchaseOrderNumber?: string;
+        invoiceNumber?: string;
+        productIds?: string[];
+        productId?: string;
+      }
+    >({
+      query: (body) => ({
+        url: '/check-duplicates',
+        method: HTTP_REQUEST.POST,
+        body,
+      }),
+    }),
   }),
 });
 
@@ -496,4 +513,5 @@ export const {
   useExportPurchasesToExcelMutation,
   useCreateAmcPaymentsForAllAmcsMutation,
   useCreateAmcPaymentsByAmcIdMutation,
+  useCheckDuplicatesMutation,
 } = orderApi;

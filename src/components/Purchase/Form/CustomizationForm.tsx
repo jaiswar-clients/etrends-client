@@ -52,6 +52,9 @@ interface ICustomationProps {
     label?: string
     disable?: boolean
     defaultValue?: ICustomizationObject
+    onPurchaseOrderNumberChange?: (value: string) => void
+    onInvoiceNumberChange?: (value: string) => void
+    onProductChange?: (productId: string) => void
 }
 
 export interface ICustomizationInputs extends CustomizationDetails {
@@ -184,7 +187,7 @@ export function ModulesCombobox({
 }
 
 
-const CustomizationForm: React.FC<ICustomationProps> = ({ clientId, handler, isLoading = false, label, disable = false, defaultValue }) => {
+const CustomizationForm: React.FC<ICustomationProps> = ({ clientId, handler, isLoading = false, label, disable = false, defaultValue, onPurchaseOrderNumberChange, onInvoiceNumberChange, onProductChange }) => {
     const [amcRate, setAmcRate] = useState({ percentage: 0, amount: 0, total_amount: 0 })
     const { data: productsList } = useGetPurchasedProductsByClientQuery(clientId)
     const { uploadFile, getFileNameFromUrl } = useFileUpload()
@@ -299,6 +302,13 @@ const CustomizationForm: React.FC<ICustomationProps> = ({ clientId, handler, isL
         const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
             form.setValue(name, e.target.value)
             if (name === 'cost') recalculateAMCAmount()
+            // Handle onchange callbacks
+            if (name === 'purchase_order_number') {
+                onPurchaseOrderNumberChange?.(e.target.value);
+            }
+            if (name === 'invoice_number') {
+                onInvoiceNumberChange?.(e.target.value);
+            }
         }
 
         return (
@@ -547,6 +557,7 @@ const CustomizationForm: React.FC<ICustomationProps> = ({ clientId, handler, isL
                                     <FormControl>
                                         <Select onValueChange={(value) => {
                                             field.onChange(value)
+                                            onProductChange?.(value)
                                             const product = productsList?.data.find((product) => product._id === value)
                                             if (product) {
                                                 setAmcRate({ percentage: product.amc_rate.percentage, amount: product.amc_rate.amount, total_amount: product.total_cost })

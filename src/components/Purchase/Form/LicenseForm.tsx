@@ -30,6 +30,8 @@ interface ILicenseProps {
     label?: string
     disable?: boolean
     defaultValue?: ILicenceObject
+    onPurchaseOrderNumberChange?: (value: string) => void
+    onProductChange?: (productId: string) => void
 }
 
 export interface ILicenseInputs {
@@ -46,7 +48,7 @@ export interface ILicenseInputs {
     invoice_date?: Date;
 }
 
-const LicenseForm: React.FC<ILicenseProps> = ({ clientId, handler, isLoading, label, defaultValue, disable = false }) => {
+const LicenseForm: React.FC<ILicenseProps> = ({ clientId, handler, isLoading, label, defaultValue, disable = false, onPurchaseOrderNumberChange, onProductChange }) => {
     const { data: productsList } = useGetPurchasedProductsByClientQuery(clientId)
     const [amcRate, setAmcRate] = useState({ percentage: 0, amount: 0, total_amount: 0 })
     const { uploadFile, getFileNameFromUrl } = useFileUpload()
@@ -280,6 +282,7 @@ const LicenseForm: React.FC<ILicenseProps> = ({ clientId, handler, isLoading, la
                                     <FormControl>
                                         <Select onValueChange={(value) => {
                                             field.onChange(value)
+                                            onProductChange?.(value)
                                             const product = productsList?.data.find((product) => product._id === value)
                                             if (product) {
                                                 form.setValue('cost_per_license', product.cost_per_license)
@@ -339,7 +342,10 @@ const LicenseForm: React.FC<ILicenseProps> = ({ clientId, handler, isLoading, la
                                         <Input
                                             type="text"
                                             {...field}
-                                            onChange={field.onChange}
+                                            onChange={(e) => {
+                                                field.onChange(e);
+                                                onPurchaseOrderNumberChange?.(e.target.value);
+                                            }}
                                             value={field.value}
                                             disabled={disableInput}
                                             className='bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none'

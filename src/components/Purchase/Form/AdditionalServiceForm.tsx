@@ -27,6 +27,9 @@ interface IAdditionalServiceProps {
     label?: string
     disable?: boolean
     defaultValue?: IAdditionalServiceObject
+    onPurchaseOrderNumberChange?: (value: string) => void
+    onInvoiceNumberChange?: (value: string) => void
+    onProductChange?: (productId: string) => void
 }
 
 export interface IAdditionalServiceInputs {
@@ -47,7 +50,7 @@ export interface IAdditionalServiceInputs {
     invoice_date: Date;
 }
 
-const AdditionalServiceForm: React.FC<IAdditionalServiceProps> = ({ clientId, label, handler, isLoading, defaultValue, disable }) => {
+const AdditionalServiceForm: React.FC<IAdditionalServiceProps> = ({ clientId, label, handler, isLoading, defaultValue, disable, onPurchaseOrderNumberChange, onInvoiceNumberChange, onProductChange }) => {
     const { data: productsList } = useGetPurchasedProductsByClientQuery(clientId)
     const { uploadFile, getFileNameFromUrl } = useFileUpload()
     const [disableInput, setDisableInput] = useState(disable)
@@ -138,7 +141,15 @@ const AdditionalServiceForm: React.FC<IAdditionalServiceProps> = ({ clientId, la
                                 <Input
                                     type={type}
                                     {...field}
-                                    onChange={type === 'file' ? handleFileChange : field.onChange}
+                                    onChange={type === 'file' ? handleFileChange : (e) => {
+                                        field.onChange(e);
+                                        if (name === 'purchase_order_number') {
+                                            onPurchaseOrderNumberChange?.(e.target.value);
+                                        }
+                                        if (name === 'invoice_number') {
+                                            onInvoiceNumberChange?.(e.target.value);
+                                        }
+                                    }}
                                     value={type === 'file' ? undefined : field.value ?? ''}
                                     disabled={disableInput}
                                     className='bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none'
@@ -222,7 +233,10 @@ const AdditionalServiceForm: React.FC<IAdditionalServiceProps> = ({ clientId, la
                                 <FormItem className='w-full mb-4 md:mb-0'>
                                     <FormLabel className='text-gray-500'>Product</FormLabel>
                                     <FormControl>
-                                        <Select onValueChange={field.onChange}>
+                                        <Select onValueChange={(value) => {
+                                            field.onChange(value);
+                                            onProductChange?.(value);
+                                        }}>
                                             <SelectTrigger className="w-full bg-white" disabled={disableInput}>
                                                 <SelectValue placeholder={selectPlaceHolder("product_id", field.value)} />
                                             </SelectTrigger>
