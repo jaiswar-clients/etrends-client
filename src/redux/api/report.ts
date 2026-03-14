@@ -7,6 +7,124 @@ const reportUrl = `${process.env.NEXT_PUBLIC_API_URL}/reports`;
 
 export type IReportFilters = "monthly" | "quarterly" | "yearly" | "all";
 
+// Dashboard Response Types
+export interface DashboardSummary {
+  totalRevenue: number;
+  amcRevenue: number;
+  newBusinessRevenue: number;
+  customizationRevenue: number;
+  licenseRevenue: number;
+  additionalServiceRevenue: number;
+  pendingPayments: number;
+  paidPayments: number;
+  totalClients: number;
+  totalOrders: number;
+  revenueGrowth: number;
+  period: string;
+}
+
+export interface BillingTrend {
+  period: string;
+  newBusiness: number;
+  amc: number;
+}
+
+export interface ExpectedReceivedTrend {
+  period: string;
+  expected: number;
+  received: number;
+}
+
+export interface AMCBreakdownTrend {
+  period: string;
+  expected: number;
+  collected: number;
+}
+
+export interface DashboardTrends {
+  totalBilling: BillingTrend[];
+  expectedVsReceived: ExpectedReceivedTrend[];
+  amcBreakdown: AMCBreakdownTrend[];
+}
+
+export interface ProductWiseDistribution {
+  productId: string;
+  productName: string;
+  revenue: number;
+  percentage: number;
+}
+
+export interface IndustryWiseDistribution {
+  industry: string;
+  revenue: number;
+  percentage: number;
+}
+
+export interface ClientWiseDistribution {
+  clientId: string;
+  clientName: string;
+  revenue: number;
+}
+
+export interface DashboardDistributions {
+  productWise: ProductWiseDistribution[];
+  industryWise: IndustryWiseDistribution[];
+  clientWise: ClientWiseDistribution[];
+}
+
+export interface TopProduct {
+  productId: string;
+  productName: string;
+  revenue: number;
+}
+
+export interface TopClient {
+  clientId: string;
+  clientName: string;
+  revenue: number;
+}
+
+export interface TopIndustry {
+  industry: string;
+  revenue: number;
+}
+
+export interface TopPerformers {
+  topProducts: TopProduct[];
+  topClients: TopClient[];
+  topIndustries: TopIndustry[];
+}
+
+export interface DashboardResponse {
+  summary: DashboardSummary;
+  trends: DashboardTrends;
+  distributions: DashboardDistributions;
+  topPerformers: TopPerformers;
+}
+
+export interface DashboardFiltersQuery {
+  filter: string;
+  fiscalYear?: number;
+  quarter?: string;
+  startDate?: string;
+  endDate?: string;
+  clientIds?: string[];
+  productIds?: string[];
+  industries?: string[];
+  revenueStreams?: string[];
+  paymentStatuses?: string[];
+}
+
+export interface FilterOptions {
+  fiscalYears: { value: string; label: string }[];
+  quarters: { value: string; label: string }[];
+  clients: { value: string; label: string }[];
+  products: { value: string; label: string }[];
+  industries: { value: string; label: string }[];
+  revenueStreams: { value: string; label: string }[];
+  paymentStatuses: { value: string; label: string }[];
+}
+
 export interface IReportQueries {
   filter: IReportFilters;
   options?: {
@@ -127,3 +245,54 @@ export const {
   useGetTotalBillingReportQuery,
   useGetExpectedVsReceivedRevenueQuery,
 } = reportApi;
+
+const dashboardUrl = `${process.env.NEXT_PUBLIC_API_URL}/dashboard`;
+
+export const dashboardApi = createApi({
+  reducerPath: "dashboard",
+  baseQuery: fetchBaseQuery({
+    baseUrl: dashboardUrl,
+    prepareHeaders: (headers, { getState }) => {
+      const token = (getState() as RootState).user.user.token;
+      if (token) headers.set("authorization", `Bearer ${token}`);
+      return headers;
+    },
+  }),
+  endpoints: (builder) => ({
+    getDashboard: builder.query<
+      IResponse<DashboardResponse>,
+      DashboardFiltersQuery
+    >({
+      query: (params) => {
+        const queryParams = new URLSearchParams();
+        Object.entries(params).forEach(([key, value]) => {
+          if (value !== undefined && value !== null) {
+            if (Array.isArray(value)) {
+              value.forEach(v => queryParams.append(key, v));
+            } else {
+              queryParams.append(key, String(value));
+            }
+          }
+        });
+        return {
+          url: `?${queryParams.toString()}`,
+          method: HTTP_REQUEST.GET,
+        };
+      },
+    }),
+    getFilterOptions: builder.query<
+      IResponse<FilterOptions>,
+      void
+    >({
+      query: () => ({
+        url: '/filter-options',
+        method: HTTP_REQUEST.GET,
+      }),
+    }),
+  }),
+});
+
+export const {
+  useGetDashboardQuery,
+  useGetFilterOptionsQuery,
+} = dashboardApi;
