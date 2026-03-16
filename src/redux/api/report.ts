@@ -60,6 +60,69 @@ export interface IExpectedVsReceivedRevenue {
   received_amount: number;
 }
 
+// ==================== NEW REVENUE DASHBOARD TYPES ====================
+
+export interface IMonthlyRevenueBreakdown {
+  period: string;
+  newSalesRevenue: number;
+  amcRevenue: number;
+  totalRevenue: number;
+}
+
+export interface IRevenueDashboardResponse {
+  summary: {
+    totalNewSalesRevenue: number;
+    totalAMCRevenue: number;
+    grandTotalRevenue: number;
+  };
+  monthlyBreakdown: IMonthlyRevenueBreakdown[];
+}
+
+export interface IPeriodBreakdown {
+  period: string;
+  expected: number;
+  collected: number;
+}
+
+export interface IExpectedVsCollectedResponse {
+  fiscalYear: string;
+  newSales: {
+    expected: number;
+    collected: number;
+    breakdown: IPeriodBreakdown[];
+  };
+  amc: {
+    expected: number;
+    collected: number;
+    breakdown: IPeriodBreakdown[];
+  };
+  total: {
+    expected: number;
+    collected: number;
+  };
+}
+
+export interface IMonthlyBreakdownDetail {
+  orderId: string;
+  clientName: string;
+  productName: string;
+  amount: number;
+  status: string;
+  date: Date;
+}
+
+export interface IMonthlyBreakdown {
+  period: string;
+  newSales: {
+    total: number;
+    details: IMonthlyBreakdownDetail[];
+  };
+  amc: {
+    total: number;
+    details: IMonthlyBreakdownDetail[];
+  };
+}
+
 export const reportApi = createApi({
   reducerPath: "report",
   baseQuery: fetchBaseQuery({
@@ -117,6 +180,42 @@ export const reportApi = createApi({
         method: HTTP_REQUEST.GET,
       }),
     }),
+    // NEW REVENUE DASHBOARD ENDPOINTS
+    getRevenueDashboard: builder.query<
+      IResponse<IRevenueDashboardResponse>,
+      IReportQueries
+    >({
+      query: ({ filter = "monthly", options }) => {
+        const params = new URLSearchParams();
+        params.append("filter", filter);
+        if (options?.year) params.append("year", options.year.toString());
+        if (options?.quarter) params.append("quarter", options.quarter);
+        if (options?.startDate) params.append("startDate", options.startDate.toString());
+        if (options?.endDate) params.append("endDate", options.endDate.toString());
+        return {
+          url: `/revenue-dashboard?${params.toString()}`,
+          method: HTTP_REQUEST.GET,
+        };
+      },
+    }),
+    getExpectedVsCollected: builder.query<
+      IResponse<IExpectedVsCollectedResponse>,
+      { fiscalYear: number }
+    >({
+      query: ({ fiscalYear }) => ({
+        url: `/expected-vs-collected?fiscalYear=${fiscalYear}`,
+        method: HTTP_REQUEST.GET,
+      }),
+    }),
+    getMonthlyRevenueBreakdown: builder.query<
+      IResponse<IMonthlyBreakdown>,
+      { year: number; month: number }
+    >({
+      query: ({ year, month }) => ({
+        url: `/monthly-revenue-breakdown?year=${year}&month=${month}`,
+        method: HTTP_REQUEST.GET,
+      }),
+    }),
   }),
 });
 
@@ -126,4 +225,7 @@ export const {
   useGetIndustryWiseRevenueReportQuery,
   useGetTotalBillingReportQuery,
   useGetExpectedVsReceivedRevenueQuery,
+  useGetRevenueDashboardQuery,
+  useGetExpectedVsCollectedQuery,
+  useGetMonthlyRevenueBreakdownQuery,
 } = reportApi;
