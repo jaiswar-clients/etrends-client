@@ -22,15 +22,25 @@ import {
 } from '@/components/ui/select'
 import FiscalYearSelector from './Filters/FiscalYearSelector'
 import QuarterSelector from './Filters/QuarterSelector'
+import MultiSelectFilter from './Filters/MultiSelectFilter'
+import { DatePickerWithRange } from '@/components/ui/daterangepicker'
 import { Filter, X, RotateCcw } from 'lucide-react'
 import { getCurrentFiscalYear, getCurrentFiscalQuarter } from '@/lib/fiscalYear'
+import { useGetFilterOptionsQuery } from '@/redux/api/report'
 
-export type FilterType = 'monthly' | 'quarterly' | 'yearly' | 'all'
+export type FilterType = 'monthly' | 'quarterly' | 'yearly' | 'all' | 'custom'
 
 export interface ReportsFiltersState {
   filter: FilterType
   fiscalYear?: number
   quarter?: string
+  startDate?: string
+  endDate?: string
+  clientIds?: string[]
+  productIds?: string[]
+  industries?: string[]
+  revenueStreams?: string[]
+  paymentStatuses?: string[]
 }
 
 interface ReportsFiltersProps {
@@ -44,6 +54,24 @@ const filterOptions: { value: FilterType; label: string }[] = [
   { value: 'monthly', label: 'Monthly' },
   { value: 'quarterly', label: 'Quarterly' },
   { value: 'yearly', label: 'Yearly' },
+  { value: 'custom', label: 'Custom Range' },
+]
+
+// Revenue stream options
+const revenueStreamOptions = [
+  { value: 'order', label: 'Order' },
+  { value: 'amc', label: 'AMC' },
+  { value: 'customization', label: 'Customization' },
+  { value: 'license', label: 'License' },
+  { value: 'service', label: 'Service' },
+]
+
+// Payment status options
+const paymentStatusOptions = [
+  { value: 'paid', label: 'Paid' },
+  { value: 'pending', label: 'Pending' },
+  { value: 'proforma', label: 'Proforma' },
+  { value: 'invoice', label: 'Invoice' },
 ]
 
 const ReportsFilters: React.FC<ReportsFiltersProps> = ({
@@ -53,6 +81,13 @@ const ReportsFilters: React.FC<ReportsFiltersProps> = ({
 }) => {
   const [localFilters, setLocalFilters] = useState<ReportsFiltersState>(value)
   const [isOpen, setIsOpen] = useState(false)
+  const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>(
+    value.startDate && value.endDate
+      ? { from: new Date(value.startDate), to: new Date(value.endDate) }
+      : { from: undefined, to: undefined }
+  )
+
+  const { data: filterOptionsData, isLoading: isLoadingOptions } = useGetFilterOptionsQuery()
 
   const currentFiscalYear = getCurrentFiscalYear()
   const currentQuarter = getCurrentFiscalQuarter()
@@ -60,13 +95,22 @@ const ReportsFilters: React.FC<ReportsFiltersProps> = ({
   // Sync local state with external value
   useEffect(() => {
     setLocalFilters(value)
+    if (value.startDate && value.endDate) {
+      setDateRange({ from: new Date(value.startDate), to: new Date(value.endDate) })
+    }
   }, [value])
 
   // Check if filters are different from defaults
   const hasActiveFilters = useCallback(() => {
     return (
       value.filter !== 'monthly' ||
-      value.fiscalYear !== currentFiscalYear.startYear
+      value.fiscalYear !== currentFiscalYear.startYear ||
+      value.clientIds?.length > 0 ||
+      value.productIds?.length > 0 ||
+      value.industries?.length > 0 ||
+      value.revenueStreams?.length > 0 ||
+      value.paymentStatuses?.length > 0 ||
+      (value.filter === 'custom' && (value.startDate || value.endDate))
     )
   }, [value, currentFiscalYear.startYear])
 
@@ -91,7 +135,23 @@ const ReportsFilters: React.FC<ReportsFiltersProps> = ({
       delete newFilters.quarter
     }
 
+    // Clear date range for non-custom filters
+    if (filterType !== 'custom') {
+      delete newFilters.startDate
+      delete newFilters.endDate
+      setDateRange({ from: undefined, to: undefined })
+    }
+
     setLocalFilters(newFilters)
+  }
+
+  const handleDateRangeChange = (range: { from: Date | undefined; to: Date | undefined } | undefined) => {
+    setDateRange(range)
+    setLocalFilters({
+      ...localFilters,
+      startDate: range?.from?.toISOString(),
+      endDate: range?.to?.toISOString(),
+    })
   }
 
   const handleFiscalYearChange = (fiscalYear: string) => {
@@ -134,6 +194,7 @@ const ReportsFilters: React.FC<ReportsFiltersProps> = ({
   // Show/hide fiscal year and quarter selectors based on filter type
   const showFiscalYear = localFilters.filter === 'yearly' || localFilters.filter === 'quarterly'
   const showQuarter = localFilters.filter === 'quarterly'
+  const showDateRange = localFilters.filter === 'custom'
 
   return (
     <div className={cn("flex items-center gap-2", className)}>
@@ -200,6 +261,61 @@ const ReportsFilters: React.FC<ReportsFiltersProps> = ({
                 />
               </div>
             )}
+
+            {/* Custom Date Range - shown only for custom filter */}
+            {showDateRange && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Custom Date Range</label>
+                <DatePickerWithRange
+                  dateRange={dateRange}
+                  onDateRangeChange={handleDateRangeChange}
+                  className="w-full"
+                />
+              </div>
+            )}
+
+            {/* Multi-select filters */}
+            <div className="space-y-4 pt-4 border-t">
+              <p className="text-sm font-medium text-muted-foreground">Additional Filters</p>
+
+              <MultiSelectFilter
+                label="Clients"
+                options={filterOptionsData?.data?.clients || []}
+                selected={localFilters.clientIds || []}
+                onChange={(selected) => setLocalFilters({ ...localFilters, clientIds: selected })}
+                isLoading={isLoadingOptions}
+              />
+
+              <MultiSelectFilter
+                label="Products"
+                options={filterOptionsData?.data?.products || []}
+                selected={localFilters.productIds || []}
+                onChange={(selected) => setLocalFilters({ ...localFilters, productIds: selected })}
+                isLoading={isLoadingOptions}
+              />
+
+              <MultiSelectFilter
+                label="Industries"
+                options={filterOptionsData?.data?.industries || []}
+                selected={localFilters.industries || []}
+                onChange={(selected) => setLocalFilters({ ...localFilters, industries: selected })}
+                isLoading={isLoadingOptions}
+              />
+
+              <MultiSelectFilter
+                label="Revenue Streams"
+                options={revenueStreamOptions}
+                selected={localFilters.revenueStreams || []}
+                onChange={(selected) => setLocalFilters({ ...localFilters, revenueStreams: selected })}
+              />
+
+              <MultiSelectFilter
+                label="Payment Status"
+                options={paymentStatusOptions}
+                selected={localFilters.paymentStatuses || []}
+                onChange={(selected) => setLocalFilters({ ...localFilters, paymentStatuses: selected })}
+              />
+            </div>
           </div>
 
           <SheetFooter className="absolute bottom-0 left-0 right-0 p-6 bg-background border-t">

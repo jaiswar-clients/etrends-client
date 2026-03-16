@@ -18,6 +18,16 @@ interface KPIGridProps {
   onKPIClick?: (kpiType: string) => void
 }
 
+// Map KPI types to drill-down types
+const KPI_TO_DRILL_DOWN_TYPE: Record<string, 'product' | 'client' | 'industry' | 'time' | 'amc'> = {
+  totalRevenue: 'time',
+  amcRevenue: 'amc',
+  newBusinessRevenue: 'time',
+  pendingPayments: 'time',
+  totalClients: 'client',
+  revenueGrowth: 'time',
+}
+
 const KPIGrid: React.FC<KPIGridProps> = ({
   summary,
   isLoading = false,
@@ -77,3 +87,4 @@ const KPIGrid: React.FC<KPIGridProps> = ({
 }
 
 export default KPIGrid
+export { KPI_TO_DRILL_DOWN_TYPE }

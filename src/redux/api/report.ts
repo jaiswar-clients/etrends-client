@@ -125,6 +125,51 @@ export interface FilterOptions {
   paymentStatuses: { value: string; label: string }[];
 }
 
+// Drill-Down Types
+export interface DrillDownFiltersQuery extends DashboardFiltersQuery {
+  drilldownType: 'product' | 'client' | 'industry' | 'time' | 'amc';
+  drilldownValue?: string;
+  aggregation?: 'daily' | 'weekly' | 'monthly' | 'quarterly';
+  includeDetails?: boolean;
+  page?: number;
+  limit?: number;
+}
+
+export interface DrillDownMetadata {
+  drilldownType: string;
+  drilldownValue?: string;
+  period: string;
+  totalRecords: number;
+}
+
+export interface AggregatedDataRow {
+  period: string;
+  revenue: number;
+  orderRevenue: number;
+  amcRevenue: number;
+  customizationRevenue: number;
+  licenseRevenue: number;
+  serviceRevenue: number;
+}
+
+export interface TransactionDetail {
+  id: string;
+  type: 'order' | 'amc' | 'customization' | 'license' | 'service';
+  date: Date;
+  client: string;
+  product?: string;
+  amount: number;
+  status: string;
+  industry?: string;
+}
+
+export interface DrillDownResponse {
+  metadata: DrillDownMetadata;
+  aggregatedData: AggregatedDataRow[];
+  details?: TransactionDetail[];
+  pagination?: { page: number; limit: number; total: number; totalPages: number };
+}
+
 export interface IReportQueries {
   filter: IReportFilters;
   options?: {
@@ -289,10 +334,32 @@ export const dashboardApi = createApi({
         method: HTTP_REQUEST.GET,
       }),
     }),
+    getDrillDown: builder.query<
+      IResponse<DrillDownResponse>,
+      DrillDownFiltersQuery
+    >({
+      query: (params) => {
+        const queryParams = new URLSearchParams();
+        Object.entries(params).forEach(([key, value]) => {
+          if (value !== undefined && value !== null) {
+            if (Array.isArray(value)) {
+              value.forEach(v => queryParams.append(key, v));
+            } else {
+              queryParams.append(key, String(value));
+            }
+          }
+        });
+        return {
+          url: `/drilldown?${queryParams.toString()}`,
+          method: HTTP_REQUEST.GET,
+        };
+      },
+    }),
   }),
 });
 
 export const {
   useGetDashboardQuery,
   useGetFilterOptionsQuery,
+  useGetDrillDownQuery,
 } = dashboardApi;
