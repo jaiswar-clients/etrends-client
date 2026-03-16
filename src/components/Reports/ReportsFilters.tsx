@@ -105,12 +105,12 @@ const ReportsFilters: React.FC<ReportsFiltersProps> = ({
     return (
       value.filter !== 'monthly' ||
       value.fiscalYear !== currentFiscalYear.startYear ||
-      value.clientIds?.length > 0 ||
-      value.productIds?.length > 0 ||
-      value.industries?.length > 0 ||
-      value.revenueStreams?.length > 0 ||
-      value.paymentStatuses?.length > 0 ||
-      (value.filter === 'custom' && (value.startDate || value.endDate))
+      (value.clientIds && value.clientIds.length > 0) ||
+      (value.productIds && value.productIds.length > 0) ||
+      (value.industries && value.industries.length > 0) ||
+      (value.revenueStreams && value.revenueStreams.length > 0) ||
+      (value.paymentStatuses && value.paymentStatuses.length > 0) ||
+      (value.filter === 'custom' && (value.startDate !== undefined && value.endDate !== undefined))
     )
   }, [value, currentFiscalYear.startYear])
 
@@ -146,7 +146,7 @@ const ReportsFilters: React.FC<ReportsFiltersProps> = ({
   }
 
   const handleDateRangeChange = (range: { from: Date | undefined; to: Date | undefined } | undefined) => {
-    setDateRange(range)
+    setDateRange(range ?? { from: undefined, to: undefined })
     setLocalFilters({
       ...localFilters,
       startDate: range?.from?.toISOString(),

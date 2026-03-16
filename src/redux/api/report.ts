@@ -127,7 +127,7 @@ export interface FilterOptions {
 
 // Drill-Down Types
 export interface DrillDownFiltersQuery extends DashboardFiltersQuery {
-  drilldownType: 'product' | 'client' | 'industry' | 'time' | 'amc';
+  drilldownType: 'product' | 'client' | 'time';
   drilldownValue?: string;
   aggregation?: 'daily' | 'weekly' | 'monthly' | 'quarterly';
   includeDetails?: boolean;

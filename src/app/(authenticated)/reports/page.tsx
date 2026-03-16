@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import KPIGrid, { KPI_TO_DRILL_DOWN_TYPE } from '@/components/Reports/KPIGrid';
+import KPIGrid, { KPI_TO_DRILL_DOWN_TYPE, type KPIDrillDownConfig } from '@/components/Reports/KPIGrid';
 import RevenueTrendChart from '@/components/Reports/Chart/RevenueTrendChart';
 import ProductDistributionChart from '@/components/Reports/Chart/ProductDistributionChart';
 import ReportsFilters, { ReportsFiltersState } from '@/components/Reports/ReportsFilters';
@@ -9,9 +9,11 @@ import ActiveFilters from '@/components/Reports/Filters/ActiveFilters';
 import DrillDownRouter from '@/components/Reports/Drilldown/DrillDownRouter';
 import { useGetDashboardQuery, useGetDrillDownQuery, DashboardFiltersQuery, DrillDownFiltersQuery } from '@/redux/api/report';
 import { getCurrentFiscalQuarter } from '@/lib/fiscalYear';
-
-export type DrillDownType = 'product' | 'client' | 'industry' | 'time' | 'amc'
-
+import { Button } from '@/components/ui/button';
+import { Download, Mail, BarChart3 } from 'lucide-react';
+ 
+export type DrillDownType = 'product' | 'client' | 'time';
+ 
 export default function ReportsPage() {
   const currentQuarter = getCurrentFiscalQuarter();
 
@@ -23,6 +25,7 @@ export default function ReportsPage() {
   const [drillDown, setDrillDown] = useState<{
     type: DrillDownType | null
     value?: string
+    paymentStatuses?: string[]
   }>({ type: null })
 
   // Build the query params for dashboard
@@ -47,6 +50,8 @@ export default function ReportsPage() {
     drilldownType: drillDown.type,
     drilldownValue: drillDown.value,
     includeDetails: true,
+    // Override payment statuses if drill-down has specific ones (e.g., for Pending Payments KPI)
+    paymentStatuses: drillDown.paymentStatuses || dashboardQueryParams.paymentStatuses,
   } : undefined
 
   const { data: drillDownData, isLoading: isDrillDownLoading } = useGetDrillDownQuery(drillDownQueryParams!, {
@@ -57,11 +62,10 @@ export default function ReportsPage() {
     setFilters(newFilters)
   }
 
-  const handleDrillDown = (kpiType: string, value?: string) => {
-    const drillDownType = KPI_TO_DRILL_DOWN_TYPE[kpiType] || 'time'
+  const handleDrillDown = (kpiType: string, config: KPIDrillDownConfig) => {
     setDrillDown({
-      type: drillDownType,
-      value,
+      type: config.type,
+      paymentStatuses: config.paymentStatuses,
     })
   }
 
@@ -154,13 +158,21 @@ export default function ReportsPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Reports Dashboard</h1>
           <p className="text-muted-foreground">
-            Comprehensive view of your business performance
+            Key business metrics at a glance
           </p>
         </div>
-        <ReportsFilters
-          value={filters}
-          onChange={handleFilterChange}
-        />
+        <div className="flex items-center gap-3">
+          <Button variant="outline" size="sm" onClick={() => alert('Export functionality coming soon')}>
+            <Download className="h-3 w-3 mr-1" /> Export
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => alert('Schedule email functionality coming soon')}>
+            <Mail className="h-3 w-3 mr-1" /> Schedule
+          </Button>
+          <ReportsFilters
+            value={filters}
+            onChange={handleFilterChange}
+          />
+        </div>
       </div>
 
       {/* Active Filters */}
@@ -187,16 +199,32 @@ export default function ReportsPage() {
           <RevenueTrendChart
             data={dashboardData.data.trends.totalBilling}
             isLoading={isLoading}
-            onClick={() => handleDrillDown('totalRevenue')}
+            onClick={() => handleDrillDown('totalRevenue', KPI_TO_DRILL_DOWN_TYPE['totalRevenue'])}
           />
         )}
         {dashboardData?.data?.distributions && (
           <ProductDistributionChart
             data={dashboardData.data.distributions.productWise}
             isLoading={isLoading}
-            onClick={() => handleDrillDown('product')}
+            onClick={() => handleDrillDown('product', { type: 'product', description: 'Product Revenue Breakdown' })}
           />
         )}
+      </div>
+
+      {/* Call to Action Section */}
+      <div className="mt-8 pt-6 border-t">
+        <h2 className="text-xl font-semibold mb-4">Take Action</h2>
+        <div className="grid gap-4 md:grid-cols-3">
+          <Button variant="default" className="w-full py-3" onClick={() => alert('Export functionality coming soon')}>
+            <Download className="h-4 w-4 mr-2" /> Export Report
+          </Button>
+          <Button variant="outline" className="w-full py-3" onClick={() => alert('Schedule email functionality coming soon')}>
+            <Mail className="h-4 w-4 mr-2" /> Schedule Email
+          </Button>
+          <Button variant="default" className="w-full py-3" onClick={() => alert('Detailed reports functionality coming soon')}>
+            <BarChart3 className="h-4 w-4 mr-2" /> View Detailed Reports
+          </Button>
+        </div>
       </div>
 
       {/* Drill-Down Modal */}

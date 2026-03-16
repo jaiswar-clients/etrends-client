@@ -15,17 +15,21 @@ import type { DashboardSummary } from '@/redux/api/report'
 interface KPIGridProps {
   summary?: DashboardSummary
   isLoading?: boolean
-  onKPIClick?: (kpiType: string) => void
+  onKPIClick?: (kpiType: string, config: KPIDrillDownConfig) => void
 }
 
-// Map KPI types to drill-down types
-const KPI_TO_DRILL_DOWN_TYPE: Record<string, 'product' | 'client' | 'industry' | 'time' | 'amc'> = {
-  totalRevenue: 'time',
-  amcRevenue: 'amc',
-  newBusinessRevenue: 'time',
-  pendingPayments: 'time',
-  totalClients: 'client',
-  revenueGrowth: 'time',
+// Map KPI types to drill-down types and additional context
+export interface KPIDrillDownConfig {
+  type: 'product' | 'client' | 'time'
+  paymentStatuses?: string[]
+  description?: string
+}
+
+const KPI_TO_DRILL_DOWN_TYPE: Record<string, KPIDrillDownConfig> = {
+  totalRevenue: { type: 'time', description: 'Total Revenue Trend' },
+  pendingPayments: { type: 'time', paymentStatuses: ['pending'], description: 'Pending Payments Trend' },
+  totalClients: { type: 'client', description: 'Client List' },
+  revenueByProduct: { type: 'product', description: 'Top Products by Revenue' },
 }
 
 const KPIGrid: React.FC<KPIGridProps> = ({
@@ -33,8 +37,15 @@ const KPIGrid: React.FC<KPIGridProps> = ({
   isLoading = false,
   onKPIClick
 }) => {
+  const handleKPIClick = (kpiType: string) => {
+    const config = KPI_TO_DRILL_DOWN_TYPE[kpiType]
+    if (config && onKPIClick) {
+      onKPIClick(kpiType, config)
+    }
+  }
+
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       <KPICard
         title="Total Revenue"
         value={summary?.totalRevenue ?? 0}
@@ -42,28 +53,14 @@ const KPIGrid: React.FC<KPIGridProps> = ({
         percentage={Math.abs(summary?.revenueGrowth ?? 0)}
         icon={IndianRupee}
         isLoading={isLoading}
-        onClick={() => onKPIClick?.('totalRevenue')}
-      />
-      <KPICard
-        title="AMC Revenue"
-        value={summary?.amcRevenue ?? 0}
-        icon={Calendar}
-        isLoading={isLoading}
-        onClick={() => onKPIClick?.('amcRevenue')}
-      />
-      <KPICard
-        title="New Business"
-        value={summary?.newBusinessRevenue ?? 0}
-        icon={ShoppingBag}
-        isLoading={isLoading}
-        onClick={() => onKPIClick?.('newBusinessRevenue')}
+        onClick={() => handleKPIClick('totalRevenue')}
       />
       <KPICard
         title="Pending Payments"
         value={summary?.pendingPayments ?? 0}
         icon={Clock}
         isLoading={isLoading}
-        onClick={() => onKPIClick?.('pendingPayments')}
+        onClick={() => handleKPIClick('pendingPayments')}
       />
       <KPICard
         title="Total Clients"
@@ -71,16 +68,14 @@ const KPIGrid: React.FC<KPIGridProps> = ({
         formatValue="number"
         icon={Users}
         isLoading={isLoading}
-        onClick={() => onKPIClick?.('totalClients')}
+        onClick={() => handleKPIClick('totalClients')}
       />
       <KPICard
-        title="Revenue Growth"
-        value={summary?.revenueGrowth ?? 0}
-        formatValue="percentage"
-        trend={summary?.revenueGrowth ? (summary.revenueGrowth >= 0 ? 'up' : 'down') : 'neutral'}
-        icon={TrendingUp}
+        title="Revenue by Product"
+        value={summary?.totalRevenue ?? 0} // Using total revenue as placeholder, will be replaced with actual product revenue in chart
+        icon={ShoppingBag}
         isLoading={isLoading}
-        onClick={() => onKPIClick?.('revenueGrowth')}
+        onClick={() => handleKPIClick('revenueByProduct')}
       />
     </div>
   )

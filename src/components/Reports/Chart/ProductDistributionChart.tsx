@@ -1,7 +1,7 @@
 "use client"
 
 import React from 'react'
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import BaseChart from './BaseChart'
 import { formatIndianNumber } from '@/lib/utils'
 import type { ProductWiseDistribution } from '@/redux/api/report'
@@ -13,168 +13,80 @@ interface ProductDistributionChartProps {
   className?: string
 }
 
-// Color palette using CSS variables
-const COLORS = [
-  'hsl(var(--chart-1))',
-  'hsl(var(--chart-2))',
-  'hsl(var(--chart-3))',
-  'hsl(var(--chart-4))',
-  'hsl(var(--chart-5))',
-  'hsl(220, 70%, 50%)',
-  'hsl(160, 60%, 45%)',
-  'hsl(30, 80%, 55%)',
-  'hsl(280, 65%, 60%)',
-  'hsl(340, 75%, 55%)',
-]
-
-interface CustomLabelProps {
-  cx: number
-  cy: number
-  midAngle: number
-  innerRadius: number
-  outerRadius: number
-  percent: number
-  productName: string
-}
-
-const renderCustomLabel = ({
-  cx,
-  cy,
-  midAngle,
-  innerRadius,
-  outerRadius,
-  percent,
-  productName
-}: CustomLabelProps) => {
-  if (percent < 0.05) return null // Don't show label for small slices
-
-  const RADIAN = Math.PI / 180
-  const radius = innerRadius + (outerRadius - innerRadius) * 0.5
-  const x = cx + radius * Math.cos(-midAngle * RADIAN)
-  const y = cy + radius * Math.sin(-midAngle * RADIAN)
-
-  return (
-    <text
-      x={x}
-      y={y}
-      fill="white"
-      textAnchor="middle"
-      dominantBaseline="central"
-      className="text-xs font-medium"
-    >
-      {`${(percent * 100).toFixed(0)}%`}
-    </text>
-  )
-}
-
-interface CustomTooltipProps {
-  active?: boolean
-  payload?: Array<{
-    name: string
-    value: number
-    payload: ProductWiseDistribution
-  }>
-}
-
-const CustomTooltip: React.FC<CustomTooltipProps> = ({ active, payload }) => {
-  if (!active || !payload?.length) return null
-
-  const data = payload[0].payload
-
-  return (
-    <div className="rounded-lg border bg-background px-3 py-2 shadow-md">
-      <p className="font-medium text-sm">{data.productName}</p>
-      <p className="text-muted-foreground text-xs mt-1">
-        Revenue: <span className="font-mono font-medium text-foreground">
-          {formatIndianNumber(data.revenue)}
-        </span>
-      </p>
-      <p className="text-muted-foreground text-xs">
-        Share: <span className="font-medium text-foreground">
-          {data.percentage.toFixed(1)}%
-        </span>
-      </p>
-    </div>
-  )
-}
-
 const ProductDistributionChart: React.FC<ProductDistributionChartProps> = ({
   data,
   isLoading = false,
   onClick,
   className
 }) => {
-  // Transform data for the chart
-  const chartData = data.map((item, index) => ({
-    ...item,
-    fill: COLORS[index % COLORS.length]
-  }))
+  // Sort by revenue descending and take top 3
+  const topProducts = [...data]
+    .sort((a, b) => (b.revenue || 0) - (a.revenue || 0))
+    .slice(0, 3)
+    .map((item, index) => ({
+      ...item,
+      // Calculate percentage of total for these top 3
+      percentageOfTotal: (item.revenue || 0) / 
+        (data.reduce((sum, item) => sum + (item.revenue || 0), 0) || 1) * 100
+    }));
+
+  // Calculate "Others" percentage
+  const top3Revenue = topProducts.reduce((sum, item) => sum + (item.revenue || 0), 0);
+  const totalRevenue = data.reduce((sum, item) => sum + (item.revenue || 0), 0);
+  const othersPercentage = totalRevenue > 0 ? ((totalRevenue - top3Revenue) / totalRevenue) * 100 : 0;
 
   return (
     <BaseChart
-      title="Product Distribution"
-      description="Revenue distribution by product"
+      title="Top Products by Revenue"
+      description={`Top 3 products represent ${(top3Revenue / totalRevenue * 100).toFixed(0)}% of total revenue`}
       isLoading={isLoading}
       onClick={onClick}
       className={className}
     >
-      <div className="flex flex-col md:flex-row items-center gap-4">
-        <div className="h-[280px] w-full md:w-1/2">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={chartData}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={renderCustomLabel}
-                outerRadius={110}
-                dataKey="revenue"
-                nameKey="productName"
-              >
-                {chartData.map((entry, index) => (
-                  <Cell
-                    key={`cell-${index}`}
-                    fill={entry.fill}
-                    stroke="hsl(var(--background))"
-                    strokeWidth={2}
-                  />
-                ))}
-              </Pie>
-              <Tooltip content={<CustomTooltip />} />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-        <div className="w-full md:w-1/2 space-y-2">
-          {chartData.slice(0, 6).map((item, index) => (
-            <div
-              key={item.productId || index}
-              className="flex items-center justify-between text-sm"
-            >
-              <div className="flex items-center gap-2">
-                <div
-                  className="h-3 w-3 rounded-sm shrink-0"
-                  style={{ backgroundColor: item.fill }}
-                />
-                <span className="truncate max-w-[120px]">{item.productName}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-muted-foreground">
-                  {formatIndianNumber(item.revenue)}
-                </span>
-                <span className="text-xs text-muted-foreground w-10 text-right">
-                  {item.percentage.toFixed(1)}%
-                </span>
-              </div>
+      <ResponsiveContainer>
+        <BarChart
+          data={topProducts}
+          margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
+        >
+          <XAxis dataKey="productName" tickLine={false} />
+          <YAxis 
+            tickLine={false} 
+            domain={[0, 'dataMax']}
+            tickFormatter={(value) => `${value}%`}
+          />
+          <Tooltip 
+            labelFormatter={(value) => `${value}%`}
+            formatter={(value, name) => `${formatIndianNumber(
+              data.find(item => item.productName === name)?.revenue || 0
+            )}`}
+          />
+          <Bar 
+            dataKey="percentageOfTotal" 
+            fill="var(--chart-1)" 
+            radius={6} 
+          />
+        </BarChart>
+      </ResponsiveContainer>
+      
+      {/* Legend */}
+      {!isLoading && (
+        <div className="mt-4 flex flex-col space-x-2 space-y-2">
+          {topProducts.map((product, index) => (
+            <div key={index} className="flex items-center space-x-2 text-sm">
+              <div className="h-3 w-3 rounded" style={{ backgroundColor: `var(--chart-${index + 1})` }}></div>
+              <span>{product.productName}</span>
+              <span className="ml-auto font-mono">{product.percentageOfTotal.toFixed(1)}%</span>
             </div>
           ))}
-          {chartData.length > 6 && (
-            <p className="text-xs text-muted-foreground pt-1">
-              +{chartData.length - 6} more products
-            </p>
+          {othersPercentage > 0 && (
+            <div className="flex items-center space-x-2 text-sm">
+              <div className="h-3 w-3 rounded" style={{ backgroundColor: 'hsl(220, 70%, 50%)' }}></div>
+              <span>Others</span>
+              <span className="ml-auto font-mono">{othersPercentage.toFixed(1)}%</span>
+            </div>
           )}
         </div>
-      </div>
+      )}
     </BaseChart>
   )
 }

@@ -2,18 +2,16 @@
 
 import React from 'react'
 import {
-  AreaChart,
-  Area,
+  LineChart,
+  Line,
   CartesianGrid,
   XAxis,
   YAxis,
-  ResponsiveContainer
+  ResponsiveContainer,
+  Tooltip
 } from 'recharts'
 import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  type ChartConfig
+  ChartContainer
 } from '@/components/ui/chart'
 import BaseChart from './BaseChart'
 import { formatIndianNumber } from '@/lib/utils'
@@ -25,17 +23,6 @@ interface RevenueTrendChartProps {
   onClick?: () => void
   className?: string
 }
-
-const chartConfig = {
-  newBusiness: {
-    label: "New Business",
-    color: "hsl(var(--chart-1))",
-  },
-  amc: {
-    label: "AMC",
-    color: "hsl(var(--chart-2))",
-  },
-} satisfies ChartConfig
 
 const formatYAxisValue = (value: number): string => {
   if (value >= 10000000) {
@@ -54,22 +41,38 @@ const RevenueTrendChart: React.FC<RevenueTrendChartProps> = ({
   onClick,
   className
 }) => {
+  // Calculate total billing for each data point (newBusiness + amc)
+  const dataWithTotal = data.map((point) => ({
+    ...point,
+    totalBilling: (point.newBusiness || 0) + (point.amc || 0)
+  }));
+
+  // Calculate trend direction (up/down/neutral) based on first and last data points
+  const getTrendDirection = (dataWithTotal: Array<BillingTrend & { totalBilling: number }>): 'up' | 'down' | 'neutral' => {
+    if (dataWithTotal.length < 2) return 'neutral'
+    const firstValue = dataWithTotal[0]?.totalBilling || 0
+    const lastValue = dataWithTotal[dataWithTotal.length - 1]?.totalBilling || 0
+    if (lastValue > firstValue * 1.05) return 'up' // 5% threshold for upward trend
+    if (lastValue < firstValue * 0.95) return 'down' // 5% threshold for downward trend
+    return 'neutral'
+  }
+
+  const trendDirection = getTrendDirection(dataWithTotal)
+  const trendLabel = trendDirection === 'up' ? 'Increasing' : trendDirection === 'down' ? 'Decreasing' : 'Stable'
+  const trendColor = trendDirection === 'up' ? 'text-success' : trendDirection === 'down' ? 'text-destructive' : 'text-muted'
+
   return (
     <BaseChart
       title="Revenue Trend"
-      description="New Business vs AMC revenue over time"
+      description={`Total revenue is ${trendLabel.toLowerCase()} over the selected period`}
       isLoading={isLoading}
       onClick={onClick}
       className={className}
     >
-      <ChartContainer config={chartConfig} className="h-[300px] w-full">
-        <AreaChart
-          accessibilityLayer
-          data={data}
-          margin={{
-            left: 12,
-            right: 12,
-          }}
+      <ChartContainer config={{}} className="h-[300px] w-full">
+        <LineChart
+          data={dataWithTotal}
+          margin={{ left: 0, right: 0, top: 10, bottom: 0 }}
         >
           <CartesianGrid vertical={false} strokeDasharray="3 3" />
           <XAxis
@@ -77,7 +80,10 @@ const RevenueTrendChart: React.FC<RevenueTrendChartProps> = ({
             tickLine={false}
             axisLine={false}
             tickMargin={8}
-            tickFormatter={(value) => value.slice(0, 7)}
+            tickFormatter={(value) => {
+              // Format period for better readability (e.g., "Jan 2024" -> "Jan")
+              return value.toString().split(' ')[0]
+            }}
           />
           <YAxis
             tickLine={false}
@@ -85,40 +91,26 @@ const RevenueTrendChart: React.FC<RevenueTrendChartProps> = ({
             tickMargin={8}
             tickFormatter={formatYAxisValue}
           />
-          <ChartTooltip
+          <Tooltip
             cursor={false}
-            content={
-              <ChartTooltipContent
-                indicator="dot"
-                formatter={(value, name) => (
-                  <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground">{name}:</span>
-                    <span className="font-mono font-medium">
-                      {formatIndianNumber(value as number)}
-                    </span>
-                  </div>
-                )}
-              />
-            }
+            labelFormatter={(value) => `₹${formatIndianNumber(Number(value))}`}
           />
-          <Area
-            dataKey="newBusiness"
-            type="natural"
-            fill="var(--color-newBusiness)"
-            fillOpacity={0.4}
-            stroke="var(--color-newBusiness)"
-            stackId="a"
+          <Line
+            type="monotone"
+            dataKey="totalBilling"
+            stroke="var(--chart-1)"
+            strokeWidth={2}
+            dot={{ r: 4, strokeWidth: 2, stroke: '#fff' }}
           />
-          <Area
-            dataKey="amc"
-            type="natural"
-            fill="var(--color-amc)"
-            fillOpacity={0.4}
-            stroke="var(--color-amc)"
-            stackId="a"
-          />
-        </AreaChart>
+        </LineChart>
       </ChartContainer>
+      {/* Trend indicator */}
+      <div className="flex items-center justify-between mt-4 pt-4 border-t">
+        <span className="text-sm font-medium">Trend:</span>
+        <span className={`text-sm font-semibold ${trendColor}`}>
+          {trendLabel}
+        </span>
+      </div>
     </BaseChart>
   )
 }
