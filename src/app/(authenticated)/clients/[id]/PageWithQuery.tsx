@@ -566,7 +566,7 @@ const PageWithQuery = ({ id }: { id: string }) => {
             <DialogHeader>
               <DialogTitle>Delete Client</DialogTitle>
               <DialogDescription>
-                Are you sure you want to delete "{data?.data.name}"? This action
+                Are you sure you want to delete &quot;{data?.data.name}&quot;? This action
                 cannot be undone. This will also delete all associated orders,
                 AMCs, and reminders.
               </DialogDescription>

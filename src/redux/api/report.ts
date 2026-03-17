@@ -60,6 +60,126 @@ export interface IExpectedVsReceivedRevenue {
   received_amount: number;
 }
 
+// ==================== NEW REVENUE DASHBOARD TYPES ====================
+
+export interface IMonthlyRevenueBreakdown {
+  period: string;
+  newSalesRevenue: number;
+  amcRevenue: number;
+  totalRevenue: number;
+}
+
+export interface IRevenueDashboardResponse {
+  summary: {
+    totalNewSalesRevenue: number;
+    totalAMCRevenue: number;
+    grandTotalRevenue: number;
+  };
+  monthlyBreakdown: IMonthlyRevenueBreakdown[];
+}
+
+export interface IPeriodBreakdown {
+  period: string;
+  expected: number;
+  collected: number;
+}
+
+export interface IExpectedVsCollectedResponse {
+  fiscalYear: string;
+  newSales: {
+    expected: number;
+    collected: number;
+    breakdown: IPeriodBreakdown[];
+  };
+  amc: {
+    expected: number;
+    collected: number;
+    breakdown: IPeriodBreakdown[];
+  };
+  total: {
+    expected: number;
+    collected: number;
+  };
+}
+
+export interface IMonthlyBreakdownDetail {
+  orderId: string;
+  clientName: string;
+  productName: string;
+  amount: number;
+  status: string;
+  date: Date;
+}
+
+export interface IMonthlyBreakdown {
+  period: string;
+  newSales: {
+    total: number;
+    details: IMonthlyBreakdownDetail[];
+  };
+  amc: {
+    total: number;
+    details: IMonthlyBreakdownDetail[];
+  };
+}
+
+// ==================== CLIENT HEALTH & RETENTION DASHBOARD TYPES ====================
+
+export interface IClientHealthMetrics {
+  totalClients: number;
+  activeClients: number;
+  inactiveClients: number;
+  activePercentage: number;
+  overdueClients: {
+    over30Days: number;
+    over60Days: number;
+    over90Days: number;
+  };
+  amcRenewalRate: number;
+}
+
+export interface IClientRevenueData {
+  clientId: string;
+  clientName: string;
+  industry: string;
+  totalRevenue: number;
+  newSalesRevenue: number;
+  amcRevenue: number;
+  orderCount: number;
+  trend: 'up' | 'down' | 'stable';
+  trendPercentage: number;
+  isAtRisk: boolean;
+  riskFactors: string[];
+}
+
+export interface ITopPerformersResponse {
+  topClients: IClientRevenueData[];
+  atRiskClients: IClientRevenueData[];
+}
+
+export interface IIndustryBreakdown {
+  industry: string;
+  clientCount: number;
+  totalRevenue: number;
+  percentage: number;
+}
+
+export interface IClientConcentrationRisk {
+  totalRevenue: number;
+  top10ClientsRevenue: number;
+  top10Percentage: number;
+  herfindahlIndex: number;
+  riskLevel: 'low' | 'medium' | 'high';
+  industryDiversification: IIndustryBreakdown[];
+}
+
+export interface IClientHealthDashboardResponse {
+  healthMetrics: IClientHealthMetrics;
+  topPerformers: ITopPerformersResponse;
+  concentrationRisk: IClientConcentrationRisk;
+  fiscalYear: string;
+}
+
 export const reportApi = createApi({
   reducerPath: "report",
   baseQuery: fetchBaseQuery({
@@ -117,6 +237,52 @@ export const reportApi = createApi({
         method: HTTP_REQUEST.GET,
       }),
     }),
+    // NEW REVENUE DASHBOARD ENDPOINTS
+    getRevenueDashboard: builder.query<
+      IResponse<IRevenueDashboardResponse>,
+      IReportQueries
+    >({
+      query: ({ filter = "monthly", options }) => {
+        const params = new URLSearchParams();
+        params.append("filter", filter);
+        if (options?.year) params.append("year", options.year.toString());
+        if (options?.quarter) params.append("quarter", options.quarter);
+        if (options?.startDate) params.append("startDate", options.startDate.toString());
+        if (options?.endDate) params.append("endDate", options.endDate.toString());
+        return {
+          url: `/revenue-dashboard?${params.toString()}`,
+          method: HTTP_REQUEST.GET,
+        };
+      },
+    }),
+    getExpectedVsCollected: builder.query<
+      IResponse<IExpectedVsCollectedResponse>,
+      { fiscalYear: number; filter?: IReportFilters }
+    >({
+      query: ({ fiscalYear, filter = 'monthly' }) => ({
+        url: `/expected-vs-collected?fiscalYear=${fiscalYear}&filter=${filter}`,
+        method: HTTP_REQUEST.GET,
+      }),
+    }),
+    getMonthlyRevenueBreakdown: builder.query<
+      IResponse<IMonthlyBreakdown>,
+      { year: number; month: number }
+    >({
+      query: ({ year, month }) => ({
+        url: `/monthly-revenue-breakdown?year=${year}&month=${month}`,
+        method: HTTP_REQUEST.GET,
+      }),
+    }),
+    // CLIENT HEALTH & RETENTION DASHBOARD
+    getClientHealthDashboard: builder.query<
+      IResponse<IClientHealthDashboardResponse>,
+      { fiscalYear: number }
+    >({
+      query: ({ fiscalYear }) => ({
+        url: `/client-health-dashboard?fiscalYear=${fiscalYear}`,
+        method: HTTP_REQUEST.GET,
+      }),
+    }),
   }),
 });
 
@@ -126,4 +292,8 @@ export const {
   useGetIndustryWiseRevenueReportQuery,
   useGetTotalBillingReportQuery,
   useGetExpectedVsReceivedRevenueQuery,
+  useGetRevenueDashboardQuery,
+  useGetExpectedVsCollectedQuery,
+  useGetMonthlyRevenueBreakdownQuery,
+  useGetClientHealthDashboardQuery,
 } = reportApi;
