@@ -85,15 +85,21 @@ export function useDuplicateCheck(options: DuplicateCheckOptions = {}) {
     clientId: string,
     data: any
   ) => {
-    // Immediate check (no debounce) for submit
-    const requestData = prepareDuplicateCheckRequest(purchaseType, clientId, data);
-    const result = await checkDuplicates(requestData).unwrap();
+    try {
+      // Immediate check (no debounce) for submit
+      const requestData = prepareDuplicateCheckRequest(purchaseType, clientId, data);
+      const result = await checkDuplicates(requestData).unwrap();
 
-    if (result.data.hasDuplicate) {
-      showDuplicateWarning(result.data.duplicateRecords);
-      return true; // Has duplicate, but allow proceed
+      if (result.data.hasDuplicate) {
+        showDuplicateWarning(result.data.duplicateRecords);
+        return true; // Has duplicate, but allow proceed
+      }
+      return false;
+    } catch (error) {
+      // If duplicate check fails, allow the user to proceed anyway
+      console.error('Duplicate check failed on submit:', error);
+      return false;
     }
-    return false;
   }, [checkDuplicates]);
 
   const clearLastWarning = useCallback(() => {

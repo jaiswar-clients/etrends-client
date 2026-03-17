@@ -1002,12 +1002,22 @@ const AMCDetail: React.FC<IProps> = ({ orderId }) => {
         title: "Order Updated",
       });
     } catch (error: any) {
+      // Handle error message which might be an array or string
+      let errorMessage = 'Something went wrong';
+      if (error?.data?.message) {
+        if (Array.isArray(error.data.message)) {
+          errorMessage = error.data.message.join(', ');
+        } else {
+          errorMessage = error.data.message;
+        }
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+
       toast({
         variant: "destructive",
-        title: "Error Occured while adding a client",
-        description:
-          error?.message ||
-          `Please try again and if error still persist contact the developer`,
+        title: "Error Occured while updating order",
+        description: errorMessage || `Please try again and if error still persist contact the developer`,
       });
     }
   };

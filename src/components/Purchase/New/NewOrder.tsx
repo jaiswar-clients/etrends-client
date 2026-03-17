@@ -32,10 +32,22 @@ const NewOrder: React.FC<IProps> = ({ clientId }) => {
       })
       router.push(`/purchases?id=${order.data._id}`)
     } catch (error: any) {
+      // Handle error message which might be an array or string
+      let errorMessage = 'Something went wrong'
+      if (error?.data?.message) {
+        if (Array.isArray(error.data.message)) {
+          errorMessage = error.data.message.join(', ')
+        } else {
+          errorMessage = error.data.message
+        }
+      } else if (error?.message) {
+        errorMessage = error.message
+      }
+
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: error.message || 'Something went wrong'
+        description: errorMessage
       })
     }
   }

@@ -262,6 +262,7 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
             invoice_date: undefined,
             invoice_document: "",
             invoice_number: "",
+            status: PAYMENT_STATUS_ENUM.PENDING,
         });
     };
 
@@ -676,27 +677,19 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
 
         try {
             if (defaultValue?._id && updateHandler) {
-                updateHandler({ ...transformedData }).then(() => {
-                    toast({
-                        variant: "success",
-                        title: "Order Updated",
-                    })
-                })
+                await updateHandler({ ...transformedData });
+                // Don't show toast here - let the handler's own error handling do it
             } else {
-                handler({ ...transformedData }).then(() => {
-                    toast({
-                        variant: "success",
-                        title: "Order Created",
-                    })
-                })
+                await handler({ ...transformedData });
+                // Don't show toast here - let the handler's own error handling do it
             }
-            setDisableInput(true)
+            setDisableInput(true);
         } catch (error: any) {
             toast({
                 variant: "destructive",
                 title: "Error Occured while updating the order",
                 description: error?.message || `Please try again and if error still persist contact the developer`
-            })
+            });
         }
     }
 
