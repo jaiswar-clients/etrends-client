@@ -12,24 +12,14 @@ import {
   Pie,
   PieChart,
   Label,
-  Line,
-  LineChart,
-  Area,
-  AreaChart,
-  ComposedChart,
 } from "recharts";
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import {
   ChartContainer,
   ChartTooltip,
-  ChartLegend,
   type ChartConfig,
 } from "@/components/ui/chart";
 import {
@@ -40,7 +30,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import Typography from "@/components/ui/Typography";
 import Loading from "@/components/ui/loading";
 import {
   Dialog,
@@ -49,6 +38,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 import {
   useGetRevenueDashboardQuery,
   useGetExpectedVsCollectedQuery,
@@ -60,8 +50,6 @@ import { cn, formatCurrency, formatIndianNumber } from "@/lib/utils";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import {
-  TrendingUp,
-  TrendingDown,
   ArrowUpRight,
   ArrowDownRight,
   Minus,
@@ -70,9 +58,7 @@ import {
   Receipt,
   Target,
   DollarSign,
-  PieChartIcon,
   BarChart3,
-  FileText,
   Download,
   Clock,
   CheckCircle2,
@@ -80,81 +66,61 @@ import {
   Activity,
   Users,
   ShieldAlert,
-  AlertTriangle,
   Heart,
   UserCheck,
-  UserX,
   RefreshCw,
+  AlertTriangle,
   Layers,
-  BarChart2,
+  TrendingUp,
 } from "lucide-react";
 
-// Constants
 const DEFAULT_FILTER = "monthly" as const;
 const CHART_COLORS = {
-  newSales: "#1e40af", // Deep blue
-  amc: "#059669", // Emerald
-  expected: "#6366f1", // Indigo
-  collected: "#10b981", // Green
-  accent: "#f59e0b", // Amber
-  muted: "#64748b", // Slate
+  newSales: "#1e40af",
+  amc: "#059669",
+  expected: "#6366f1",
+  collected: "#10b981",
 };
 
-// Helper functions
 const generateYears = () => {
   const currentYear = new Date().getFullYear();
-  const fiscalYears = [];
   const currentMonth = new Date().getMonth();
   const fiscalYearStart = currentMonth < 3 ? currentYear - 1 : currentYear;
-
-  for (let i = fiscalYearStart; i >= fiscalYearStart - 15; i--) {
-    const endYear = i + 1;
-    const label = `FY ${i}-${endYear.toString().slice(-2)}`;
-    fiscalYears.push({ label, value: i.toString() });
-  }
-  return fiscalYears;
-};
-
-const getQuarterLabel = (month: number): string => {
-  if (month >= 3 && month <= 5) return "Q1";
-  if (month >= 6 && month <= 8) return "Q2";
-  if (month >= 9 && month <= 11) return "Q3";
-  return "Q4";
+  return Array.from({ length: 16 }, (_, i) => {
+    const year = fiscalYearStart - i;
+    return { label: `FY ${year}-${(year + 1).toString().slice(-2)}`, value: year.toString() };
+  });
 };
 
 const getCurrentPeriod = (): string => {
   const now = new Date();
-  const month = now.toLocaleString("default", { month: "long" });
-  const year = now.getFullYear();
-  return `${month} ${year}`;
+  return `${now.toLocaleString("default", { month: "long" })} ${now.getFullYear()}`;
 };
 
-// Chart Config
 const revenueChartConfig = {
   newSalesRevenue: { label: "New Sales", color: CHART_COLORS.newSales },
   amcRevenue: { label: "AMC Revenue", color: CHART_COLORS.amc },
 } satisfies ChartConfig;
 
-// Professional Tooltip
-const ProfessionalTooltip = ({ active, payload, label, type = "revenue" }: any) => {
+// Compact Tooltip
+const CompactTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     const total = payload.reduce((sum: number, p: any) => sum + p.value, 0);
-
     return (
-      <div className="bg-white/95 backdrop-blur-sm border border-slate-200 rounded-lg p-4 shadow-xl min-w-[180px]">
-        <p className="font-semibold text-slate-800 text-sm mb-3 pb-2 border-b border-slate-100">{label}</p>
+      <div className="bg-white/95 backdrop-blur-sm border border-slate-200 rounded-lg p-2 shadow-xl text-xs">
+        <p className="font-semibold text-slate-800 mb-1">{label}</p>
         {payload.map((entry: any, index: number) => (
-          <div key={index} className="flex items-center justify-between gap-4 mb-2">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-sm" style={{ background: entry.color }} />
-              <span className="text-sm text-slate-600">{entry.name}</span>
+          <div key={index} className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 rounded-sm" style={{ background: entry.color }} />
+              <span className="text-slate-600">{entry.name}</span>
             </div>
-            <span className="text-sm font-semibold text-slate-800">{formatCurrency(entry.value)}</span>
+            <span className="font-semibold text-slate-800">{formatCurrency(entry.value)}</span>
           </div>
         ))}
-        <div className="flex items-center justify-between gap-4 pt-2 mt-2 border-t border-slate-100">
-          <span className="text-sm font-medium text-slate-700">Total</span>
-          <span className="text-sm font-bold text-slate-900">{formatCurrency(total)}</span>
+        <div className="flex items-center justify-between gap-3 pt-1 mt-1 border-t border-slate-100">
+          <span className="font-medium text-slate-700">Total</span>
+          <span className="font-bold text-slate-900">{formatCurrency(total)}</span>
         </div>
       </div>
     );
@@ -162,173 +128,76 @@ const ProfessionalTooltip = ({ active, payload, label, type = "revenue" }: any) 
   return null;
 };
 
-// Executive KPI Card
-const ExecutiveKPICard = ({
-  title,
-  value,
-  subtitle,
-  icon: Icon,
-  trend,
-  trendValue,
-  accentColor = "#1e40af",
-}: {
+// Compact KPI Card
+const CompactKPICard = ({ title, value, subtitle, icon: Icon, color = "#1e40af" }: {
   title: string;
   value: string;
   subtitle?: string;
   icon: React.ElementType;
-  trend?: "up" | "down" | "neutral";
-  trendValue?: string;
-  accentColor?: string;
-}) => {
-  const getTrendIcon = () => {
-    switch (trend) {
-      case "up": return <ArrowUpRight className="w-4 h-4" />;
-      case "down": return <ArrowDownRight className="w-4 h-4" />;
-      default: return <Minus className="w-4 h-4" />;
-    }
-  };
-
-  const getTrendColor = () => {
-    switch (trend) {
-      case "up": return "text-emerald-600 bg-emerald-50";
-      case "down": return "text-red-600 bg-red-50";
-      default: return "text-slate-600 bg-slate-50";
-    }
-  };
-
-  return (
-    <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition-shadow duration-200">
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <p className="text-sm font-medium text-slate-500 uppercase tracking-wide">{title}</p>
-          <p className="mt-2 text-3xl font-bold text-slate-900">{value}</p>
-          {subtitle && (
-            <p className="mt-1 text-sm text-slate-500">{subtitle}</p>
-          )}
-        </div>
-        <div
-          className="p-3 rounded-xl"
-          style={{ backgroundColor: `${accentColor}10` }}
-        >
-          <Icon className="w-6 h-6" style={{ color: accentColor }} />
-        </div>
+  color?: string;
+}) => (
+  <div className="bg-white rounded-lg border border-slate-200 p-3 shadow-sm">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wide">{title}</p>
+        <p className="text-lg font-bold text-slate-900">{value}</p>
+        {subtitle && <p className="text-[10px] text-slate-500">{subtitle}</p>}
       </div>
-      {trend && trendValue && (
-        <div className="mt-4 flex items-center gap-2">
-          <span className={cn("inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium", getTrendColor())}>
-            {getTrendIcon()}
-            {trendValue}
-          </span>
-          <span className="text-xs text-slate-500">vs previous period</span>
-        </div>
-      )}
+      <div className="p-2 rounded-lg" style={{ backgroundColor: `${color}15` }}>
+        <Icon className="w-4 h-4" style={{ color }} />
+      </div>
     </div>
-  );
-};
+  </div>
+);
 
-// Collection Progress Card
-const CollectionProgressCard = ({
-  title,
-  expected,
-  collected,
-  icon: Icon,
-}: {
+// Collection Progress
+const CompactCollectionProgress = ({ title, expected, collected, icon: Icon }: {
   title: string;
   expected: number;
   collected: number;
   icon: React.ElementType;
 }) => {
   const percentage = expected > 0 ? (collected / expected) * 100 : 0;
-  const shortfall = expected - collected;
   const isGood = percentage >= 80;
   const isMedium = percentage >= 60 && percentage < 80;
-
-  const getStatusColor = () => {
-    if (isGood) return { bg: "bg-emerald-500", light: "bg-emerald-100", text: "text-emerald-700" };
-    if (isMedium) return { bg: "bg-amber-500", light: "bg-amber-100", text: "text-amber-700" };
-    return { bg: "bg-red-500", light: "bg-red-100", text: "text-red-700" };
-  };
-
-  const status = getStatusColor();
+  const color = isGood ? "bg-emerald-500" : isMedium ? "bg-amber-500" : "bg-red-500";
+  const textColor = isGood ? "text-emerald-700" : isMedium ? "text-amber-700" : "text-red-700";
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <Icon className="w-5 h-5 text-slate-500" />
-          <span className="font-semibold text-slate-800">{title}</span>
+    <div className="bg-white rounded-lg border border-slate-200 p-3 shadow-sm">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-1.5">
+          <Icon className="w-3.5 h-3.5 text-slate-500" />
+          <span className="text-xs font-medium text-slate-700">{title}</span>
         </div>
-        <span className={cn("text-xs font-bold px-2 py-1 rounded-full", status.light, status.text)}>
-          {percentage.toFixed(0)}%
-        </span>
+        <span className={cn("text-xs font-bold", textColor)}>{percentage.toFixed(0)}%</span>
       </div>
-
-      <div className="space-y-3">
-        <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-          <div
-            className={cn("h-full rounded-full transition-all duration-500", status.bg)}
-            style={{ width: `${Math.min(percentage, 100)}%` }}
-          />
-        </div>
-
-        <div className="grid grid-cols-3 gap-2 text-center">
-          <div className="bg-slate-50 rounded-lg p-2">
-            <p className="text-xs text-slate-500 mb-0.5">Expected</p>
-            <p className="text-sm font-semibold text-slate-800">{formatIndianNumber(expected).replace("₹", "")}</p>
-          </div>
-          <div className="bg-slate-50 rounded-lg p-2">
-            <p className="text-xs text-slate-500 mb-0.5">Collected</p>
-            <p className="text-sm font-semibold text-slate-800">{formatIndianNumber(collected).replace("₹", "")}</p>
-          </div>
-          <div className="bg-slate-50 rounded-lg p-2">
-            <p className="text-xs text-slate-500 mb-0.5">Shortfall</p>
-            <p className={cn("text-sm font-semibold", shortfall > 0 ? "text-red-600" : "text-emerald-600")}>
-              {formatIndianNumber(Math.abs(shortfall)).replace("₹", "")}
-            </p>
-          </div>
-        </div>
+      <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+        <div className={cn("h-full rounded-full", color)} style={{ width: `${Math.min(percentage, 100)}%` }} />
+      </div>
+      <div className="flex justify-between mt-1.5 text-[10px] text-slate-500">
+        <span>Exp: {formatIndianNumber(expected).replace("₹", "")}</span>
+        <span>Col: {formatIndianNumber(collected).replace("₹", "")}</span>
       </div>
     </div>
   );
 };
 
-// Revenue Split Donut Chart
-const RevenueSplitDonut = ({
-  newSales,
-  amc,
-}: {
-  newSales: number;
-  amc: number;
-}) => {
+// Revenue Donut
+const CompactRevenueDonut = ({ newSales, amc }: { newSales: number; amc: number }) => {
   const total = newSales + amc;
   const data = [
     { name: "New Sales", value: newSales, color: CHART_COLORS.newSales },
-    { name: "AMC Revenue", value: amc, color: CHART_COLORS.amc },
+    { name: "AMC", value: amc, color: CHART_COLORS.amc },
   ];
 
-  const chartConfig: ChartConfig = {
-    newSales: { label: "New Sales", color: CHART_COLORS.newSales },
-    amc: { label: "AMC Revenue", color: CHART_COLORS.amc },
-  };
-
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-      <div className="flex items-center justify-between mb-4">
-        <span className="font-semibold text-slate-800">Revenue Composition</span>
-        <span className="text-xs text-slate-500">Current Period</span>
-      </div>
-
-      <div className="flex items-center gap-6">
-        <ChartContainer config={chartConfig} className="h-[140px] w-[140px]">
-          <PieChart width={140} height={140}>
-            <Pie
-              data={data}
-              dataKey="value"
-              innerRadius={45}
-              outerRadius={65}
-              paddingAngle={3}
-              strokeWidth={0}
-            >
+    <div className="bg-white rounded-lg border border-slate-200 p-3 shadow-sm">
+      <p className="text-xs font-medium text-slate-700 mb-2">Revenue Split</p>
+      <div className="flex items-center gap-3">
+        <ChartContainer config={revenueChartConfig} className="h-[80px] w-[80px]">
+          <PieChart width={80} height={80}>
+            <Pie data={data} dataKey="value" innerRadius={25} outerRadius={38} paddingAngle={2} strokeWidth={0}>
               {data.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={entry.color} />
               ))}
@@ -337,11 +206,8 @@ const RevenueSplitDonut = ({
                   if (viewBox && "cx" in viewBox && "cy" in viewBox && typeof viewBox.cy === "number") {
                     return (
                       <text x={viewBox.cx} y={viewBox.cy} textAnchor="middle" dominantBaseline="middle">
-                        <tspan x={viewBox.cx} y={viewBox.cy - 8} className="fill-slate-400 text-[10px] font-medium">
-                          TOTAL
-                        </tspan>
-                        <tspan x={viewBox.cx} y={viewBox.cy + 10} className="fill-slate-900 text-sm font-bold">
-                          {formatIndianNumber(total).replace("₹", "")}
+                        <tspan x={viewBox.cx} y={viewBox.cy} className="fill-slate-900 text-[9px] font-bold">
+                          {formatIndianNumber(total).replace("₹", "").replace(/\s/g, "")}
                         </tspan>
                       </text>
                     );
@@ -350,37 +216,18 @@ const RevenueSplitDonut = ({
                 }}
               />
             </Pie>
-            <ChartTooltip
-              content={({ payload }) => {
-                if (payload && payload.length) {
-                  const d = payload[0].payload;
-                  const pct = total > 0 ? ((d.value / total) * 100).toFixed(1) : "0";
-                  return (
-                    <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-lg">
-                      <p className="font-medium text-slate-800 text-sm">{d.name}</p>
-                      <p className="text-slate-600 text-sm">{formatCurrency(d.value)}</p>
-                      <p className="text-slate-500 text-xs">{pct}% of total</p>
-                    </div>
-                  );
-                }
-                return null;
-              }}
-            />
           </PieChart>
         </ChartContainer>
-
-        <div className="flex-1 space-y-3">
+        <div className="flex-1 space-y-1">
           {data.map((item, idx) => {
-            const pct = total > 0 ? ((item.value / total) * 100).toFixed(1) : "0";
+            const pct = total > 0 ? ((item.value / total) * 100).toFixed(0) : "0";
             return (
-              <div key={idx} className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-sm" style={{ background: item.color }} />
-                  <span className="text-sm text-slate-600">{item.name}</span>
+              <div key={idx} className="flex items-center justify-between text-[10px]">
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 rounded-sm" style={{ background: item.color }} />
+                  <span className="text-slate-600">{item.name}</span>
                 </div>
-                <div className="text-right">
-                  <span className="text-sm font-semibold text-slate-800">{pct}%</span>
-                </div>
+                <span className="font-semibold text-slate-800">{pct}%</span>
               </div>
             );
           })}
@@ -390,142 +237,99 @@ const RevenueSplitDonut = ({
   );
 };
 
+// Status Badge for AMC payments
+const StatusBadge = ({ status }: { status: string }) => {
+  const statusLower = status?.toLowerCase() || '';
+  const variant = statusLower === 'paid' ? 'success' :
+                  statusLower === 'pending' ? 'secondary' :
+                  'outline';
+  return (
+    <Badge variant={variant} className="text-[10px] px-1.5 py-0">
+      {status || 'Unknown'}
+    </Badge>
+  );
+};
+
 // Monthly Drilldown Modal
 const MonthlyDrilldownModal = ({ period, year, month }: { period: string; year: number; month: number }) => {
   const { data, isLoading } = useGetMonthlyRevenueBreakdownQuery({ year, month });
 
-  return (
-    <div className="space-y-6">
-      <DialogHeader>
-        <DialogTitle className="text-xl font-bold text-slate-900">{period}</DialogTitle>
-        <DialogDescription className="text-sm text-slate-500">
-          Detailed revenue breakdown for this period
-        </DialogDescription>
-      </DialogHeader>
+  const renderSection = (
+    title: string,
+    total: number,
+    details: { clientName: string; productName: string; amount: number; status: string }[],
+    isAmc: boolean
+  ) => (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-1.5">
+          {isAmc ? <Receipt className="w-3.5 h-3.5 text-emerald-600" /> : <Building2 className="w-3.5 h-3.5 text-blue-600" />}
+          {title}
+        </h3>
+        <span className="text-sm font-bold text-slate-900">{formatCurrency(total)}</span>
+      </div>
+      <div className="bg-slate-50 rounded-lg overflow-hidden">
+        <table className="w-full text-xs">
+          <thead className="bg-slate-100">
+            <tr>
+              <th className="px-3 py-2 text-left font-semibold text-slate-600">Client</th>
+              <th className="px-3 py-2 text-left font-semibold text-slate-600">{isAmc ? "Status" : "Product"}</th>
+              <th className="px-3 py-2 text-right font-semibold text-slate-600">Amount</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-200">
+            {details.length > 0 ? details.map((detail, idx) => (
+              <tr key={idx} className="hover:bg-white">
+                <td className="px-3 py-2 text-slate-800">{detail.clientName}</td>
+                <td className="px-3 py-2">
+                  {isAmc ? <StatusBadge status={detail.status} /> : <span className="text-slate-600">{detail.productName}</span>}
+                </td>
+                <td className="px-3 py-2 text-right font-medium text-slate-800">{formatCurrency(detail.amount)}</td>
+              </tr>
+            )) : (
+              <tr><td colSpan={3} className="px-3 py-4 text-center text-slate-500">No data</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 
+  return (
+    <div className="space-y-4">
+      <DialogHeader>
+        <DialogTitle className="text-lg font-bold text-slate-900">{period}</DialogTitle>
+        <DialogDescription className="text-xs text-slate-500">Detailed revenue breakdown</DialogDescription>
+      </DialogHeader>
       {isLoading ? (
         <Loading />
       ) : data?.data ? (
-        <div className="space-y-6">
-          {/* New Sales Section */}
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold text-slate-800 flex items-center gap-2">
-                <Building2 className="w-4 h-4 text-blue-600" />
-                New Sales
-              </h3>
-              <span className="text-lg font-bold text-slate-900">{formatCurrency(data.data.newSales.total)}</span>
-            </div>
-            <div className="bg-slate-50 rounded-lg overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-slate-100">
-                  <tr>
-                    <th className="px-4 py-3 text-left font-semibold text-slate-600">Client</th>
-                    <th className="px-4 py-3 text-left font-semibold text-slate-600">Product</th>
-                    <th className="px-4 py-3 text-right font-semibold text-slate-600">Amount</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200">
-                  {data.data.newSales.details.length > 0 ? (
-                    data.data.newSales.details.map((detail, idx) => (
-                      <tr key={idx} className="hover:bg-white transition-colors">
-                        <td className="px-4 py-3 text-slate-800">{detail.clientName}</td>
-                        <td className="px-4 py-3 text-slate-600">{detail.productName}</td>
-                        <td className="px-4 py-3 text-right font-medium text-slate-800">{formatCurrency(detail.amount)}</td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={3} className="px-4 py-8 text-center text-slate-500">No new sales in this period</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* AMC Section */}
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold text-slate-800 flex items-center gap-2">
-                <Receipt className="w-4 h-4 text-emerald-600" />
-                AMC Revenue
-              </h3>
-              <span className="text-lg font-bold text-slate-900">{formatCurrency(data.data.amc.total)}</span>
-            </div>
-            <div className="bg-slate-50 rounded-lg overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-slate-100">
-                  <tr>
-                    <th className="px-4 py-3 text-left font-semibold text-slate-600">Client</th>
-                    <th className="px-4 py-3 text-left font-semibold text-slate-600">Status</th>
-                    <th className="px-4 py-3 text-right font-semibold text-slate-600">Amount</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200">
-                  {data.data.amc.details.length > 0 ? (
-                    data.data.amc.details.map((detail, idx) => (
-                      <tr key={idx} className="hover:bg-white transition-colors">
-                        <td className="px-4 py-3 text-slate-800">{detail.clientName}</td>
-                        <td className="px-4 py-3">
-                          <span className={cn(
-                            "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium",
-                            detail.status?.toLowerCase() === "paid"
-                              ? "bg-emerald-100 text-emerald-700"
-                              : "bg-amber-100 text-amber-700"
-                          )}>
-                            {detail.status?.toLowerCase() === "paid" ? (
-                              <CheckCircle2 className="w-3 h-3" />
-                            ) : (
-                              <Clock className="w-3 h-3" />
-                            )}
-                            {detail.status}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-right font-medium text-slate-800">{formatCurrency(detail.amount)}</td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={3} className="px-4 py-8 text-center text-slate-500">No AMC revenue in this period</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+        <div className="space-y-4">
+          {renderSection("New Sales", data.data.newSales.total, data.data.newSales.details, false)}
+          {renderSection("AMC Revenue", data.data.amc.total, data.data.amc.details, true)}
         </div>
       ) : (
-        <div className="py-12 text-center text-slate-500">No data available</div>
+        <div className="py-8 text-center text-slate-500">No data available</div>
       )}
     </div>
   );
 };
 
-// ==================== CLIENT HEALTH & RETENTION COMPONENTS ====================
-
 // Health Score Badge
 const HealthScoreBadge = ({ score }: { score: number }) => {
-  const getColor = () => {
-    if (score >= 80) return { bg: "bg-emerald-100", text: "text-emerald-700", icon: "text-emerald-600" };
-    if (score >= 60) return { bg: "bg-amber-100", text: "text-amber-700", icon: "text-amber-600" };
-    return { bg: "bg-red-100", text: "text-red-700", icon: "text-red-600" };
-  };
-
-  const color = getColor();
-
+  const color = score >= 80 ? { bg: "bg-emerald-100", text: "text-emerald-700" } :
+                score >= 60 ? { bg: "bg-amber-100", text: "text-amber-700" } :
+                { bg: "bg-red-100", text: "text-red-700" };
   return (
-    <div className={cn("flex items-center gap-2 px-3 py-1.5 rounded-full", color.bg)}>
-      <Heart className={cn("w-4 h-4", color.icon)} />
-      <span className={cn("text-sm font-bold", color.text)}>{score.toFixed(0)}</span>
+    <div className={cn("flex items-center gap-1 px-2 py-0.5 rounded-full", color.bg)}>
+      <Heart className="w-3 h-3" />
+      <span className={cn("text-xs font-bold", color.text)}>{score.toFixed(0)}</span>
     </div>
   );
 };
 
-// Client Health Scorecard Component
-const ClientHealthScorecard = ({
-  healthMetrics,
-}: {
+// Compact Client Health Scorecard
+const CompactClientHealthScorecard = ({ healthMetrics }: {
   healthMetrics: {
     totalClients: number;
     activeClients: number;
@@ -535,7 +339,6 @@ const ClientHealthScorecard = ({
     amcRenewalRate: number;
   };
 }) => {
-  // Calculate composite health score
   const healthScore = Math.round(
     (healthMetrics.activePercentage * 0.3 +
       healthMetrics.amcRenewalRate * 0.3 +
@@ -543,194 +346,92 @@ const ClientHealthScorecard = ({
   );
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-2">
-          <Heart className="w-5 h-5 text-rose-500" />
-          <h3 className="font-semibold text-slate-900">Client Health Scorecard</h3>
+    <div className="bg-white rounded-lg border border-slate-200 p-3 shadow-sm">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-1.5">
+          <Heart className="w-4 h-4 text-rose-500" />
+          <h3 className="text-xs font-semibold text-slate-900">Client Health</h3>
         </div>
         <HealthScoreBadge score={healthScore} />
       </div>
 
-      <div className="grid grid-cols-3 gap-4 mb-6">
-        <div className="bg-slate-50 rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Users className="w-4 h-4 text-slate-500" />
-            <span className="text-sm text-slate-500">Total Clients</span>
-          </div>
-          <p className="text-2xl font-bold text-slate-900">{healthMetrics.totalClients}</p>
+      <div className="grid grid-cols-4 gap-2 mb-2">
+        <div className="bg-slate-50 rounded p-2 text-center">
+          <p className="text-[9px] text-slate-500">Total</p>
+          <p className="text-sm font-bold text-slate-900">{healthMetrics.totalClients}</p>
         </div>
-        <div className="bg-emerald-50 rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <UserCheck className="w-4 h-4 text-emerald-500" />
-            <span className="text-sm text-emerald-600">Active</span>
-          </div>
-          <p className="text-2xl font-bold text-emerald-700">
-            {healthMetrics.activeClients}
-            <span className="text-sm font-normal ml-1">({healthMetrics.activePercentage.toFixed(1)}%)</span>
-          </p>
+        <div className="bg-emerald-50 rounded p-2 text-center">
+          <p className="text-[9px] text-emerald-600">Active</p>
+          <p className="text-sm font-bold text-emerald-700">{healthMetrics.activeClients}</p>
         </div>
-        <div className="bg-slate-50 rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <UserX className="w-4 h-4 text-slate-500" />
-            <span className="text-sm text-slate-500">Inactive</span>
-          </div>
-          <p className="text-2xl font-bold text-slate-700">{healthMetrics.inactiveClients}</p>
+        <div className="bg-slate-50 rounded p-2 text-center">
+          <p className="text-[9px] text-slate-500">AMC Renew</p>
+          <p className="text-sm font-bold text-slate-900">{healthMetrics.amcRenewalRate.toFixed(0)}%</p>
         </div>
-      </div>
-
-      <div className="grid grid-cols-4 gap-3">
-        <div className="bg-blue-50 rounded-lg p-3 text-center">
-          <div className="flex items-center justify-center gap-1 mb-1">
-            <RefreshCw className="w-3.5 h-3.5 text-blue-500" />
-            <span className="text-xs text-blue-600 font-medium">AMC Renewal</span>
-          </div>
-          <p className="text-xl font-bold text-blue-700">{healthMetrics.amcRenewalRate.toFixed(0)}%</p>
-        </div>
-        <div className="bg-amber-50 rounded-lg p-3 text-center">
-          <div className="flex items-center justify-center gap-1 mb-1">
-            <Clock className="w-3.5 h-3.5 text-amber-500" />
-            <span className="text-xs text-amber-600 font-medium">30+ Days</span>
-          </div>
-          <p className="text-xl font-bold text-amber-700">{healthMetrics.overdueClients.over30Days}</p>
-        </div>
-        <div className="bg-orange-50 rounded-lg p-3 text-center">
-          <div className="flex items-center justify-center gap-1 mb-1">
-            <AlertTriangle className="w-3.5 h-3.5 text-orange-500" />
-            <span className="text-xs text-orange-600 font-medium">60+ Days</span>
-          </div>
-          <p className="text-xl font-bold text-orange-700">{healthMetrics.overdueClients.over60Days}</p>
-        </div>
-        <div className="bg-red-50 rounded-lg p-3 text-center">
-          <div className="flex items-center justify-center gap-1 mb-1">
-            <ShieldAlert className="w-3.5 h-3.5 text-red-500" />
-            <span className="text-xs text-red-600 font-medium">90+ Days</span>
-          </div>
-          <p className="text-xl font-bold text-red-700">{healthMetrics.overdueClients.over90Days}</p>
+        <div className="bg-red-50 rounded p-2 text-center">
+          <p className="text-[9px] text-red-600">90+ Overdue</p>
+          <p className="text-sm font-bold text-red-700">{healthMetrics.overdueClients.over90Days}</p>
         </div>
       </div>
     </div>
   );
 };
 
-// Client Performers Table Component
-const ClientPerformersTable = ({
-  topClients,
-  atRiskClients,
-}: {
+// Compact Client Performers
+const CompactClientPerformers = ({ topClients, atRiskClients }: {
   topClients: any[];
   atRiskClients: any[];
 }) => {
   const [activeTab, setActiveTab] = useState<"top" | "risk">("top");
   const data = activeTab === "top" ? topClients : atRiskClients;
 
-  const getTrendIcon = (trend: string, percentage: number) => {
-    if (trend === "up") {
-      return (
-        <span className="flex items-center gap-1 text-emerald-600">
-          <ArrowUpRight className="w-4 h-4" />
-          <span className="text-xs font-medium">+{percentage.toFixed(0)}%</span>
-        </span>
-      );
-    } else if (trend === "down") {
-      return (
-        <span className="flex items-center gap-1 text-red-600">
-          <ArrowDownRight className="w-4 h-4" />
-          <span className="text-xs font-medium">{percentage.toFixed(0)}%</span>
-        </span>
-      );
-    }
-    return (
-      <span className="flex items-center gap-1 text-slate-500">
-        <Minus className="w-4 h-4" />
-        <span className="text-xs font-medium">0%</span>
-      </span>
-    );
+  const getTrend = (trend: string, pct: number) => {
+    if (trend === "up") return <span className="text-emerald-600 text-[10px]">+{pct.toFixed(0)}%</span>;
+    if (trend === "down") return <span className="text-red-600 text-[10px]">{pct.toFixed(0)}%</span>;
+    return <span className="text-slate-500 text-[10px]">0%</span>;
   };
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-      <div className="px-6 py-4 border-b border-slate-100">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <BarChart2 className="w-5 h-5 text-blue-600" />
-            <h3 className="font-semibold text-slate-900">Client Performance</h3>
-          </div>
-          <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg">
+    <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+      <div className="px-3 py-2 border-b border-slate-100 flex items-center justify-between">
+        <h3 className="text-xs font-semibold text-slate-900">Client Performance</h3>
+        <div className="flex items-center gap-0.5 p-0.5 bg-slate-100 rounded">
+          {["top", "risk"].map((tab) => (
             <button
-              onClick={() => setActiveTab("top")}
+              key={tab}
+              onClick={() => setActiveTab(tab as "top" | "risk")}
               className={cn(
-                "px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
-                activeTab === "top" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                "px-2 py-0.5 text-[10px] font-medium rounded transition-colors",
+                activeTab === tab ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"
               )}
             >
-              Top Performers
+              {tab === "top" ? "Top" : `At Risk (${atRiskClients.length})`}
             </button>
-            <button
-              onClick={() => setActiveTab("risk")}
-              className={cn(
-                "px-3 py-1.5 text-sm font-medium rounded-md transition-colors flex items-center gap-1.5",
-                activeTab === "risk" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
-              )}
-            >
-              At Risk
-              {atRiskClients.length > 0 && (
-                <span className="bg-red-100 text-red-700 text-xs px-1.5 py-0.5 rounded-full">
-                  {atRiskClients.length}
-                </span>
-              )}
-            </button>
-          </div>
+          ))}
         </div>
       </div>
-
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto max-h-[140px]">
         {data.length > 0 ? (
-          <table className="w-full">
-            <thead className="bg-slate-50">
+          <table className="w-full text-[10px]">
+            <thead className="bg-slate-50 sticky top-0">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Client</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Industry</th>
-                <th className="px-6 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Revenue</th>
-                <th className="px-6 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">Trend</th>
-                {activeTab === "risk" && (
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Risk Factors</th>
-                )}
+                <th className="px-3 py-1.5 text-left font-semibold text-slate-500">Client</th>
+                <th className="px-3 py-1.5 text-right font-semibold text-slate-500">Revenue</th>
+                <th className="px-3 py-1.5 text-center font-semibold text-slate-500">Trend</th>
+                {activeTab === "risk" && <th className="px-3 py-1.5 text-left font-semibold text-slate-500">Risk</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {data.map((client, idx) => (
-                <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-                        <span className="text-sm font-semibold text-blue-700">
-                          {client.clientName?.charAt(0)?.toUpperCase() || "?"}
-                        </span>
-                      </div>
-                      <span className="font-medium text-slate-800">{client.clientName}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="text-sm text-slate-600">{client.industry || "Unknown"}</span>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <span className="font-semibold text-slate-800">{formatCurrency(client.totalRevenue)}</span>
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    {getTrendIcon(client.trend, client.trendPercentage)}
-                  </td>
+              {data.slice(0, 5).map((client, idx) => (
+                <tr key={idx} className="hover:bg-slate-50">
+                  <td className="px-3 py-1.5 font-medium text-slate-800">{client.clientName}</td>
+                  <td className="px-3 py-1.5 text-right text-slate-800">{formatCurrency(client.totalRevenue)}</td>
+                  <td className="px-3 py-1.5 text-center">{getTrend(client.trend, client.trendPercentage)}</td>
                   {activeTab === "risk" && (
-                    <td className="px-6 py-4">
-                      <div className="flex flex-wrap gap-1">
-                        {client.riskFactors?.map((factor: string, i: number) => (
-                          <span
-                            key={i}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-50 text-red-700 text-xs rounded-full"
-                          >
-                            <AlertTriangle className="w-3 h-3" />
-                            {factor}
-                          </span>
+                    <td className="px-3 py-1.5">
+                      <div className="flex flex-wrap gap-0.5">
+                        {client.riskFactors?.slice(0, 2).map((f: string, i: number) => (
+                          <span key={i} className="px-1 py-0.5 bg-red-50 text-red-700 text-[9px] rounded">{f}</span>
                         ))}
                       </div>
                     </td>
@@ -740,19 +441,15 @@ const ClientPerformersTable = ({
             </tbody>
           </table>
         ) : (
-          <div className="py-12 text-center text-slate-500">
-            {activeTab === "top" ? "No client data available" : "No at-risk clients identified"}
-          </div>
+          <div className="py-4 text-center text-slate-500 text-xs">No data</div>
         )}
       </div>
     </div>
   );
 };
 
-// Client Concentration Risk Card Component
-const ClientConcentrationRiskCard = ({
-  concentrationRisk,
-}: {
+// Compact Concentration Risk
+const CompactConcentrationRisk = ({ concentrationRisk }: {
   concentrationRisk: {
     totalRevenue: number;
     top10ClientsRevenue: number;
@@ -762,151 +459,65 @@ const ClientConcentrationRiskCard = ({
     industryDiversification: { industry: string; clientCount: number; totalRevenue: number; percentage: number }[];
   };
 }) => {
-  const getRiskColor = () => {
-    switch (concentrationRisk.riskLevel) {
-      case "low":
-        return { bg: "bg-emerald-100", text: "text-emerald-700", badge: "bg-emerald-50 text-emerald-700" };
-      case "medium":
-        return { bg: "bg-amber-100", text: "text-amber-700", badge: "bg-amber-50 text-amber-700" };
-      case "high":
-        return { bg: "bg-red-100", text: "text-red-700", badge: "bg-red-50 text-red-700" };
-    }
-  };
-
-  const riskColor = getRiskColor();
-
-  // Pie chart data for industry diversification
-  const COLORS = ["#1e40af", "#059669", "#f59e0b", "#dc2626", "#7c3aed", "#0891b2", "#db2777", "#65a30d", "#ea580c", "#6366f1"];
-
-  const industryChartConfig: ChartConfig = {
-    industry: { label: "Industry" },
-  };
-  concentrationRisk.industryDiversification.forEach((item, idx) => {
-    industryChartConfig[item.industry.toLowerCase().replace(/\s+/g, "_")] = {
-      label: item.industry,
-      color: COLORS[idx % COLORS.length],
-    };
-  });
+  const riskColor = concentrationRisk.riskLevel === "low" ? { bg: "bg-emerald-100", text: "text-emerald-700" } :
+                    concentrationRisk.riskLevel === "medium" ? { bg: "bg-amber-100", text: "text-amber-700" } :
+                    { bg: "bg-red-100", text: "text-red-700" };
+  const COLORS = ["#1e40af", "#059669", "#f59e0b", "#dc2626", "#7c3aed", "#0891b2", "#db2777", "#65a30d"];
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-2">
-          <Layers className="w-5 h-5 text-purple-500" />
-          <h3 className="font-semibold text-slate-900">Client Concentration Risk</h3>
+    <div className="bg-white rounded-lg border border-slate-200 p-3 shadow-sm">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-1.5">
+          <Layers className="w-4 h-4 text-purple-500" />
+          <h3 className="text-xs font-semibold text-slate-900">Concentration Risk</h3>
         </div>
-        <span className={cn("px-3 py-1 rounded-full text-sm font-semibold capitalize", riskColor.badge)}>
-          {concentrationRisk.riskLevel} Risk
+        <span className={cn("px-2 py-0.5 rounded-full text-[10px] font-semibold capitalize", riskColor.bg, riskColor.text)}>
+          {concentrationRisk.riskLevel}
         </span>
       </div>
 
-      <div className="grid grid-cols-2 gap-6">
-        {/* Left: Stats */}
-        <div className="space-y-4">
-          {/* Top 10 Share */}
+      <div className="flex items-center gap-4">
+        <div className="flex-1 space-y-2">
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-slate-500">Top 10 Clients Share</span>
-              <span className="text-sm font-semibold text-slate-800">{concentrationRisk.top10Percentage.toFixed(1)}%</span>
+            <div className="flex items-center justify-between mb-1 text-[10px]">
+              <span className="text-slate-500">Top 10 Share</span>
+              <span className="font-semibold text-slate-800">{concentrationRisk.top10Percentage.toFixed(1)}%</span>
             </div>
-            <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-              <div
-                className={cn("h-full rounded-full transition-all", riskColor.bg)}
-                style={{ width: `${Math.min(concentrationRisk.top10Percentage, 100)}%` }}
-              />
+            <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+              <div className={cn("h-full rounded-full", riskColor.bg)} style={{ width: `${Math.min(concentrationRisk.top10Percentage, 100)}%` }} />
             </div>
           </div>
-
-          {/* HHI Index */}
-          <div className="bg-slate-50 rounded-lg p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-slate-500 mb-1">Herfindahl-Hirschman Index</p>
-                <p className="text-2xl font-bold text-slate-900">{concentrationRisk.herfindahlIndex.toFixed(0)}</p>
-              </div>
-              <div className={cn("p-3 rounded-full", riskColor.bg)}>
-                <BarChart3 className={cn("w-5 h-5", riskColor.text)} />
-              </div>
+          <div className="grid grid-cols-2 gap-2 text-[10px]">
+            <div className="bg-slate-50 rounded p-1.5 text-center">
+              <p className="text-slate-500">HHI</p>
+              <p className="font-bold text-slate-800">{concentrationRisk.herfindahlIndex.toFixed(0)}</p>
             </div>
-            <p className="text-xs text-slate-500 mt-2">
-              {concentrationRisk.herfindahlIndex < 1500
-                ? "Well diversified client base"
-                : concentrationRisk.herfindahlIndex < 2500
-                  ? "Moderate concentration"
-                  : "High concentration - consider diversification"}
-            </p>
-          </div>
-
-          {/* Quick Stats */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-slate-50 rounded-lg p-3 text-center">
-              <p className="text-xs text-slate-500 mb-1">Total Revenue</p>
-              <p className="text-sm font-bold text-slate-800">{formatIndianNumber(concentrationRisk.totalRevenue).replace("₹", "")}</p>
-            </div>
-            <div className="bg-slate-50 rounded-lg p-3 text-center">
-              <p className="text-xs text-slate-500 mb-1">Top 10 Revenue</p>
-              <p className="text-sm font-bold text-slate-800">{formatIndianNumber(concentrationRisk.top10ClientsRevenue).replace("₹", "")}</p>
+            <div className="bg-slate-50 rounded p-1.5 text-center">
+              <p className="text-slate-500">Industries</p>
+              <p className="font-bold text-slate-800">{concentrationRisk.industryDiversification.length}</p>
             </div>
           </div>
         </div>
 
-        {/* Right: Industry Diversification Pie Chart */}
-        <div>
-          <p className="text-sm text-slate-500 mb-3">Industry Diversification</p>
-          {concentrationRisk.industryDiversification.length > 0 ? (
-            <div className="flex items-center gap-4">
-              <ChartContainer config={industryChartConfig} className="h-[140px] w-[140px]">
-                <PieChart width={140} height={140}>
-                  <Pie
-                    data={concentrationRisk.industryDiversification}
-                    dataKey="percentage"
-                    nameKey="industry"
-                    innerRadius={40}
-                    outerRadius={65}
-                    paddingAngle={2}
-                    strokeWidth={0}
-                  >
-                    {concentrationRisk.industryDiversification.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <ChartTooltip
-                    content={({ payload }) => {
-                      if (payload && payload.length) {
-                        const d = payload[0].payload;
-                        return (
-                          <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-lg">
-                            <p className="font-medium text-slate-800 text-sm">{d.industry}</p>
-                            <p className="text-slate-600 text-sm">{d.clientCount} clients</p>
-                            <p className="text-slate-500 text-xs">{d.percentage.toFixed(1)}%</p>
-                          </div>
-                        );
-                      }
-                      return null;
-                    }}
-                  />
-                </PieChart>
-              </ChartContainer>
-              <div className="flex-1 space-y-2 max-h-[140px] overflow-y-auto">
-                {concentrationRisk.industryDiversification.slice(0, 5).map((item, idx) => (
-                  <div key={idx} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-sm" style={{ background: COLORS[idx % COLORS.length] }} />
-                      <span className="text-xs text-slate-600 truncate max-w-[80px]">{item.industry}</span>
-                    </div>
-                    <span className="text-xs font-medium text-slate-800">{item.percentage.toFixed(1)}%</span>
-                  </div>
+        <div className="w-[100px]">
+          <ChartContainer config={revenueChartConfig} className="h-[80px] w-[80px] mx-auto">
+            <PieChart width={80} height={80}>
+              <Pie
+                data={concentrationRisk.industryDiversification.slice(0, 6)}
+                dataKey="percentage"
+                nameKey="industry"
+                innerRadius={25}
+                outerRadius={38}
+                paddingAngle={1}
+                strokeWidth={0}
+              >
+                {concentrationRisk.industryDiversification.slice(0, 6).map((_, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
-                {concentrationRisk.industryDiversification.length > 5 && (
-                  <p className="text-xs text-slate-400">+{concentrationRisk.industryDiversification.length - 5} more</p>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="h-[140px] flex items-center justify-center text-slate-500 text-sm">
-              No industry data available
-            </div>
-          )}
+              </Pie>
+            </PieChart>
+          </ChartContainer>
+          <p className="text-[9px] text-slate-500 text-center mt-1">By Industry</p>
         </div>
       </div>
     </div>
@@ -933,7 +544,6 @@ const RevenueReportDashboard = () => {
 
   const chartRef = useRef<HTMLDivElement | null>(null);
 
-  // Chart data
   const revenueChartData = useMemo(() => {
     return revenueData?.data?.monthlyBreakdown.map((item) => ({
       period: item.period,
@@ -945,7 +555,6 @@ const RevenueReportDashboard = () => {
 
   const collectionChartData = useMemo(() => {
     if (!expectedVsCollectedData?.data) return [];
-
     const periodMap = new Map<string, { period: string; expected: number; collected: number }>();
     expectedVsCollectedData.data.newSales.breakdown.forEach((item) => {
       const existing = periodMap.get(item.period) || { period: item.period, expected: 0, collected: 0 };
@@ -959,11 +568,9 @@ const RevenueReportDashboard = () => {
       existing.collected += item.collected;
       periodMap.set(item.period, existing);
     });
-
     return Array.from(periodMap.values());
   }, [expectedVsCollectedData]);
 
-  // Summary calculations
   const summary = useMemo(() => {
     const newSales = revenueData?.data?.summary.totalNewSalesRevenue || 0;
     const amc = revenueData?.data?.summary.totalAMCRevenue || 0;
@@ -971,7 +578,6 @@ const RevenueReportDashboard = () => {
     const collected = expectedVsCollectedData?.data?.total.collected || 0;
     const expected = expectedVsCollectedData?.data?.total.expected || 0;
     const collectionRate = expected > 0 ? (collected / expected) * 100 : 0;
-
     return { newSales, amc, total, collected, expected, collectionRate };
   }, [revenueData, expectedVsCollectedData]);
 
@@ -999,29 +605,17 @@ const RevenueReportDashboard = () => {
       const imgData = canvas.toDataURL("image/png");
       const fyLabel = `FY ${fiscalYear}-${(fiscalYear + 1).toString().slice(-2)}`;
 
-      // Header
-      pdf.setFillColor(30, 64, 175); // Deep blue
-      pdf.rect(0, 0, 297, 25, "F");
+      pdf.setFillColor(30, 64, 175);
+      pdf.rect(0, 0, 297, 20, "F");
       pdf.setTextColor(255, 255, 255);
-      pdf.setFontSize(20).setFont("Helvetica", "", "bold");
-      pdf.text("Revenue Report Dashboard", 15, 16);
+      pdf.setFontSize(16).setFont("Helvetica", "", "bold");
+      pdf.text("Revenue Report Dashboard", 15, 13);
+      pdf.setFontSize(9).setFont("Helvetica", "", "normal");
+      pdf.text(`${fyLabel} | ${new Date().toLocaleDateString()}`, 200, 13);
 
-      pdf.setFontSize(11).setFont("Helvetica", "", "normal");
-      pdf.text(`Fiscal Year: ${fyLabel}`, 200, 12);
-      pdf.text(`Generated: ${new Date().toLocaleDateString()}`, 200, 18);
-
-      // Content
       const imgWidth = 270;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      pdf.addImage(imgData, "PNG", 13.5, 30, imgWidth, imgHeight);
-
-      // Footer
-      pdf.setFillColor(248, 250, 252);
-      pdf.rect(0, 195, 297, 12, "F");
-      pdf.setTextColor(100, 116, 139);
-      pdf.setFontSize(8);
-      pdf.text("Confidential - For Internal Use Only", 15, 202);
-      pdf.text(`Page 1 of 1`, 270, 202);
+      pdf.addImage(imgData, "PNG", 13.5, 25, imgWidth, imgHeight);
 
       pdf.save(`Revenue_Report_${fyLabel.replace(/\s/g, "_")}.pdf`);
     });
@@ -1032,307 +626,148 @@ const RevenueReportDashboard = () => {
 
   return (
     <div className="min-h-screen bg-slate-50/50">
-      {/* Header */}
+      {/* Compact Header */}
       <div className="bg-white border-b border-slate-200 sticky top-0 z-10">
-        <div className="max-w-[1600px] mx-auto px-6 py-4">
+        <div className="max-w-[1600px] mx-auto px-4 py-2">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-600 rounded-lg">
-                  <BarChart3 className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-xl font-bold text-slate-900">Revenue Dashboard</h1>
-                  <p className="text-sm text-slate-500">Financial Performance Report</p>
-                </div>
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 bg-blue-600 rounded-lg">
+                <BarChart3 className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <h1 className="text-base font-bold text-slate-900">Revenue Dashboard</h1>
+                <p className="text-[10px] text-slate-500">{fyLabel} • Updated {getCurrentPeriod()}</p>
               </div>
             </div>
-
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 rounded-lg">
-                <Calendar className="w-4 h-4 text-slate-500" />
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 px-2 py-1 bg-slate-100 rounded-lg">
+                <Calendar className="w-3 h-3 text-slate-500" />
                 <Select value={fiscalYear.toString()} onValueChange={(v) => setFiscalYear(Number(v))}>
-                  <SelectTrigger className="w-[140px] border-0 bg-transparent shadow-none h-8 font-medium">
+                  <SelectTrigger className="w-[120px] border-0 bg-transparent shadow-none h-7 text-xs">
                     <SelectValue placeholder="Fiscal Year" />
                   </SelectTrigger>
                   <SelectContent>
                     {generateYears().map((y) => (
-                      <SelectItem key={y.value} value={y.value}>{y.label}</SelectItem>
+                      <SelectItem key={y.value} value={y.value} className="text-xs">{y.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-
-              <Button onClick={handleDownloadPDF} className="gap-2 bg-slate-800 hover:bg-slate-900">
-                <Download className="w-4 h-4" />
-                Export Report
+              <Button onClick={handleDownloadPDF} className="gap-1.5 bg-slate-800 hover:bg-slate-900 h-7 text-xs px-3">
+                <Download className="w-3 h-3" />
+                Export
               </Button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div ref={chartRef} className="max-w-[1600px] mx-auto px-6 py-6 space-y-6">
+      {/* Main Content - Compact Layout */}
+      <div ref={chartRef} className="max-w-[1600px] mx-auto px-4 py-3 space-y-3">
         {isLoading ? (
-          <div className="py-20"><Loading /></div>
+          <div className="py-10"><Loading /></div>
         ) : (
           <>
-            {/* Report Meta Bar */}
-            <div className="flex items-center justify-between px-4 py-3 bg-blue-50 border border-blue-100 rounded-lg">
-              <div className="flex items-center gap-6">
-                <div className="flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-blue-600" />
-                  <span className="text-sm text-slate-600">Report Period:</span>
-                  <span className="text-sm font-semibold text-slate-800">{fyLabel}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-blue-600" />
-                  <span className="text-sm text-slate-600">Last Updated:</span>
-                  <span className="text-sm font-semibold text-slate-800">{getCurrentPeriod()}</span>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Activity className="w-4 h-4 text-emerald-600" />
-                <span className="text-sm font-medium text-emerald-700">Live Data</span>
-              </div>
+            {/* Row 1: KPI Cards */}
+            <div className="grid grid-cols-6 gap-2">
+              <CompactKPICard title="Total Revenue" value={formatIndianNumber(summary.total)} subtitle={formatCurrency(summary.total)} icon={DollarSign} color="#1e40af" />
+              <CompactKPICard title="New Sales" value={formatIndianNumber(summary.newSales)} subtitle={formatCurrency(summary.newSales)} icon={Building2} color="#1e40af" />
+              <CompactKPICard title="AMC Revenue" value={formatIndianNumber(summary.amc)} subtitle={formatCurrency(summary.amc)} icon={Receipt} color="#059669" />
+              <CompactKPICard title="Collection Rate" value={`${summary.collectionRate.toFixed(0)}%`} subtitle={`of ${formatCurrency(summary.expected)}`} icon={Target} color={summary.collectionRate >= 80 ? "#059669" : summary.collectionRate >= 60 ? "#f59e0b" : "#dc2626"} />
+              <CompactCollectionProgress title="Sales Collection" expected={expectedVsCollectedData?.data?.newSales.expected || 0} collected={expectedVsCollectedData?.data?.newSales.collected || 0} icon={Building2} />
+              <CompactCollectionProgress title="AMC Collection" expected={expectedVsCollectedData?.data?.amc.expected || 0} collected={expectedVsCollectedData?.data?.amc.collected || 0} icon={Receipt} />
             </div>
 
-            {/* Executive KPI Cards */}
-            <div className="grid grid-cols-4 gap-4">
-              <ExecutiveKPICard
-                title="Total Revenue"
-                value={formatIndianNumber(summary.total)}
-                subtitle={formatCurrency(summary.total)}
-                icon={DollarSign}
-                accentColor="#1e40af"
-              />
-              <ExecutiveKPICard
-                title="New Sales"
-                value={formatIndianNumber(summary.newSales)}
-                subtitle={formatCurrency(summary.newSales)}
-                icon={Building2}
-                accentColor="#1e40af"
-              />
-              <ExecutiveKPICard
-                title="AMC Revenue"
-                value={formatIndianNumber(summary.amc)}
-                subtitle={formatCurrency(summary.amc)}
-                icon={Receipt}
-                accentColor="#059669"
-              />
-              <ExecutiveKPICard
-                title="Collection Rate"
-                value={`${summary.collectionRate.toFixed(1)}%`}
-                subtitle={`of ${formatCurrency(summary.expected)}`}
-                icon={Target}
-                accentColor={summary.collectionRate >= 80 ? "#059669" : summary.collectionRate >= 60 ? "#f59e0b" : "#dc2626"}
-              />
-            </div>
-
-            {/* Collection Progress Cards */}
-            <div className="grid grid-cols-3 gap-4">
-              <CollectionProgressCard
-                title="New Sales Collection"
-                expected={expectedVsCollectedData?.data?.newSales.expected || 0}
-                collected={expectedVsCollectedData?.data?.newSales.collected || 0}
-                icon={Building2}
-              />
-              <CollectionProgressCard
-                title="AMC Collection"
-                expected={expectedVsCollectedData?.data?.amc.expected || 0}
-                collected={expectedVsCollectedData?.data?.amc.collected || 0}
-                icon={Receipt}
-              />
-              <RevenueSplitDonut
-                newSales={summary.newSales}
-                amc={summary.amc}
-              />
-            </div>
-
-            {/* Charts Row */}
-            <div className="grid grid-cols-2 gap-6">
+            {/* Row 2: Charts */}
+            <div className="grid grid-cols-3 gap-3">
               {/* Revenue Trend Chart */}
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
-                <div className="px-6 py-4 border-b border-slate-100">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-semibold text-slate-900">Revenue Trend</h3>
-                      <p className="text-sm text-slate-500 mt-0.5">Monthly breakdown by source • Click bars for details</p>
-                    </div>
-                    <div className="flex items-center gap-4 text-sm">
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-3 h-3 rounded-sm" style={{ background: CHART_COLORS.newSales }} />
-                        <span className="text-slate-600">New Sales</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-3 h-3 rounded-sm" style={{ background: CHART_COLORS.amc }} />
-                        <span className="text-slate-600">AMC</span>
-                      </div>
-                    </div>
+              <div className="col-span-2 bg-white rounded-lg border border-slate-200 shadow-sm">
+                <div className="px-3 py-2 border-b border-slate-100 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-xs font-semibold text-slate-900">Revenue Trend</h3>
+                    <p className="text-[10px] text-slate-500">Click bars for details</p>
+                  </div>
+                  <div className="flex items-center gap-3 text-[10px]">
+                    <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-sm" style={{ background: CHART_COLORS.newSales }} /><span className="text-slate-600">New Sales</span></div>
+                    <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-sm" style={{ background: CHART_COLORS.amc }} /><span className="text-slate-600">AMC</span></div>
                   </div>
                 </div>
-                <div className="p-6">
+                <div className="p-2">
                   {revenueChartData.length > 0 ? (
-                    <ChartContainer config={revenueChartConfig} className="h-[320px] w-full">
-                      <ResponsiveContainer width="100%" height={320}>
-                        <BarChart data={revenueChartData} barCategoryGap="20%">
+                    <ChartContainer config={revenueChartConfig} className="h-[180px] w-full">
+                      <ResponsiveContainer width="100%" height={180}>
+                        <BarChart data={revenueChartData} barCategoryGap="15%">
                           <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#e2e8f0" />
-                          <XAxis
-                            dataKey="period"
-                            tickLine={false}
-                            axisLine={{ stroke: "#e2e8f0" }}
-                            tick={{ fill: "#64748b", fontSize: 11, fontWeight: 500 }}
-                            angle={-45}
-                            textAnchor="end"
-                            height={70}
-                          />
-                          <YAxis
-                            tickLine={false}
-                            axisLine={false}
-                            tick={{ fill: "#64748b", fontSize: 11 }}
-                            tickFormatter={(v) => {
-                              if (v >= 10000000) return `${(v / 10000000).toFixed(0)}Cr`;
-                              if (v >= 100000) return `${(v / 100000).toFixed(0)}L`;
-                              if (v >= 1000) return `${(v / 1000).toFixed(0)}K`;
-                              return v;
-                            }}
-                          />
-                          <ChartTooltip content={<ProfessionalTooltip />} />
-                          <Bar
-                            name="New Sales"
-                            dataKey="newSalesRevenue"
-                            stackId="a"
-                            fill={CHART_COLORS.newSales}
-                            radius={[0, 0, 0, 0]}
-                            cursor="pointer"
-                            onClick={handleBarClick}
-                          />
-                          <Bar
-                            name="AMC Revenue"
-                            dataKey="amcRevenue"
-                            stackId="a"
-                            fill={CHART_COLORS.amc}
-                            radius={[4, 4, 0, 0]}
-                            cursor="pointer"
-                            onClick={handleBarClick}
-                          />
+                          <XAxis dataKey="period" tickLine={false} axisLine={{ stroke: "#e2e8f0" }} tick={{ fill: "#64748b", fontSize: 9 }} angle={-45} textAnchor="end" height={50} />
+                          <YAxis tickLine={false} axisLine={false} tick={{ fill: "#64748b", fontSize: 9 }} tickFormatter={(v) => v >= 10000000 ? `${(v/10000000).toFixed(0)}Cr` : v >= 100000 ? `${(v/100000).toFixed(0)}L` : v >= 1000 ? `${(v/1000).toFixed(0)}K` : v} />
+                          <ChartTooltip content={<CompactTooltip />} />
+                          <Bar name="New Sales" dataKey="newSalesRevenue" stackId="a" fill={CHART_COLORS.newSales} cursor="pointer" onClick={handleBarClick} />
+                          <Bar name="AMC Revenue" dataKey="amcRevenue" stackId="a" fill={CHART_COLORS.amc} radius={[2, 2, 0, 0]} cursor="pointer" onClick={handleBarClick} />
                         </BarChart>
                       </ResponsiveContainer>
                     </ChartContainer>
                   ) : (
-                    <div className="h-[320px] flex items-center justify-center text-slate-500">
-                      No data available for this period
-                    </div>
+                    <div className="h-[180px] flex items-center justify-center text-slate-500 text-xs">No data available</div>
                   )}
                 </div>
               </div>
 
-              {/* Collection Comparison Chart */}
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
-                <div className="px-6 py-4 border-b border-slate-100">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-semibold text-slate-900">Expected vs Collected</h3>
-                      <p className="text-sm text-slate-500 mt-0.5">Monthly collection performance analysis</p>
-                    </div>
-                    <div className="flex items-center gap-4 text-sm">
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-3 h-3 rounded-sm" style={{ background: CHART_COLORS.expected }} />
-                        <span className="text-slate-600">Expected</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-3 h-3 rounded-sm" style={{ background: CHART_COLORS.collected }} />
-                        <span className="text-slate-600">Collected</span>
-                      </div>
-                    </div>
+              {/* Expected vs Collected + Revenue Split */}
+              <div className="space-y-2">
+                <div className="bg-white rounded-lg border border-slate-200 shadow-sm">
+                  <div className="px-3 py-2 border-b border-slate-100">
+                    <h3 className="text-xs font-semibold text-slate-900">Expected vs Collected</h3>
+                  </div>
+                  <div className="p-2">
+                    {collectionChartData.length > 0 ? (
+                      <ChartContainer config={revenueChartConfig} className="h-[130px] w-full">
+                        <ResponsiveContainer width="100%" height={130}>
+                          <BarChart data={collectionChartData} barCategoryGap="20%">
+                            <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#e2e8f0" />
+                            <XAxis dataKey="period" tickLine={false} axisLine={{ stroke: "#e2e8f0" }} tick={{ fill: "#64748b", fontSize: 8 }} angle={-45} textAnchor="end" height={40} />
+                            <YAxis tickLine={false} axisLine={false} tick={{ fill: "#64748b", fontSize: 8 }} tickFormatter={(v) => v >= 100000 ? `${(v/100000).toFixed(0)}L` : v >= 1000 ? `${(v/1000).toFixed(0)}K` : v} />
+                            <ChartTooltip content={<CompactTooltip />} />
+                            <Bar name="Expected" dataKey="expected" fill={CHART_COLORS.expected} radius={[2, 2, 0, 0]} />
+                            <Bar name="Collected" dataKey="collected" fill={CHART_COLORS.collected} radius={[2, 2, 0, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </ChartContainer>
+                    ) : (
+                      <div className="h-[130px] flex items-center justify-center text-slate-500 text-xs">No data</div>
+                    )}
                   </div>
                 </div>
-                <div className="p-6">
-                  {collectionChartData.length > 0 ? (
-                    <ChartContainer config={revenueChartConfig} className="h-[320px] w-full">
-                      <ResponsiveContainer width="100%" height={320}>
-                        <BarChart data={collectionChartData} barCategoryGap="25%">
-                          <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#e2e8f0" />
-                          <XAxis
-                            dataKey="period"
-                            tickLine={false}
-                            axisLine={{ stroke: "#e2e8f0" }}
-                            tick={{ fill: "#64748b", fontSize: 11, fontWeight: 500 }}
-                            angle={-45}
-                            textAnchor="end"
-                            height={70}
-                          />
-                          <YAxis
-                            tickLine={false}
-                            axisLine={false}
-                            tick={{ fill: "#64748b", fontSize: 11 }}
-                            tickFormatter={(v) => {
-                              if (v >= 10000000) return `${(v / 10000000).toFixed(0)}Cr`;
-                              if (v >= 100000) return `${(v / 100000).toFixed(0)}L`;
-                              if (v >= 1000) return `${(v / 1000).toFixed(0)}K`;
-                              return v;
-                            }}
-                          />
-                          <ChartTooltip content={<ProfessionalTooltip type="collection" />} />
-                          <Bar
-                            name="Expected"
-                            dataKey="expected"
-                            fill={CHART_COLORS.expected}
-                            radius={[4, 4, 0, 0]}
-                          />
-                          <Bar
-                            name="Collected"
-                            dataKey="collected"
-                            fill={CHART_COLORS.collected}
-                            radius={[4, 4, 0, 0]}
-                          />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </ChartContainer>
-                  ) : (
-                    <div className="h-[320px] flex items-center justify-center text-slate-500">
-                      No data available for this period
-                    </div>
-                  )}
-                </div>
+                <CompactRevenueDonut newSales={summary.newSales} amc={summary.amc} />
               </div>
             </div>
 
-            {/* ==================== CLIENT HEALTH & RETENTION SECTION ==================== */}
+            {/* Row 3: Client Health & Retention Section */}
             {clientHealthData?.data && (
               <>
-                {/* Section Divider */}
-                <div className="flex items-center gap-4 py-2">
-                  <div className="flex-1 h-px bg-slate-200" />
-                  <span className="text-sm font-medium text-slate-500 flex items-center gap-2">
-                    <Heart className="w-4 h-4 text-rose-500" />
-                    Client Health & Retention Analytics
-                  </span>
+                <div className="flex items-center gap-3 py-1">
+                  <Heart className="w-3.5 h-3.5 text-rose-500" />
+                  <span className="text-xs font-medium text-slate-600">Client Health & Retention</span>
                   <div className="flex-1 h-px bg-slate-200" />
                 </div>
 
-                {/* Client Health Scorecard */}
-                <ClientHealthScorecard healthMetrics={clientHealthData.data.healthMetrics} />
-
-                {/* Client Performers Table */}
-                <ClientPerformersTable
-                  topClients={clientHealthData.data.topPerformers.topClients}
-                  atRiskClients={clientHealthData.data.topPerformers.atRiskClients}
-                />
-
-                {/* Client Concentration Risk */}
-                <ClientConcentrationRiskCard concentrationRisk={clientHealthData.data.concentrationRisk} />
+                <div className="grid grid-cols-3 gap-3">
+                  <CompactClientHealthScorecard healthMetrics={clientHealthData.data.healthMetrics} />
+                  <CompactClientPerformers
+                    topClients={clientHealthData.data.topPerformers.topClients}
+                    atRiskClients={clientHealthData.data.topPerformers.atRiskClients}
+                  />
+                  <CompactConcentrationRisk concentrationRisk={clientHealthData.data.concentrationRisk} />
+                </div>
               </>
             )}
 
-            {/* Footer Note */}
-            <div className="flex items-center justify-between px-4 py-3 bg-slate-100 rounded-lg text-sm text-slate-500">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="w-4 h-4" />
-                <span>Click on chart bars to view detailed breakdown</span>
+            {/* Footer */}
+            <div className="flex items-center justify-between px-3 py-2 bg-slate-100 rounded text-[10px] text-slate-500">
+              <div className="flex items-center gap-1">
+                <AlertCircle className="w-3 h-3" />
+                <span>Click chart bars for details</span>
               </div>
-              <span>Report generated on {new Date().toLocaleDateString("en-IN", { dateStyle: "full" })}</span>
+              <span>Generated: {new Date().toLocaleDateString("en-IN", { dateStyle: "medium" })}</span>
             </div>
           </>
         )}
@@ -1340,7 +775,7 @@ const RevenueReportDashboard = () => {
 
       {/* Drilldown Modal */}
       <Dialog open={!!selectedPeriod} onOpenChange={() => setSelectedPeriod(null)}>
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           {selectedPeriod && (
             <MonthlyDrilldownModal period={selectedPeriod.period} year={selectedPeriod.year} month={selectedPeriod.month} />
           )}
