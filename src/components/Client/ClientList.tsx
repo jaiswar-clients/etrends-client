@@ -61,7 +61,6 @@ interface IProps {
       | "parentCompanyId",
     value: string | undefined,
   ) => void;
-  onHasOrdersChange: (value: boolean) => void;
   onPageChange: (page: number) => void;
   isLoading?: boolean;
   selectedFY?: string;
@@ -163,7 +162,6 @@ const ClientList: React.FC<IProps> = ({
   pagination,
   initialFilters,
   onFilterChange,
-  onHasOrdersChange,
   onPageChange,
   isLoading,
   selectedFY,

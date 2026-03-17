@@ -20,17 +20,20 @@ const Client = () => {
     const [isDownloading, setIsDownloading] = useState(false)
     
     // Function to update query params
-    const createQueryString = (params: Record<string, string | number | undefined>) => {
-        const newSearchParams = new URLSearchParams(searchParams?.toString())
-        for (const [key, value] of Object.entries(params)) {
-            if (value === undefined || value === null || value === '') {
-                newSearchParams.delete(key)
-            } else {
-                newSearchParams.set(key, String(value))
+    const createQueryString = React.useCallback(
+        (params: Record<string, string | number | undefined>) => {
+            const newSearchParams = new URLSearchParams(searchParams?.toString())
+            for (const [key, value] of Object.entries(params)) {
+                if (value === undefined || value === null || value === "") {
+                    newSearchParams.delete(key)
+                } else {
+                    newSearchParams.set(key, String(value))
+                }
             }
-        }
-        return newSearchParams.toString()
-    }
+            return newSearchParams.toString()
+        },
+        [searchParams]
+    )
     
     // Get initial filters from URL
     const [queryArgs, setQueryArgs] = useState(() => {
@@ -96,7 +99,7 @@ const Client = () => {
         
         // Use replace to avoid adding duplicate entries to history
         router.replace(`${pathname}?${queryString}`, { scroll: false })
-    }, [queryArgs, router, pathname])
+    }, [queryArgs, router, pathname, createQueryString])
     
     // Effect to refetch data when page changes
     useEffect(() => {
@@ -108,10 +111,6 @@ const Client = () => {
         value: string | undefined
     ) => {
         setQueryArgs(prev => ({ ...prev, [filterType]: value, page: 1 })) // Reset page on filter change
-    }
-    
-    const handleHasOrdersChange = (value: boolean) => {
-        setQueryArgs(prev => ({ ...prev, hasOrders: value, page: 1 }))
     }
     
     const handleFYFilterChange = (fy: string | undefined) => {
@@ -252,7 +251,6 @@ const Client = () => {
                         pagination={data?.data.pagination ?? { total: 0, page: 1, limit: 10, pages: 1 }}
                         initialFilters={queryArgs}
                         onFilterChange={handleFilterChange}
-                        onHasOrdersChange={handleHasOrdersChange}
                         onPageChange={handlePageChange}
                         isLoading={isFetching}
                         selectedFY={queryArgs.fy}

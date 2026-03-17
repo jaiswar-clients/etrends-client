@@ -14,10 +14,6 @@ import {
   Label,
 } from "recharts";
 import {
-  Card,
-  CardContent,
-} from "@/components/ui/card";
-import {
   ChartContainer,
   ChartTooltip,
   type ChartConfig,
@@ -50,9 +46,6 @@ import { cn, formatCurrency, formatIndianNumber } from "@/lib/utils";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import {
-  ArrowUpRight,
-  ArrowDownRight,
-  Minus,
   Calendar,
   Building2,
   Receipt,
@@ -60,21 +53,13 @@ import {
   DollarSign,
   BarChart3,
   Download,
-  Clock,
-  CheckCircle2,
   AlertCircle,
-  Activity,
-  Users,
-  ShieldAlert,
   Heart,
-  UserCheck,
-  RefreshCw,
-  AlertTriangle,
   Layers,
-  TrendingUp,
 } from "lucide-react";
 
 const DEFAULT_FILTER = "monthly" as const;
+type FilterType = "monthly" | "quarterly";
 const CHART_COLORS = {
   newSales: "#1e40af",
   amc: "#059669",
@@ -531,6 +516,7 @@ const RevenueReportDashboard = () => {
   const defaultFiscalYear = currentMonth < 3 ? currentYear - 1 : currentYear;
 
   const [fiscalYear, setFiscalYear] = useState<number>(defaultFiscalYear);
+  const [filterType, setFilterType] = useState<FilterType>(DEFAULT_FILTER);
   const [selectedPeriod, setSelectedPeriod] = useState<{ period: string; year: number; month: number } | null>(null);
 
   const revenueFilters: IReportQueries = useMemo(() => ({
