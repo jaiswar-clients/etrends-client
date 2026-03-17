@@ -520,12 +520,12 @@ const RevenueReportDashboard = () => {
   const [selectedPeriod, setSelectedPeriod] = useState<{ period: string; year: number; month: number } | null>(null);
 
   const revenueFilters: IReportQueries = useMemo(() => ({
-    filter: DEFAULT_FILTER,
+    filter: filterType,
     options: { year: fiscalYear },
-  }), [fiscalYear]);
+  }), [fiscalYear, filterType]);
 
   const { data: revenueData, isLoading: isRevenueLoading } = useGetRevenueDashboardQuery(revenueFilters);
-  const { data: expectedVsCollectedData, isLoading: isExpectedVsCollectedLoading } = useGetExpectedVsCollectedQuery({ fiscalYear });
+  const { data: expectedVsCollectedData, isLoading: isExpectedVsCollectedLoading } = useGetExpectedVsCollectedQuery({ fiscalYear, filter: filterType });
   const { data: clientHealthData, isLoading: isClientHealthLoading } = useGetClientHealthDashboardQuery({ fiscalYear });
 
   const chartRef = useRef<HTMLDivElement | null>(null);
@@ -636,6 +636,18 @@ const RevenueReportDashboard = () => {
                     {generateYears().map((y) => (
                       <SelectItem key={y.value} value={y.value} className="text-xs">{y.label}</SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-1 px-2 py-1 bg-slate-100 rounded-lg">
+                <BarChart3 className="w-3 h-3 text-slate-500" />
+                <Select value={filterType} onValueChange={(v) => setFilterType(v as FilterType)}>
+                  <SelectTrigger className="w-[100px] border-0 bg-transparent shadow-none h-7 text-xs">
+                    <SelectValue placeholder="View" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="monthly" className="text-xs">Monthly</SelectItem>
+                    <SelectItem value="quarterly" className="text-xs">Quarterly</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

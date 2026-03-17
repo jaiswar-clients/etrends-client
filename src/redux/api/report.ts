@@ -257,10 +257,10 @@ export const reportApi = createApi({
     }),
     getExpectedVsCollected: builder.query<
       IResponse<IExpectedVsCollectedResponse>,
-      { fiscalYear: number }
+      { fiscalYear: number; filter?: IReportFilters }
     >({
-      query: ({ fiscalYear }) => ({
-        url: `/expected-vs-collected?fiscalYear=${fiscalYear}`,
+      query: ({ fiscalYear, filter = 'monthly' }) => ({
+        url: `/expected-vs-collected?fiscalYear=${fiscalYear}&filter=${filter}`,
         method: HTTP_REQUEST.GET,
       }),
     }),
