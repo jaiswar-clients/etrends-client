@@ -53,6 +53,7 @@ import {
   useGetRevenueDashboardQuery,
   useGetExpectedVsCollectedQuery,
   useGetMonthlyRevenueBreakdownQuery,
+  useGetClientHealthDashboardQuery,
   IReportQueries,
 } from "@/redux/api/report";
 import { cn, formatCurrency, formatIndianNumber } from "@/lib/utils";
@@ -77,6 +78,15 @@ import {
   CheckCircle2,
   AlertCircle,
   Activity,
+  Users,
+  ShieldAlert,
+  AlertTriangle,
+  Heart,
+  UserCheck,
+  UserX,
+  RefreshCw,
+  Layers,
+  BarChart2,
 } from "lucide-react";
 
 // Constants
@@ -492,6 +502,417 @@ const MonthlyDrilldownModal = ({ period, year, month }: { period: string; year: 
   );
 };
 
+// ==================== CLIENT HEALTH & RETENTION COMPONENTS ====================
+
+// Health Score Badge
+const HealthScoreBadge = ({ score }: { score: number }) => {
+  const getColor = () => {
+    if (score >= 80) return { bg: "bg-emerald-100", text: "text-emerald-700", icon: "text-emerald-600" };
+    if (score >= 60) return { bg: "bg-amber-100", text: "text-amber-700", icon: "text-amber-600" };
+    return { bg: "bg-red-100", text: "text-red-700", icon: "text-red-600" };
+  };
+
+  const color = getColor();
+
+  return (
+    <div className={cn("flex items-center gap-2 px-3 py-1.5 rounded-full", color.bg)}>
+      <Heart className={cn("w-4 h-4", color.icon)} />
+      <span className={cn("text-sm font-bold", color.text)}>{score.toFixed(0)}</span>
+    </div>
+  );
+};
+
+// Client Health Scorecard Component
+const ClientHealthScorecard = ({
+  healthMetrics,
+}: {
+  healthMetrics: {
+    totalClients: number;
+    activeClients: number;
+    inactiveClients: number;
+    activePercentage: number;
+    overdueClients: { over30Days: number; over60Days: number; over90Days: number };
+    amcRenewalRate: number;
+  };
+}) => {
+  // Calculate composite health score
+  const healthScore = Math.round(
+    (healthMetrics.activePercentage * 0.3 +
+      healthMetrics.amcRenewalRate * 0.3 +
+      Math.max(0, 100 - (healthMetrics.overdueClients.over60Days + healthMetrics.overdueClients.over90Days) * 5) * 0.4)
+  );
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-2">
+          <Heart className="w-5 h-5 text-rose-500" />
+          <h3 className="font-semibold text-slate-900">Client Health Scorecard</h3>
+        </div>
+        <HealthScoreBadge score={healthScore} />
+      </div>
+
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="bg-slate-50 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Users className="w-4 h-4 text-slate-500" />
+            <span className="text-sm text-slate-500">Total Clients</span>
+          </div>
+          <p className="text-2xl font-bold text-slate-900">{healthMetrics.totalClients}</p>
+        </div>
+        <div className="bg-emerald-50 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <UserCheck className="w-4 h-4 text-emerald-500" />
+            <span className="text-sm text-emerald-600">Active</span>
+          </div>
+          <p className="text-2xl font-bold text-emerald-700">
+            {healthMetrics.activeClients}
+            <span className="text-sm font-normal ml-1">({healthMetrics.activePercentage.toFixed(1)}%)</span>
+          </p>
+        </div>
+        <div className="bg-slate-50 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <UserX className="w-4 h-4 text-slate-500" />
+            <span className="text-sm text-slate-500">Inactive</span>
+          </div>
+          <p className="text-2xl font-bold text-slate-700">{healthMetrics.inactiveClients}</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-4 gap-3">
+        <div className="bg-blue-50 rounded-lg p-3 text-center">
+          <div className="flex items-center justify-center gap-1 mb-1">
+            <RefreshCw className="w-3.5 h-3.5 text-blue-500" />
+            <span className="text-xs text-blue-600 font-medium">AMC Renewal</span>
+          </div>
+          <p className="text-xl font-bold text-blue-700">{healthMetrics.amcRenewalRate.toFixed(0)}%</p>
+        </div>
+        <div className="bg-amber-50 rounded-lg p-3 text-center">
+          <div className="flex items-center justify-center gap-1 mb-1">
+            <Clock className="w-3.5 h-3.5 text-amber-500" />
+            <span className="text-xs text-amber-600 font-medium">30+ Days</span>
+          </div>
+          <p className="text-xl font-bold text-amber-700">{healthMetrics.overdueClients.over30Days}</p>
+        </div>
+        <div className="bg-orange-50 rounded-lg p-3 text-center">
+          <div className="flex items-center justify-center gap-1 mb-1">
+            <AlertTriangle className="w-3.5 h-3.5 text-orange-500" />
+            <span className="text-xs text-orange-600 font-medium">60+ Days</span>
+          </div>
+          <p className="text-xl font-bold text-orange-700">{healthMetrics.overdueClients.over60Days}</p>
+        </div>
+        <div className="bg-red-50 rounded-lg p-3 text-center">
+          <div className="flex items-center justify-center gap-1 mb-1">
+            <ShieldAlert className="w-3.5 h-3.5 text-red-500" />
+            <span className="text-xs text-red-600 font-medium">90+ Days</span>
+          </div>
+          <p className="text-xl font-bold text-red-700">{healthMetrics.overdueClients.over90Days}</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Client Performers Table Component
+const ClientPerformersTable = ({
+  topClients,
+  atRiskClients,
+}: {
+  topClients: any[];
+  atRiskClients: any[];
+}) => {
+  const [activeTab, setActiveTab] = useState<"top" | "risk">("top");
+  const data = activeTab === "top" ? topClients : atRiskClients;
+
+  const getTrendIcon = (trend: string, percentage: number) => {
+    if (trend === "up") {
+      return (
+        <span className="flex items-center gap-1 text-emerald-600">
+          <ArrowUpRight className="w-4 h-4" />
+          <span className="text-xs font-medium">+{percentage.toFixed(0)}%</span>
+        </span>
+      );
+    } else if (trend === "down") {
+      return (
+        <span className="flex items-center gap-1 text-red-600">
+          <ArrowDownRight className="w-4 h-4" />
+          <span className="text-xs font-medium">{percentage.toFixed(0)}%</span>
+        </span>
+      );
+    }
+    return (
+      <span className="flex items-center gap-1 text-slate-500">
+        <Minus className="w-4 h-4" />
+        <span className="text-xs font-medium">0%</span>
+      </span>
+    );
+  };
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="px-6 py-4 border-b border-slate-100">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <BarChart2 className="w-5 h-5 text-blue-600" />
+            <h3 className="font-semibold text-slate-900">Client Performance</h3>
+          </div>
+          <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg">
+            <button
+              onClick={() => setActiveTab("top")}
+              className={cn(
+                "px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
+                activeTab === "top" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+              )}
+            >
+              Top Performers
+            </button>
+            <button
+              onClick={() => setActiveTab("risk")}
+              className={cn(
+                "px-3 py-1.5 text-sm font-medium rounded-md transition-colors flex items-center gap-1.5",
+                activeTab === "risk" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+              )}
+            >
+              At Risk
+              {atRiskClients.length > 0 && (
+                <span className="bg-red-100 text-red-700 text-xs px-1.5 py-0.5 rounded-full">
+                  {atRiskClients.length}
+                </span>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        {data.length > 0 ? (
+          <table className="w-full">
+            <thead className="bg-slate-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Client</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Industry</th>
+                <th className="px-6 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Revenue</th>
+                <th className="px-6 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">Trend</th>
+                {activeTab === "risk" && (
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Risk Factors</th>
+                )}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {data.map((client, idx) => (
+                <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                        <span className="text-sm font-semibold text-blue-700">
+                          {client.clientName?.charAt(0)?.toUpperCase() || "?"}
+                        </span>
+                      </div>
+                      <span className="font-medium text-slate-800">{client.clientName}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="text-sm text-slate-600">{client.industry || "Unknown"}</span>
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <span className="font-semibold text-slate-800">{formatCurrency(client.totalRevenue)}</span>
+                  </td>
+                  <td className="px-6 py-4 text-center">
+                    {getTrendIcon(client.trend, client.trendPercentage)}
+                  </td>
+                  {activeTab === "risk" && (
+                    <td className="px-6 py-4">
+                      <div className="flex flex-wrap gap-1">
+                        {client.riskFactors?.map((factor: string, i: number) => (
+                          <span
+                            key={i}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-50 text-red-700 text-xs rounded-full"
+                          >
+                            <AlertTriangle className="w-3 h-3" />
+                            {factor}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <div className="py-12 text-center text-slate-500">
+            {activeTab === "top" ? "No client data available" : "No at-risk clients identified"}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Client Concentration Risk Card Component
+const ClientConcentrationRiskCard = ({
+  concentrationRisk,
+}: {
+  concentrationRisk: {
+    totalRevenue: number;
+    top10ClientsRevenue: number;
+    top10Percentage: number;
+    herfindahlIndex: number;
+    riskLevel: "low" | "medium" | "high";
+    industryDiversification: { industry: string; clientCount: number; totalRevenue: number; percentage: number }[];
+  };
+}) => {
+  const getRiskColor = () => {
+    switch (concentrationRisk.riskLevel) {
+      case "low":
+        return { bg: "bg-emerald-100", text: "text-emerald-700", badge: "bg-emerald-50 text-emerald-700" };
+      case "medium":
+        return { bg: "bg-amber-100", text: "text-amber-700", badge: "bg-amber-50 text-amber-700" };
+      case "high":
+        return { bg: "bg-red-100", text: "text-red-700", badge: "bg-red-50 text-red-700" };
+    }
+  };
+
+  const riskColor = getRiskColor();
+
+  // Pie chart data for industry diversification
+  const COLORS = ["#1e40af", "#059669", "#f59e0b", "#dc2626", "#7c3aed", "#0891b2", "#db2777", "#65a30d", "#ea580c", "#6366f1"];
+
+  const industryChartConfig: ChartConfig = {
+    industry: { label: "Industry" },
+  };
+  concentrationRisk.industryDiversification.forEach((item, idx) => {
+    industryChartConfig[item.industry.toLowerCase().replace(/\s+/g, "_")] = {
+      label: item.industry,
+      color: COLORS[idx % COLORS.length],
+    };
+  });
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-2">
+          <Layers className="w-5 h-5 text-purple-500" />
+          <h3 className="font-semibold text-slate-900">Client Concentration Risk</h3>
+        </div>
+        <span className={cn("px-3 py-1 rounded-full text-sm font-semibold capitalize", riskColor.badge)}>
+          {concentrationRisk.riskLevel} Risk
+        </span>
+      </div>
+
+      <div className="grid grid-cols-2 gap-6">
+        {/* Left: Stats */}
+        <div className="space-y-4">
+          {/* Top 10 Share */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-slate-500">Top 10 Clients Share</span>
+              <span className="text-sm font-semibold text-slate-800">{concentrationRisk.top10Percentage.toFixed(1)}%</span>
+            </div>
+            <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+              <div
+                className={cn("h-full rounded-full transition-all", riskColor.bg)}
+                style={{ width: `${Math.min(concentrationRisk.top10Percentage, 100)}%` }}
+              />
+            </div>
+          </div>
+
+          {/* HHI Index */}
+          <div className="bg-slate-50 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-slate-500 mb-1">Herfindahl-Hirschman Index</p>
+                <p className="text-2xl font-bold text-slate-900">{concentrationRisk.herfindahlIndex.toFixed(0)}</p>
+              </div>
+              <div className={cn("p-3 rounded-full", riskColor.bg)}>
+                <BarChart3 className={cn("w-5 h-5", riskColor.text)} />
+              </div>
+            </div>
+            <p className="text-xs text-slate-500 mt-2">
+              {concentrationRisk.herfindahlIndex < 1500
+                ? "Well diversified client base"
+                : concentrationRisk.herfindahlIndex < 2500
+                  ? "Moderate concentration"
+                  : "High concentration - consider diversification"}
+            </p>
+          </div>
+
+          {/* Quick Stats */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-slate-50 rounded-lg p-3 text-center">
+              <p className="text-xs text-slate-500 mb-1">Total Revenue</p>
+              <p className="text-sm font-bold text-slate-800">{formatIndianNumber(concentrationRisk.totalRevenue).replace("₹", "")}</p>
+            </div>
+            <div className="bg-slate-50 rounded-lg p-3 text-center">
+              <p className="text-xs text-slate-500 mb-1">Top 10 Revenue</p>
+              <p className="text-sm font-bold text-slate-800">{formatIndianNumber(concentrationRisk.top10ClientsRevenue).replace("₹", "")}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Right: Industry Diversification Pie Chart */}
+        <div>
+          <p className="text-sm text-slate-500 mb-3">Industry Diversification</p>
+          {concentrationRisk.industryDiversification.length > 0 ? (
+            <div className="flex items-center gap-4">
+              <ChartContainer config={industryChartConfig} className="h-[140px] w-[140px]">
+                <PieChart width={140} height={140}>
+                  <Pie
+                    data={concentrationRisk.industryDiversification}
+                    dataKey="percentage"
+                    nameKey="industry"
+                    innerRadius={40}
+                    outerRadius={65}
+                    paddingAngle={2}
+                    strokeWidth={0}
+                  >
+                    {concentrationRisk.industryDiversification.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <ChartTooltip
+                    content={({ payload }) => {
+                      if (payload && payload.length) {
+                        const d = payload[0].payload;
+                        return (
+                          <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-lg">
+                            <p className="font-medium text-slate-800 text-sm">{d.industry}</p>
+                            <p className="text-slate-600 text-sm">{d.clientCount} clients</p>
+                            <p className="text-slate-500 text-xs">{d.percentage.toFixed(1)}%</p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                </PieChart>
+              </ChartContainer>
+              <div className="flex-1 space-y-2 max-h-[140px] overflow-y-auto">
+                {concentrationRisk.industryDiversification.slice(0, 5).map((item, idx) => (
+                  <div key={idx} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-sm" style={{ background: COLORS[idx % COLORS.length] }} />
+                      <span className="text-xs text-slate-600 truncate max-w-[80px]">{item.industry}</span>
+                    </div>
+                    <span className="text-xs font-medium text-slate-800">{item.percentage.toFixed(1)}%</span>
+                  </div>
+                ))}
+                {concentrationRisk.industryDiversification.length > 5 && (
+                  <p className="text-xs text-slate-400">+{concentrationRisk.industryDiversification.length - 5} more</p>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="h-[140px] flex items-center justify-center text-slate-500 text-sm">
+              No industry data available
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Main Dashboard Component
 const RevenueReportDashboard = () => {
   const currentMonth = new Date().getMonth();
@@ -508,6 +929,7 @@ const RevenueReportDashboard = () => {
 
   const { data: revenueData, isLoading: isRevenueLoading } = useGetRevenueDashboardQuery(revenueFilters);
   const { data: expectedVsCollectedData, isLoading: isExpectedVsCollectedLoading } = useGetExpectedVsCollectedQuery({ fiscalYear });
+  const { data: clientHealthData, isLoading: isClientHealthLoading } = useGetClientHealthDashboardQuery({ fiscalYear });
 
   const chartRef = useRef<HTMLDivElement | null>(null);
 
@@ -605,7 +1027,7 @@ const RevenueReportDashboard = () => {
     });
   };
 
-  const isLoading = isRevenueLoading || isExpectedVsCollectedLoading;
+  const isLoading = isRevenueLoading || isExpectedVsCollectedLoading || isClientHealthLoading;
   const fyLabel = `FY ${fiscalYear}-${(fiscalYear + 1).toString().slice(-2)}`;
 
   return (
@@ -876,6 +1298,33 @@ const RevenueReportDashboard = () => {
                 </div>
               </div>
             </div>
+
+            {/* ==================== CLIENT HEALTH & RETENTION SECTION ==================== */}
+            {clientHealthData?.data && (
+              <>
+                {/* Section Divider */}
+                <div className="flex items-center gap-4 py-2">
+                  <div className="flex-1 h-px bg-slate-200" />
+                  <span className="text-sm font-medium text-slate-500 flex items-center gap-2">
+                    <Heart className="w-4 h-4 text-rose-500" />
+                    Client Health & Retention Analytics
+                  </span>
+                  <div className="flex-1 h-px bg-slate-200" />
+                </div>
+
+                {/* Client Health Scorecard */}
+                <ClientHealthScorecard healthMetrics={clientHealthData.data.healthMetrics} />
+
+                {/* Client Performers Table */}
+                <ClientPerformersTable
+                  topClients={clientHealthData.data.topPerformers.topClients}
+                  atRiskClients={clientHealthData.data.topPerformers.atRiskClients}
+                />
+
+                {/* Client Concentration Risk */}
+                <ClientConcentrationRiskCard concentrationRisk={clientHealthData.data.concentrationRisk} />
+              </>
+            )}
 
             {/* Footer Note */}
             <div className="flex items-center justify-between px-4 py-3 bg-slate-100 rounded-lg text-sm text-slate-500">
