@@ -92,7 +92,7 @@ const columns = (
   onDelete: (payment: IAMCPayment) => void,
   initialAmcRate: number,
   selectedPayments: string[],
-  onSelectPayment: (paymentId: string, checked: boolean) => void
+  onSelectPayment: (paymentId: string, checked: boolean) => void,
 ): ColumnDef<IAMCPayment>[] => [
   {
     id: "select",
@@ -103,7 +103,7 @@ const columns = (
           table
             .getRowModel()
             .rows.every((row) =>
-              selectedPayments.includes(row.original._id || "")
+              selectedPayments.includes(row.original._id || ""),
             )
         }
         onCheckedChange={(checked) => {
@@ -167,13 +167,13 @@ const columns = (
       const paymentStatusColor = (status: PAYMENT_STATUS_ENUM) => {
         if (status === PAYMENT_STATUS_ENUM.PAID) return "bg-green-700";
         if (status === PAYMENT_STATUS_ENUM.PENDING) return "bg-red-600";
-        if (status === PAYMENT_STATUS_ENUM.proforma) return "bg-yellow-600";
+        if (status === PAYMENT_STATUS_ENUM.PROFORMA) return "bg-yellow-600";
         if (status === PAYMENT_STATUS_ENUM.INVOICE) return "bg-blue-600";
       };
       return (
         <div
           className={`px-2 py-1 rounded-md text-center text-white text-xs font-medium ${paymentStatusColor(
-            status
+            status,
           )}`}
         >
           {status}
@@ -279,7 +279,7 @@ const DataTable = ({
       onDelete,
       initialAmcRate,
       selectedPayments,
-      onSelectPayment
+      onSelectPayment,
     ),
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -335,14 +335,14 @@ const DataTable = ({
           type="button"
           variant={
             table.getColumn("status")?.getFilterValue() ===
-            PAYMENT_STATUS_ENUM.proforma
+            PAYMENT_STATUS_ENUM.PROFORMA
               ? "default"
               : "outline"
           }
           onClick={() =>
             table
               .getColumn("status")
-              ?.setFilterValue(PAYMENT_STATUS_ENUM.proforma)
+              ?.setFilterValue(PAYMENT_STATUS_ENUM.PROFORMA)
           }
         >
           proforma
@@ -376,7 +376,7 @@ const DataTable = ({
                       ? null
                       : flexRender(
                           header.column.columnDef.header,
-                          header.getContext()
+                          header.getContext(),
                         )}
                   </TableHead>
                 ))}
@@ -391,7 +391,7 @@ const DataTable = ({
                     <TableCell key={cell.id}>
                       {flexRender(
                         cell.column.columnDef.cell,
-                        cell.getContext()
+                        cell.getContext(),
                       )}
                     </TableCell>
                   ))}
@@ -525,7 +525,7 @@ const AmcForm: React.FC<{
       }
     } else {
       setSelectedPayments((prev) =>
-        checked ? [...prev, paymentId] : prev.filter((id) => id !== paymentId)
+        checked ? [...prev, paymentId] : prev.filter((id) => id !== paymentId),
       );
     }
   };
@@ -542,8 +542,8 @@ const AmcForm: React.FC<{
     try {
       await Promise.all(
         selectedPayments.map((paymentId) =>
-          deleteAMCPayment({ amcId: defaultValue._id, paymentId }).unwrap()
-        )
+          deleteAMCPayment({ amcId: defaultValue._id, paymentId }).unwrap(),
+        ),
       );
       toast({
         variant: "success",
@@ -824,11 +824,11 @@ const AmcForm: React.FC<{
                 </Typography>
                 <Typography variant="p" className="text-base">
                   {new Date(
-                    selectedPaymentInfo.payment.from_date
+                    selectedPaymentInfo.payment.from_date,
                   ).toLocaleDateString()}{" "}
                   -{" "}
                   {new Date(
-                    selectedPaymentInfo.payment.to_date
+                    selectedPaymentInfo.payment.to_date,
                   ).toLocaleDateString()}
                 </Typography>
               </div>
@@ -1003,10 +1003,10 @@ const AMCDetail: React.FC<IProps> = ({ orderId }) => {
       });
     } catch (error: any) {
       // Handle error message which might be an array or string
-      let errorMessage = 'Something went wrong';
+      let errorMessage = "Something went wrong";
       if (error?.data?.message) {
         if (Array.isArray(error.data.message)) {
-          errorMessage = error.data.message.join(', ');
+          errorMessage = error.data.message.join(", ");
         } else {
           errorMessage = error.data.message;
         }
@@ -1017,7 +1017,9 @@ const AMCDetail: React.FC<IProps> = ({ orderId }) => {
       toast({
         variant: "destructive",
         title: "Error Occured while updating order",
-        description: errorMessage || `Please try again and if error still persist contact the developer`,
+        description:
+          errorMessage ||
+          `Please try again and if error still persist contact the developer`,
       });
     }
   };

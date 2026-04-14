@@ -368,7 +368,7 @@ export default function DataTableWithModalAndPagination({
   const paymentStatusColor = (status: PAYMENT_STATUS_ENUM) => {
     if (status === PAYMENT_STATUS_ENUM.PAID) return "bg-green-700";
     if (status === PAYMENT_STATUS_ENUM.PENDING) return "bg-red-600";
-    if (status === PAYMENT_STATUS_ENUM.proforma) return "bg-yellow-600";
+    if (status === PAYMENT_STATUS_ENUM.PROFORMA) return "bg-yellow-600";
     if (status === PAYMENT_STATUS_ENUM.INVOICE) return "bg-blue-600";
   };
 

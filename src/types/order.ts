@@ -146,7 +146,7 @@ export type TransformedAMCObject = Omit<IAMCObject, "order_id"> & {
 
 export enum PAYMENT_STATUS_ENUM {
   PENDING = "pending",
-  proforma = "proforma",
+  PROFORMA = "proforma",
   INVOICE = "invoice",
   PAID = "paid",
 }
