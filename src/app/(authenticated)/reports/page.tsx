@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useRef } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Bar,
   BarChart,
@@ -42,9 +42,8 @@ import {
   useGetClientHealthDashboardQuery,
   IReportQueries,
 } from "@/redux/api/report";
+import { useAppSelector } from "@/redux/hook";
 import { cn, formatCurrency, formatIndianNumber } from "@/lib/utils";
-import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
 import {
   Calendar,
   Building2,
@@ -518,6 +517,10 @@ const RevenueReportDashboard = () => {
   const [fiscalYear, setFiscalYear] = useState<number>(defaultFiscalYear);
   const [filterType, setFilterType] = useState<FilterType>(DEFAULT_FILTER);
   const [selectedPeriod, setSelectedPeriod] = useState<{ period: string; year: number; month: number } | null>(null);
+  const [isExporting, setIsExporting] = useState<boolean>(false);
+
+  // Get token from Redux store
+  const token = useAppSelector((state) => state.user.user.token);
 
   const revenueFilters: IReportQueries = useMemo(() => ({
     filter: filterType,
@@ -527,8 +530,6 @@ const RevenueReportDashboard = () => {
   const { data: revenueData, isLoading: isRevenueLoading } = useGetRevenueDashboardQuery(revenueFilters);
   const { data: expectedVsCollectedData, isLoading: isExpectedVsCollectedLoading } = useGetExpectedVsCollectedQuery({ fiscalYear, filter: filterType });
   const { data: clientHealthData, isLoading: isClientHealthLoading } = useGetClientHealthDashboardQuery({ fiscalYear });
-
-  const chartRef = useRef<HTMLDivElement | null>(null);
 
   const revenueChartData = useMemo(() => {
     return revenueData?.data?.monthlyBreakdown.map((item) => ({
@@ -582,29 +583,46 @@ const RevenueReportDashboard = () => {
     }
   };
 
-  const handleDownloadPDF = () => {
-    const chartElement = chartRef.current;
-    if (!chartElement) return;
+  const handleDownloadExcel = async () => {
+    setIsExporting(true);
+    try {
+      // Get the API URL from environment variable
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
-    html2canvas(chartElement, { scale: 2, backgroundColor: "#f8fafc" }).then((canvas) => {
-      const pdf = new jsPDF("landscape", "mm", "a4");
-      const imgData = canvas.toDataURL("image/png");
-      const fyLabel = `FY ${fiscalYear}-${(fiscalYear + 1).toString().slice(-2)}`;
+      if (!token) {
+        console.error('No authentication token found');
+        // Show error toast or notification
+        return;
+      }
 
-      pdf.setFillColor(30, 64, 175);
-      pdf.rect(0, 0, 297, 20, "F");
-      pdf.setTextColor(255, 255, 255);
-      pdf.setFontSize(16).setFont("Helvetica", "", "bold");
-      pdf.text("Revenue Report Dashboard", 15, 13);
-      pdf.setFontSize(9).setFont("Helvetica", "", "normal");
-      pdf.text(`${fyLabel} | ${new Date().toLocaleDateString()}`, 200, 13);
+      const response = await fetch(
+        `${apiUrl}/reports/export-excel?fiscalYear=${fiscalYear}&filter=${filterType}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        }
+      );
 
-      const imgWidth = 270;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      pdf.addImage(imgData, "PNG", 13.5, 25, imgWidth, imgHeight);
+      if (!response.ok) {
+        throw new Error('Export failed');
+      }
 
-      pdf.save(`Revenue_Report_${fyLabel.replace(/\s/g, "_")}.pdf`);
-    });
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Revenue_Report_FY_${fiscalYear}-${(fiscalYear + 1).toString().slice(-2)}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      a.remove();
+    } catch (error) {
+      console.error('Export failed:', error);
+      // Show error toast or notification
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const isLoading = isRevenueLoading || isExpectedVsCollectedLoading || isClientHealthLoading;
@@ -651,9 +669,13 @@ const RevenueReportDashboard = () => {
                   </SelectContent>
                 </Select>
               </div>
-              <Button onClick={handleDownloadPDF} className="gap-1.5 bg-slate-800 hover:bg-slate-900 h-7 text-xs px-3">
+              <Button
+                onClick={handleDownloadExcel}
+                disabled={isExporting}
+                className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 h-7 text-xs px-3"
+              >
                 <Download className="w-3 h-3" />
-                Export
+                {isExporting ? 'Exporting...' : 'Export Excel'}
               </Button>
             </div>
           </div>
@@ -661,7 +683,7 @@ const RevenueReportDashboard = () => {
       </div>
 
       {/* Main Content - Compact Layout */}
-      <div ref={chartRef} className="max-w-[1600px] mx-auto px-4 py-3 space-y-3">
+      <div className="max-w-[1600px] mx-auto px-4 py-3 space-y-3">
         {isLoading ? (
           <div className="py-10"><Loading /></div>
         ) : (
