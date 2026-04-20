@@ -22,6 +22,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { renderDisabledInput } from '@/components/ui/disabledInput'
 import { Card, CardContent } from '@/components/ui/card'
 import { formatCurrency } from '@/lib/utils'
+import { AmountInput } from '@/components/ui/AmountInput'
 
 interface ILicenseProps {
     clientId: string
@@ -46,11 +47,15 @@ export interface ILicenseInputs {
     invoice_document: string;
     invoice_number: string;
     invoice_date?: Date;
+    amc_rate?: {
+        percentage: number;
+        amount: number;
+    };
 }
 
 const LicenseForm: React.FC<ILicenseProps> = ({ clientId, handler, isLoading, label, defaultValue, disable = false, onPurchaseOrderNumberChange, onProductChange }) => {
     const { data: productsList } = useGetPurchasedProductsByClientQuery(clientId)
-    const [amcRate, setAmcRate] = useState({ percentage: 0, amount: 0, total_amount: 0 })
+    const [isPercentage, setIsPercentage] = useState(true)
     const { uploadFile, getFileNameFromUrl } = useFileUpload()
 
     const [disableInput, setDisableInput] = useState(disable)
@@ -66,7 +71,8 @@ const LicenseForm: React.FC<ILicenseProps> = ({ clientId, handler, isLoading, la
         invoice_number: defaultValue?.invoice_number || "",
         invoice_date: defaultValue?.invoice_date ? new Date(defaultValue?.invoice_date) : undefined,
         payment_status: defaultValue?.payment_status || PAYMENT_STATUS_ENUM.PENDING,
-        payment_receive_date: defaultValue?.payment_receive_date ? new Date(defaultValue?.payment_receive_date) : undefined
+        payment_receive_date: defaultValue?.payment_receive_date ? new Date(defaultValue?.payment_receive_date) : undefined,
+        amc_rate: defaultValue?.amc_rate || { percentage: 0, amount: 0 }
     }
 
     const form = useForm<ILicenseInputs>({ defaultValues })
@@ -85,6 +91,7 @@ const LicenseForm: React.FC<ILicenseProps> = ({ clientId, handler, isLoading, la
             form.setValue('invoice_date', defaultValue.invoice_date ? new Date(defaultValue.invoice_date) : undefined)
             form.setValue('payment_status', defaultValue.payment_status)
             form.setValue('payment_receive_date', defaultValue.payment_receive_date ? new Date(defaultValue.payment_receive_date) : undefined)
+            form.setValue('amc_rate', defaultValue.amc_rate || { percentage: 0, amount: 0 })
         }
     }, [defaultValue])
 
@@ -219,253 +226,282 @@ const LicenseForm: React.FC<ILicenseProps> = ({ clientId, handler, isLoading, la
     }
 
     const recalculateAMCAmount = () => {
-        if (!form.getValues('cost_per_license') || !form.getValues('total_license')) return
+        const costPerLicense = Number(form.getValues('cost_per_license')) || 0
+        const totalLicenses = Number(form.getValues('total_license')) || 0
+        const amcRate = form.getValues('amc_rate')
+        const amcPercentage = amcRate?.percentage || 0
 
-        const amcPercentage = amcRate.percentage
-        const totalOrderCost = amcRate.total_amount
-        const costPerLicense = form.getValues('cost_per_license') || 0
-        const totalLicenses = form.getValues('total_license') || 0
+        const totalLicenseCost = costPerLicense * totalLicenses
+        const newAmcAmount = (totalLicenseCost * amcPercentage) / 100
 
-        const totalLicenseCost = Number(costPerLicense) * Number(totalLicenses)
-        const newAmcAmount = ((totalLicenseCost + totalOrderCost) * amcPercentage) / 100
-
-        setAmcRate(prev => ({
-            ...prev,
-            amount: newAmcAmount
-        }))
+        form.setValue('amc_rate', { percentage: amcPercentage, amount: newAmcAmount })
     }
 
     return (
         <div className="bg-custom-gray bg-opacity-75 rounded p-4 relative">
-            <div className="flex items-center justify-between">
-                <div className="flex justify-between w-full items-center mt-5">
-                    <Typography variant='h1'>{label}</Typography>
-                    <div className="flex justify-end mt-4">
-                        <Card className='items-center'>
-                            <CardContent className="flex items-center gap-2 justify-center p-3">
-                                <Typography variant='h3'>Total Cost</Typography>
-                                <Typography variant='p' className='flex items-center '>
-                                    <span className="font-bold">{formatCurrency((form.watch("cost_per_license") || 0) * (form.watch("total_license") || 0))}</span>
-                                </Typography>
-                            </CardContent>
-                        </Card>
-                    </div>
-                </div>
-                {defaultValue?._id && (
-                    <div className="mb-2 flex justify-end absolute top-0 right-0">
-                        <Button className={`w-36 justify-between ${!disableInput ? "bg-destructive hover:bg-destructive" : ""}`}
+            <div className="flex items-center justify-between mb-6">
+                <Typography variant='h1'>{label}</Typography>
+                <div className="flex items-center gap-3">
+                    <Card className='border-0 shadow-sm bg-white'>
+                        <CardContent className="flex items-center gap-3 py-2 px-4">
+                            <span className="text-sm text-gray-500">Total Cost</span>
+                            <span className="text-lg font-semibold">{formatCurrency((form.watch("cost_per_license") || 0) * (form.watch("total_license") || 0))}</span>
+                        </CardContent>
+                    </Card>
+                    {defaultValue?._id && (
+                        <Button className={`justify-between gap-2 ${!disableInput ? "bg-destructive hover:bg-destructive" : ""}`}
                             onClick={() => setDisableInput(prev => !prev)}>
-                            {disableInput ? (
-                                <>
-                                    <Pencil />
-                                    <span>Start Editing</span>
-                                </>
-                            ) : (
-                                <>
-                                    <CircleX />
-                                    <span>Close Editing</span>
-                                </>
-                            )}
+                            {disableInput ? <Pencil className="w-4 h-4" /> : <CircleX className="w-4 h-4" />}
+                            <span className='hidden md:inline'>{disableInput ? "Edit" : "Cancel"}</span>
                         </Button>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
             <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 mt-5">
-                    <div className="md:flex items-end gap-4 w-full">
-                        <FormField
-                            control={form.control}
-                            name="product_id"
-                            render={({ field }) => (
-                                <FormItem className='w-full mb-4 md:mb-0'>
-                                    <FormLabel className='text-gray-500'>Product ID</FormLabel>
-                                    <FormControl>
-                                        <Select onValueChange={(value) => {
-                                            field.onChange(value)
-                                            onProductChange?.(value)
-                                            const product = productsList?.data.find((product) => product._id === value)
-                                            if (product) {
-                                                form.setValue('cost_per_license', product.cost_per_license)
-                                                setAmcRate({ percentage: product.amc_rate.percentage, amount: product.amc_rate.amount, total_amount: product.total_cost })
-                                            }
-                                        }}>
-                                            <SelectTrigger className="w-full" disabled={disableInput}>
-                                                <SelectValue placeholder={selectPlaceHolder('product_id', field.value)} />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {productsList?.data.filter(product => product.does_have_license).map((product) => (
-                                                    <SelectItem value={product._id} key={product._id}>{product.name}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        {renderFormField('cost_per_license', 'Cost Per License', 'Enter cost per license')}
-                    </div>
-                    <div className="md:flex items-center gap-4 w-full">
-                        {renderFormField('total_license', 'Total License', 'Enter total license')}
-                        <div className="md:flex items-end gap-4 w-full">
-                            {renderDisabledInput("AMC Percentage", amcRate.percentage, "number")}
-                            {renderDisabledInput("AMC Amount", amcRate.amount, "number")}
-                        </div>
-                    </div>
-                    <div className="md:flex items-end gap-4 w-full">
-                        <FormField
-                            control={form.control}
-                            name="purchase_date"
-                            render={({ field }) => (
-                                <FormItem className='w-full'>
-                                    <FormLabel className='text-gray-500'>Purchase Date</FormLabel>
-                                    <FormControl>
-                                        <DatePicker disabled={disableInput} date={field.value} onDateChange={field.onChange} placeholder='Pick a Date' />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        <div className="md:flex items-center gap-4 w-full">
-                            {renderFormField('purchase_order_document', 'Purchase Order Document', 'Upload Purchase Order Document', 'file')}
-                            {renderFormField('invoice_document', 'Invoice Document', 'Upload Invoice Document', 'file')}
-                        </div>
-                    </div>
-                    <div className="md:flex items-end gap-4 w-full">
-                        <FormField
-                            control={form.control}
-                            name="purchase_order_number"
-                            render={({ field }) => (
-                                <FormItem className='w-full mb-4 md:mb-0'>
-                                    <FormLabel className='text-gray-500'>Purchase Order Number</FormLabel>
-                                    <FormControl>
-                                        <Input
-                                            type="text"
-                                            {...field}
-                                            onChange={(e) => {
-                                                field.onChange(e);
-                                                onPurchaseOrderNumberChange?.(e.target.value);
-                                            }}
-                                            value={field.value}
-                                            disabled={disableInput}
-                                            className='bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none'
-                                            placeholder='Enter purchase order number'
-                                        />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        <FormField
-                            control={form.control}
-                            name="invoice_number"
-                            render={({ field }) => (
-                                <FormItem className='w-full mb-4 md:mb-0'>
-                                    <FormLabel className='text-gray-500'>Invoice Number</FormLabel>
-                                    <FormControl>
-                                        <Input
-                                            type="text"
-                                            {...field}
-                                            onChange={field.onChange}
-                                            value={field.value}
-                                            disabled={disableInput}
-                                            className='bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none'
-                                            placeholder='Enter invoice number'
-                                        />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                    </div>
-                    <div className="md:flex items-end gap-4 w-full">
-                        <FormField
-                            control={form.control}
-                            name="invoice_date"
-                            render={({ field }) => (
-                                <FormItem className='w-full mb-4 md:mb-0'>
-                                    <FormLabel className='text-gray-500'>Invoice Date</FormLabel>
-                                    <FormControl>
-                                        <DatePicker
-                                            date={field.value}
-                                            onDateChange={field.onChange}
-                                            disabled={disableInput}
-                                        />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                    </div>
-                    <div className="md:flex items-end gap-4 w-full">
-                        <FormField
-                            control={form.control}
-                            name={`payment_status`}
-                            render={({ field }) => (
-                                <FormItem className='w-full mb-4 md:mb-0'>
-                                    <FormLabel className='text-gray-500'>Payment Status</FormLabel>
-                                    <FormControl>
-                                        <Select onValueChange={field.onChange}>
-                                            <SelectTrigger className="w-full bg-white" disabled={disableInput}>
-                                                <SelectValue className="capitalize" placeholder=
-                                                    {
-                                                        field.value === PAYMENT_STATUS_ENUM.PAID ? (
-                                                            <div className="flex items-center">
-                                                                <div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div>
-                                                                {PAYMENT_STATUS_ENUM.PAID}
-                                                            </div>
-                                                        ) : (
-                                                            <div className="flex items-center">
-                                                                <div className="w-2 h-2 rounded-full bg-red-500 mr-2"></div>
-                                                                <span className="capitalize">{PAYMENT_STATUS_ENUM.PENDING}</span>
-                                                            </div>
-                                                        )
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                    {/* Product Details */}
+                    <Card className="border-0 shadow-sm">
+                        <CardContent className="p-5">
+                            <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-4">Product Details</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <FormField
+                                    control={form.control}
+                                    name="product_id"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className='text-gray-500 text-sm'>Product</FormLabel>
+                                            <FormControl>
+                                                <Select onValueChange={(value) => {
+                                                    field.onChange(value)
+                                                    onProductChange?.(value)
+                                                    const product = productsList?.data.find((product) => product._id === value)
+                                                    if (product) {
+                                                        form.setValue('cost_per_license', product.cost_per_license)
+                                                        const totalLicenseCost = product.cost_per_license * (form.getValues('total_license') || 0)
+                                                        const newAmcAmount = (totalLicenseCost * product.amc_rate.percentage) / 100
+                                                        form.setValue('amc_rate', {
+                                                            percentage: product.amc_rate.percentage,
+                                                            amount: newAmcAmount
+                                                        })
                                                     }
-                                                >
+                                                }}>
+                                                    <SelectTrigger className="w-full bg-white" disabled={disableInput}>
+                                                        <SelectValue placeholder={selectPlaceHolder('product_id', field.value)} />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {productsList?.data.filter(product => product.does_have_license).map((product) => (
+                                                            <SelectItem value={product._id} key={product._id}>{product.name}</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                {renderFormField('cost_per_license', 'Cost Per License', 'Enter cost per license')}
+                                {renderFormField('total_license', 'Total License', 'Enter total license')}
+                                <FormField
+                                    control={form.control}
+                                    name="purchase_date"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className='text-gray-500 text-sm'>Purchase Date</FormLabel>
+                                            <FormControl>
+                                                <DatePicker disabled={disableInput} date={field.value} onDateChange={field.onChange} placeholder='Pick a Date' />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="amc_rate"
+                                    render={({ field }) => {
+                                        const totalLicenseCost = (Number(form.getValues('cost_per_license')) || 0) * (Number(form.getValues('total_license')) || 0)
+                                        return (
+                                            <FormItem>
+                                                <FormLabel className='text-gray-500 text-sm'>AMC Rate <span className="text-gray-400 font-normal">({formatCurrency(field.value?.amount || 0)})</span></FormLabel>
+                                                <FormControl>
+                                                    <AmountInput
+                                                        className='bg-white'
+                                                        placeholder='AMC Rate'
+                                                        disabled={disableInput}
+                                                        defaultInputValue={{
+                                                            percentage: field.value?.percentage || 0,
+                                                            value: field.value?.amount || 0
+                                                        }}
+                                                        onModeChange={(isPct) => setIsPercentage(isPct)}
+                                                        onValueChange={(value: number | null) => {
+                                                            if (!value) return
+                                                            if (isPercentage) {
+                                                                const percentage = parseFloat(value.toString()) || 0
+                                                                const calculatedAmount = (totalLicenseCost * percentage) / 100
+                                                                field.onChange({ percentage, amount: calculatedAmount })
+                                                            } else {
+                                                                const amount = parseFloat(value.toString()) || 0
+                                                                const calculatedPercentage = totalLicenseCost ? ((amount / totalLicenseCost) * 100).toFixed(2) : 0
+                                                                field.onChange({ percentage: parseFloat(calculatedPercentage as string), amount })
+                                                            }
+                                                        }}
+                                                    />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )
+                                    }}
+                                />
+                            </div>
+                        </CardContent>
+                    </Card>
 
-                                                </SelectValue>
-                                            </SelectTrigger>
-                                            <SelectContent className='bg-white'>
-                                                {
-                                                    Object.entries(PAYMENT_STATUS_ENUM)
-                                                        .filter(([key]) => isNaN(Number(key)))
-                                                        .map(([key, value]) => (
-                                                            <SelectItem value={value} key={key} className='capitalize'>
-                                                                {value === PAYMENT_STATUS_ENUM.PAID ? (
+                    {/* Documents */}
+                    <Card className="border-0 shadow-sm">
+                        <CardContent className="p-5">
+                            <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-4">Documents</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {renderFormField('purchase_order_document', 'Purchase Order Document', 'Upload Purchase Order Document', 'file')}
+                                {renderFormField('invoice_document', 'Invoice Document', 'Upload Invoice Document', 'file')}
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Invoice & Payment */}
+                    <Card className="border-0 shadow-sm">
+                        <CardContent className="p-5">
+                            <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-4">Invoice & Payment</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <FormField
+                                    control={form.control}
+                                    name="purchase_order_number"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className='text-gray-500 text-sm'>Purchase Order Number</FormLabel>
+                                            <FormControl>
+                                                <Input
+                                                    type="text"
+                                                    {...field}
+                                                    onChange={(e) => {
+                                                        field.onChange(e);
+                                                        onPurchaseOrderNumberChange?.(e.target.value);
+                                                    }}
+                                                    value={field.value}
+                                                    disabled={disableInput}
+                                                    className='bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none'
+                                                    placeholder='Enter purchase order number'
+                                                />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="invoice_number"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className='text-gray-500 text-sm'>Invoice Number</FormLabel>
+                                            <FormControl>
+                                                <Input
+                                                    type="text"
+                                                    {...field}
+                                                    onChange={field.onChange}
+                                                    value={field.value}
+                                                    disabled={disableInput}
+                                                    className='bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none'
+                                                    placeholder='Enter invoice number'
+                                                />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="invoice_date"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className='text-gray-500 text-sm'>Invoice Date</FormLabel>
+                                            <FormControl>
+                                                <DatePicker
+                                                    date={field.value}
+                                                    onDateChange={field.onChange}
+                                                    disabled={disableInput}
+                                                />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name={`payment_status`}
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className='text-gray-500 text-sm'>Payment Status</FormLabel>
+                                            <FormControl>
+                                                <Select onValueChange={field.onChange}>
+                                                    <SelectTrigger className="w-full bg-white" disabled={disableInput}>
+                                                        <SelectValue className="capitalize" placeholder=
+                                                            {
+                                                                field.value === PAYMENT_STATUS_ENUM.PAID ? (
                                                                     <div className="flex items-center">
                                                                         <div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div>
-                                                                        {value}
+                                                                        {PAYMENT_STATUS_ENUM.PAID}
                                                                     </div>
                                                                 ) : (
                                                                     <div className="flex items-center">
                                                                         <div className="w-2 h-2 rounded-full bg-red-500 mr-2"></div>
-                                                                        <span className="capitalize">{value}</span>
+                                                                        <span className="capitalize">{PAYMENT_STATUS_ENUM.PENDING}</span>
                                                                     </div>
-                                                                )}
-                                                            </SelectItem>
-                                                        ))
-                                                }
-                                            </SelectContent>
-                                        </Select>
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        <FormField
-                            control={form.control}
-                            name={`payment_receive_date`}
-                            render={({ field }) => (
-                                <FormItem className='w-full relative'>
-                                    <FormLabel className='text-gray-500'>Payment Receive Date</FormLabel>
-                                    <FormControl>
-                                        <DatePicker date={field.value} onDateChange={field.onChange} placeholder='Payment Receive Date' disabled={disableInput} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                    </div>
+                                                                )
+                                                            }
+                                                        >
+                                                        </SelectValue>
+                                                    </SelectTrigger>
+                                                    <SelectContent className='bg-white'>
+                                                        {
+                                                            Object.entries(PAYMENT_STATUS_ENUM)
+                                                                .filter(([key]) => isNaN(Number(key)))
+                                                                .map(([key, value]) => (
+                                                                    <SelectItem value={value} key={key} className='capitalize'>
+                                                                        {value === PAYMENT_STATUS_ENUM.PAID ? (
+                                                                            <div className="flex items-center">
+                                                                                <div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div>
+                                                                                {value}
+                                                                            </div>
+                                                                        ) : (
+                                                                            <div className="flex items-center">
+                                                                                <div className="w-2 h-2 rounded-full bg-red-500 mr-2"></div>
+                                                                                <span className="capitalize">{value}</span>
+                                                                            </div>
+                                                                        )}
+                                                                    </SelectItem>
+                                                                ))
+                                                        }
+                                                    </SelectContent>
+                                                </Select>
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name={`payment_receive_date`}
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className='text-gray-500 text-sm'>Payment Receive Date</FormLabel>
+                                            <FormControl>
+                                                <DatePicker date={field.value} onDateChange={field.onChange} placeholder='Payment Receive Date' disabled={disableInput} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            </div>
+                        </CardContent>
+                    </Card>
 
                     <div className="flex justify-end">
                         <Button type="submit" className='md:w-36 w-full py-5 md:py-2' disabled={isLoading || disableInput} loading={{ isLoading, loader: "tailspin" }} >

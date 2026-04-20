@@ -21,6 +21,9 @@ import { ICustomizationObject, PAYMENT_STATUS_ENUM } from '@/types/order'
 import Link from 'next/link'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { renderDisabledInput } from '@/components/ui/disabledInput'
+import { AmountInput } from '@/components/ui/AmountInput'
+import { formatCurrency } from '@/lib/utils'
+import { Card, CardContent } from '@/components/ui/card'
 import { IProduct } from '@/types/product'
 import {
     Dialog,
@@ -64,6 +67,10 @@ export interface ICustomizationInputs extends CustomizationDetails {
     invoice_date?: Date;
     purchase_order_number: string;
     title?: string;
+    amc_rate?: {
+        percentage: number;
+        amount: number;
+    };
 }
 
 export interface ModuleData {
@@ -188,7 +195,7 @@ export function ModulesCombobox({
 
 
 const CustomizationForm: React.FC<ICustomationProps> = ({ clientId, handler, isLoading = false, label, disable = false, defaultValue, onPurchaseOrderNumberChange, onInvoiceNumberChange, onProductChange }) => {
-    const [amcRate, setAmcRate] = useState({ percentage: 0, amount: 0, total_amount: 0 })
+    const [isPercentage, setIsPercentage] = useState(true)
     const { data: productsList } = useGetPurchasedProductsByClientQuery(clientId)
     const { uploadFile, getFileNameFromUrl } = useFileUpload()
     const [selectedProduct, setSelectedProduct] = useState<IProduct | null>()
@@ -213,7 +220,8 @@ const CustomizationForm: React.FC<ICustomationProps> = ({ clientId, handler, isL
         title: defaultValue?.title || "",
         reports: defaultValue?.reports || [],
         payment_status: defaultValue?.payment_status || PAYMENT_STATUS_ENUM.PENDING,
-        payment_receive_date: defaultValue?.payment_receive_date ? new Date(defaultValue.payment_receive_date) : undefined
+        payment_receive_date: defaultValue?.payment_receive_date ? new Date(defaultValue.payment_receive_date) : undefined,
+        amc_rate: defaultValue?.amc_rate || { percentage: 0, amount: 0 }
     }
 
     const defaultValues = {
@@ -230,7 +238,8 @@ const CustomizationForm: React.FC<ICustomationProps> = ({ clientId, handler, isL
         title: defaultValue?.title || "",
         reports: defaultValue?.reports || [],
         payment_status: defaultValue?.payment_status || PAYMENT_STATUS_ENUM.PENDING,
-        payment_receive_date: defaultValue?.payment_receive_date ? new Date(defaultValue.payment_receive_date) : undefined
+        payment_receive_date: defaultValue?.payment_receive_date ? new Date(defaultValue.payment_receive_date) : undefined,
+        amc_rate: defaultValue?.amc_rate || { percentage: 0, amount: 0 }
     }
 
 
@@ -249,7 +258,6 @@ const CustomizationForm: React.FC<ICustomationProps> = ({ clientId, handler, isL
         if (defaultValue?.product_id) {
             const product = productsList?.data.find((product) => product._id === defaultValue.product_id)
             if (product) {
-                setAmcRate({ percentage: product.amc_rate.percentage, amount: product.amc_rate.amount, total_amount: product.total_cost })
                 setSelectedProduct(product)
             }
         }
@@ -423,12 +431,12 @@ const CustomizationForm: React.FC<ICustomationProps> = ({ clientId, handler, isL
     }
 
     const recalculateAMCAmount = () => {
-        const amcPercentage = amcRate.percentage
-        const amcTotalAmount = amcRate.total_amount
-        const customizationAmount = form.getValues('cost') || 0
+        const amcRate = form.getValues('amc_rate')
+        const amcPercentage = amcRate?.percentage || 0
+        const cost = Number(form.getValues('cost')) || 0
 
-        const newAmcTotalAmount = ((Number(customizationAmount) + amcTotalAmount) * amcPercentage) / 100
-        setAmcRate(prev => ({ ...prev, amount: newAmcTotalAmount }))
+        const newAmcAmount = (cost * amcPercentage) / 100
+        form.setValue('amc_rate', { percentage: amcPercentage, amount: newAmcAmount })
     }
 
     const getSelectedCustomizationModules = () => {
@@ -523,224 +531,246 @@ const CustomizationForm: React.FC<ICustomationProps> = ({ clientId, handler, isL
     }
 
     return (
-        <div className="bg-custom-gray bg-opacity-75 rounded p-4">
-            <div className="flex items-center justify-between">
+        <div className="bg-custom-gray bg-opacity-75 rounded p-4 relative">
+            <div className="flex items-center justify-between mb-6">
                 <Typography variant='h1'>{label}</Typography>
                 {defaultValue?._id && (
-                    <div className="mb-2 flex justify-end">
-                        <Button className={`md:w-36 justify-between ${!disableInput ? "bg-destructive hover:bg-destructive" : ""}`}
-                            onClick={() => setDisableInput(prev => !prev)}>
-                            {disableInput ? (
-                                <>
-                                    <Pencil />
-                                    <span className='hidden md:block'>Start Editing</span>
-                                </>
-                            ) : (
-                                <>
-                                    <CircleX />
-                                    <span className='hidden md:block'>Close Editing</span>
-                                </>
-                            )}
-                        </Button>
-                    </div>
+                    <Button className={`justify-between gap-2 ${!disableInput ? "bg-destructive hover:bg-destructive" : ""}`}
+                        onClick={() => setDisableInput(prev => !prev)}>
+                        {disableInput ? <Pencil className="w-4 h-4" /> : <CircleX className="w-4 h-4" />}
+                        <span className='hidden md:inline'>{disableInput ? "Edit" : "Cancel"}</span>
+                    </Button>
                 )}
             </div>
             <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 mt-5">
-                    <div className="grid md:grid-cols-2 gap-6 items-end">
-                        <FormField
-                            control={form.control}
-                            name="product_id"
-                            render={({ field }) => (
-                                <FormItem className='w-full mb-4 md:mb-0'>
-                                    <FormLabel className='text-gray-500'>Product ID</FormLabel>
-                                    <FormControl>
-                                        <Select onValueChange={(value) => {
-                                            field.onChange(value)
-                                            onProductChange?.(value)
-                                            const product = productsList?.data.find((product) => product._id === value)
-                                            if (product) {
-                                                setAmcRate({ percentage: product.amc_rate.percentage, amount: product.amc_rate.amount, total_amount: product.total_cost })
-                                                setSelectedProduct(product)
-                                            }
-                                        }}>
-                                            <SelectTrigger className="w-full bg-white" disabled={disableInput}>
-                                                <SelectValue placeholder={selectPlaceHolder('product_id', field.value)} />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {
-                                                    productsList?.data.map((product) => (
-                                                        <SelectItem value={product._id} key={product._id}>{product.name}</SelectItem>
-                                                    ))
-                                                }
-                                            </SelectContent>
-                                        </Select>
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        {renderFormField('title', 'Title', 'Enter Title', 'text')}
-                        <FormField
-                            control={form.control}
-                            name="cost"
-                            render={() => (
-                                <FormItem className='w-full'>
-                                    <FormLabel className='text-gray-500'>Cost</FormLabel>
-                                    <FormControl>
-                                        {renderFormField('cost', null, 'Enter Price', "number")}
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-
-                        <FormField
-                            control={form.control}
-                            name="type"
-                            render={({ field }) => (
-                                <FormItem className='w-full mb-4 md:mb-0'>
-                                    <FormLabel className='text-gray-500'>Type</FormLabel>
-                                    <FormControl>
-                                        <Select onValueChange={field.onChange}>
-                                            <SelectTrigger className="w-full bg-white" disabled={disableInput}>
-                                                <SelectValue placeholder={selectPlaceHolder("type", field.value || '')} />
-                                            </SelectTrigger>
-                                            <SelectContent className='bg-white'>
-                                                {
-                                                    Object.values(CustomizationType).map((type) => (
-                                                        <SelectItem value={type} key={type}>
-                                                            {type.charAt(0).toUpperCase() + type.slice(1)}
-                                                        </SelectItem>
-                                                    ))
-                                                }
-
-                                            </SelectContent>
-                                        </Select>
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-
-
-                        <div className="md:flex items-center gap-4 w-full">
-                            {renderFormField('purchase_order_document', 'Purchase Order Document', 'Upload Purchase Order Document', 'file')}
-                            {renderFormField('invoice_document', 'Invoice Document', 'Upload Invoice Document', 'file')}
-                        </div>
-                        <div className="md:flex items-end gap-4 w-full">
-                            {renderFormField('purchase_order_number', 'Purchase Order Number', 'Enter purchase order number', 'text')}
-                            {renderFormField('invoice_number', 'Invoice Number', 'Enter invoice number', 'text')}
-                        </div>
-                        <div className="md:flex items-end gap-4 w-full">
-                            <FormField
-                                control={form.control}
-                                name="invoice_date"
-                                render={({ field }) => (
-                                    <FormItem className='w-full mb-4 md:mb-0'>
-                                        <FormLabel className='text-gray-500'>Invoice Date</FormLabel>
-                                        <FormControl>
-                                            <DatePicker
-                                                date={field.value}
-                                                onDateChange={field.onChange}
-                                                disabled={disableInput}
-                                            />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                        </div>
-
-                        <FormField
-                            control={form.control}
-                            name="purchased_date"
-                            render={({ field }) => (
-                                <FormItem className='w-full'>
-                                    <FormLabel className='text-gray-500'>Purchased Date</FormLabel>
-                                    <FormControl>
-                                        <DatePicker date={field.value} disabled={disableInput} onDateChange={field.onChange} placeholder='Pick end date' />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-
-                        <div className="w-full md:flex items-center gap-4">
-                            {renderDisabledInput("AMC Percentage", amcRate.percentage, "number")}
-                            {renderDisabledInput("AMC Amount", amcRate.amount, "number")}
-                        </div>
-
-                        <FormField
-                            control={form.control}
-                            name={`payment_status`}
-                            render={({ field }) => (
-                                <FormItem className='w-full mb-4 md:mb-0'>
-                                    <FormLabel className='text-gray-500'>Payment Status</FormLabel>
-                                    <FormControl>
-                                        <Select onValueChange={field.onChange}>
-                                            <SelectTrigger className="w-full bg-white" disabled={disableInput}>
-                                                <SelectValue className="capitalize" placeholder=
-                                                    {
-                                                        field.value === PAYMENT_STATUS_ENUM.PAID ? (
-                                                            <div className="flex items-center">
-                                                                <div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div>
-                                                                {PAYMENT_STATUS_ENUM.PAID}
-                                                            </div>
-                                                        ) : (
-                                                            <div className="flex items-center">
-                                                                <div className="w-2 h-2 rounded-full bg-red-500 mr-2"></div>
-                                                                <span className="capitalize">{PAYMENT_STATUS_ENUM.PENDING}</span>
-                                                            </div>
-                                                        )
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                    {/* Product Details */}
+                    <Card className="border-0 shadow-sm">
+                        <CardContent className="p-5">
+                            <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-4">Product Details</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <FormField
+                                    control={form.control}
+                                    name="product_id"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className='text-gray-500 text-sm'>Product</FormLabel>
+                                            <FormControl>
+                                                <Select onValueChange={(value) => {
+                                                    field.onChange(value)
+                                                    onProductChange?.(value)
+                                                    const product = productsList?.data.find((product) => product._id === value)
+                                                    if (product) {
+                                                        const cost = Number(form.getValues('cost')) || 0
+                                                        const newAmcAmount = (cost * product.amc_rate.percentage) / 100
+                                                        form.setValue('amc_rate', {
+                                                            percentage: product.amc_rate.percentage,
+                                                            amount: newAmcAmount
+                                                        })
+                                                        setSelectedProduct(product)
                                                     }
-                                                >
+                                                }}>
+                                                    <SelectTrigger className="w-full bg-white" disabled={disableInput}>
+                                                        <SelectValue placeholder={selectPlaceHolder('product_id', field.value)} />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {productsList?.data.map((product) => (
+                                                            <SelectItem value={product._id} key={product._id}>{product.name}</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                {renderFormField('title', 'Title', 'Enter Title', 'text')}
+                                {renderFormField('cost', 'Cost', 'Enter Price', 'number')}
+                                <FormField
+                                    control={form.control}
+                                    name="type"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className='text-gray-500 text-sm'>Type</FormLabel>
+                                            <FormControl>
+                                                <Select onValueChange={field.onChange}>
+                                                    <SelectTrigger className="w-full bg-white" disabled={disableInput}>
+                                                        <SelectValue placeholder={selectPlaceHolder("type", field.value || '')} />
+                                                    </SelectTrigger>
+                                                    <SelectContent className='bg-white'>
+                                                        {Object.values(CustomizationType).map((type) => (
+                                                            <SelectItem value={type} key={type}>
+                                                                {type.charAt(0).toUpperCase() + type.slice(1)}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="purchased_date"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className='text-gray-500 text-sm'>Purchased Date</FormLabel>
+                                            <FormControl>
+                                                <DatePicker date={field.value} disabled={disableInput} onDateChange={field.onChange} placeholder='Pick date' />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="amc_rate"
+                                    render={({ field }) => {
+                                        const cost = Number(form.getValues('cost')) || 0
+                                        return (
+                                            <FormItem>
+                                                <FormLabel className='text-gray-500 text-sm'>AMC Rate ({formatCurrency(field.value?.amount || 0)})</FormLabel>
+                                                <FormControl>
+                                                    <AmountInput
+                                                        className='bg-white'
+                                                        placeholder='AMC Rate'
+                                                        disabled={disableInput}
+                                                        defaultInputValue={{
+                                                            percentage: field.value?.percentage || 0,
+                                                            value: field.value?.amount || 0
+                                                        }}
+                                                        onModeChange={(isPct) => setIsPercentage(isPct)}
+                                                        onValueChange={(value: number | null) => {
+                                                            if (!value) return
+                                                            if (isPercentage) {
+                                                                const percentage = parseFloat(value.toString()) || 0
+                                                                const calculatedAmount = (cost * percentage) / 100
+                                                                field.onChange({ percentage, amount: calculatedAmount })
+                                                            } else {
+                                                                const amount = parseFloat(value.toString()) || 0
+                                                                const calculatedPercentage = cost ? ((amount / cost) * 100).toFixed(2) : 0
+                                                                field.onChange({ percentage: parseFloat(calculatedPercentage as string), amount })
+                                                            }
+                                                        }}
+                                                    />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )
+                                    }}
+                                />
+                            </div>
+                        </CardContent>
+                    </Card>
 
-                                                </SelectValue>
-                                            </SelectTrigger>
-                                            <SelectContent className='bg-white'>
-                                                {
-                                                    Object.entries(PAYMENT_STATUS_ENUM)
-                                                        .filter(([key]) => isNaN(Number(key)))
-                                                        .map(([key, value]) => (
-                                                            <SelectItem value={value} key={key} className='capitalize'>
-                                                                {value === PAYMENT_STATUS_ENUM.PAID ? (
+                    {/* Documents */}
+                    <Card className="border-0 shadow-sm">
+                        <CardContent className="p-5">
+                            <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-4">Documents</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {renderFormField('purchase_order_document', 'Purchase Order Document', 'Upload Purchase Order Document', 'file')}
+                                {renderFormField('invoice_document', 'Invoice Document', 'Upload Invoice Document', 'file')}
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Invoice & Payment */}
+                    <Card className="border-0 shadow-sm">
+                        <CardContent className="p-5">
+                            <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-4">Invoice & Payment</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {renderFormField('purchase_order_number', 'Purchase Order Number', 'Enter purchase order number', 'text')}
+                                {renderFormField('invoice_number', 'Invoice Number', 'Enter invoice number', 'text')}
+                                <FormField
+                                    control={form.control}
+                                    name="invoice_date"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className='text-gray-500 text-sm'>Invoice Date</FormLabel>
+                                            <FormControl>
+                                                <DatePicker
+                                                    date={field.value}
+                                                    onDateChange={field.onChange}
+                                                    disabled={disableInput}
+                                                />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name={`payment_status`}
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className='text-gray-500 text-sm'>Payment Status</FormLabel>
+                                            <FormControl>
+                                                <Select onValueChange={field.onChange}>
+                                                    <SelectTrigger className="w-full bg-white" disabled={disableInput}>
+                                                        <SelectValue className="capitalize" placeholder=
+                                                            {
+                                                                field.value === PAYMENT_STATUS_ENUM.PAID ? (
                                                                     <div className="flex items-center">
                                                                         <div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div>
-                                                                        {value}
+                                                                        {PAYMENT_STATUS_ENUM.PAID}
                                                                     </div>
                                                                 ) : (
                                                                     <div className="flex items-center">
                                                                         <div className="w-2 h-2 rounded-full bg-red-500 mr-2"></div>
-                                                                        <span className="capitalize">{value}</span>
+                                                                        <span className="capitalize">{PAYMENT_STATUS_ENUM.PENDING}</span>
                                                                     </div>
-                                                                )}
-                                                            </SelectItem>
-                                                        ))
-                                                }
-                                            </SelectContent>
-                                        </Select>
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        <FormField
-                            control={form.control}
-                            name={`payment_receive_date`}
-                            render={({ field }) => (
-                                <FormItem className='w-full relative'>
-                                    <FormLabel className='text-gray-500'>Payment Receive Date</FormLabel>
-                                    <FormControl>
-                                        <DatePicker date={field.value} onDateChange={field.onChange} placeholder='Payment Receive Date' disabled={disableInput} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                    </div>
+                                                                )
+                                                            }
+                                                        >
+                                                        </SelectValue>
+                                                    </SelectTrigger>
+                                                    <SelectContent className='bg-white'>
+                                                        {
+                                                            Object.entries(PAYMENT_STATUS_ENUM)
+                                                                .filter(([key]) => isNaN(Number(key)))
+                                                                .map(([key, value]) => (
+                                                                    <SelectItem value={value} key={key} className='capitalize'>
+                                                                        {value === PAYMENT_STATUS_ENUM.PAID ? (
+                                                                            <div className="flex items-center">
+                                                                                <div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div>
+                                                                                {value}
+                                                                            </div>
+                                                                        ) : (
+                                                                            <div className="flex items-center">
+                                                                                <div className="w-2 h-2 rounded-full bg-red-500 mr-2"></div>
+                                                                                <span className="capitalize">{value}</span>
+                                                                            </div>
+                                                                        )}
+                                                                    </SelectItem>
+                                                                ))
+                                                        }
+                                                    </SelectContent>
+                                                </Select>
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name={`payment_receive_date`}
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className='text-gray-500 text-sm'>Payment Receive Date</FormLabel>
+                                            <FormControl>
+                                                <DatePicker date={field.value} onDateChange={field.onChange} placeholder='Payment Receive Date' disabled={disableInput} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            </div>
+                        </CardContent>
+                    </Card>
 
-                    <div className="gap-5">
+                    {/* Customization */}
+                    <div className="space-y-4">
                         {renderDynamicFields(form.getValues("type") as string || CustomizationType.MODULE)}
 
                         <Dialog open={addNewModule.add} onOpenChange={(val) => !val && setAddNewModule({ add: false, value: "", description: "" })}>
@@ -765,8 +795,6 @@ const CustomizationForm: React.FC<ICustomationProps> = ({ clientId, handler, isL
                             </DialogContent>
                         </Dialog>
                     </div>
-
-
 
                     <div className="flex justify-end">
                         <Button type="submit" className='md:w-48 w-full py-5 md:py-2' disabled={isLoading || disableInput} loading={{ isLoading, loader: "tailspin" }} >

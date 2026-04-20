@@ -25,6 +25,10 @@ export interface ILicenceObject {
   deleted: boolean;
   createdAt: string;
   updatedAt: string;
+  amc_rate?: {
+    percentage: number;
+    amount: number;
+  };
 }
 
 export interface ICustomizationObject {
@@ -46,6 +50,10 @@ export interface ICustomizationObject {
   deleted: boolean;
   createdAt: string;
   updatedAt: string;
+  amc_rate?: {
+    percentage: number;
+    amount: number;
+  };
 }
 
 export interface IAdditionalServiceObject {
@@ -66,6 +74,10 @@ export interface IAdditionalServiceObject {
   invoice_date: Date;
   service_document?: string;
   order_id: string;
+  amc_rate?: {
+    percentage: number;
+    amount: number;
+  };
 }
 
 export interface IOrderObject<P = string> {
