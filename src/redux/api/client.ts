@@ -38,6 +38,7 @@ export interface IClientProfit {
   total_profit: number;
   upcoming_amc_profit: number;
   total_amc_collection: number;
+  balance: number;
   revenue_breakdown: {
     base_cost: number;
     customizations: number;
@@ -85,6 +86,22 @@ export interface IGetClientsResponse {
   };
 }
 
+// Add new interface for query params
+export interface IGetClientsQueryParams {
+  page?: number;
+  limit?: number;
+  all?: boolean;
+  parent_company_id?: string;
+  client_name?: string;
+  industry?: string;      // comma-separated
+  product_id?: string;    // comma-separated
+  startDate?: string;
+  endDate?: string;
+  has_orders?: string;
+  status?: string;        // comma-separated: 'active', 'inactive', or 'active,inactive'
+  financial_year?: string; // e.g. '2024'
+}
+
 export const clientApi = createApi({
   reducerPath: "client",
   baseQuery: fetchBaseQuery({
@@ -101,48 +118,19 @@ export const clientApi = createApi({
       query: (id) => `/${id}`,
       providesTags: ["CLIENT_DETAIL"],
     }),
-    getClients: builder.query<
-      IResponse<IGetClientsResponse>,
-      {
-        page?: number;
-        limit?: number;
-        all?: boolean;
-        parent_company_id?: string;
-        client_name?: string;
-        industry?: string;
-        product_id?: string;
-        startDate?: string;
-        endDate?: string;
-        has_orders?: string;
-      }
-    >({
+    getClients: builder.query<IResponse<IGetClientsResponse>, IGetClientsQueryParams>({
       query: (params) => {
-        const {
-          limit = 10,
-          page = 1,
-          all = false,
-          parent_company_id,
-          client_name,
-          industry,
-          product_id,
-          startDate,
-          endDate,
-          has_orders,
-        } = params;
-
+        const { limit = 10, page = 1, all = false, ...rest } = params;
         const queryParams = new URLSearchParams();
         queryParams.append("limit", limit.toString());
         queryParams.append("page", page.toString());
         queryParams.append("all", all.toString());
 
-        if (parent_company_id)
-          queryParams.append("parent_company_id", parent_company_id);
-        if (client_name) queryParams.append("client_name", client_name);
-        if (industry) queryParams.append("industry", industry);
-        if (product_id) queryParams.append("product_id", product_id);
-        if (startDate) queryParams.append("startDate", startDate);
-        if (endDate) queryParams.append("endDate", endDate);
-        if (has_orders) queryParams.append("has_orders", has_orders);
+        Object.entries(rest).forEach(([key, value]) => {
+          if (value !== undefined && value !== null && value !== "") {
+            queryParams.append(key, String(value));
+          }
+        });
 
         return `/?${queryParams.toString()}`;
       },
@@ -212,16 +200,19 @@ export const clientApi = createApi({
         url: "/generate-client-id",
       }),
     }),
-    checkClientName: builder.query<
+    checkClientDuplicate: builder.query<
       IResponse<{
         exists: boolean;
         clients: Pick<IClientDataObject, "name" | "_id">[];
       }>,
-      string
+      { name: string; product?: string; exclude_id?: string }
     >({
-      query: (name) => ({
-        url: `/check-client-name?name=${name}`,
-      }),
+      query: ({ name, product, exclude_id }) => {
+        const params = new URLSearchParams({ name });
+        if (product) params.append("product", product);
+        if (exclude_id) params.append("exclude_id", exclude_id);
+        return { url: `/check-client-duplicate?${params.toString()}` };
+      },
     }),
     exportClients: builder.mutation<void, {
       parent_company_id?: string;
@@ -231,11 +222,13 @@ export const clientApi = createApi({
       startDate?: string;
       endDate?: string;
       has_orders?: string;
+      status?: string;
+      financial_year?: string;
     }>({
       query: (params) => {
         const queryParams = new URLSearchParams();
         queryParams.append("all", "true");
-        
+
         if (params.parent_company_id)
           queryParams.append("parent_company_id", params.parent_company_id);
         if (params.client_name) queryParams.append("client_name", params.client_name);
@@ -244,12 +237,28 @@ export const clientApi = createApi({
         if (params.startDate) queryParams.append("startDate", params.startDate);
         if (params.endDate) queryParams.append("endDate", params.endDate);
         if (params.has_orders) queryParams.append("has_orders", params.has_orders);
+        if (params.status) queryParams.append("status", params.status);
+        if (params.financial_year) queryParams.append("financial_year", params.financial_year);
 
         return {
           url: `/export?${queryParams.toString()}`,
           method: HTTP_REQUEST.GET,
           responseHandler: (response) => response.blob(),
         };
+      },
+    }),
+    getClientStats: builder.query<
+      IResponse<{ active: number; inactive: number; total: number }>,
+      Omit<IGetClientsQueryParams, "status" | "page" | "limit" | "all">
+    >({
+      query: (params) => {
+        const queryParams = new URLSearchParams();
+        Object.entries(params).forEach(([key, value]) => {
+          if (value !== undefined && value !== null && value !== "") {
+            queryParams.append(key, String(value));
+          }
+        });
+        return `/stats?${queryParams.toString()}`;
       },
     }),
   }),
@@ -266,6 +275,7 @@ export const {
   useGetAllParentCompaniesQuery,
   useGetProfitFromClientQuery,
   useGenerateNewClientIdQuery,
-  useCheckClientNameQuery,
-  useExportClientsMutation
+  useCheckClientDuplicateQuery,
+  useExportClientsMutation,
+  useGetClientStatsQuery,
 } = clientApi;

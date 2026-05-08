@@ -390,6 +390,14 @@ export const orderApi = createApi({
       }),
       invalidatesTags: ["ORDERS_LIST", "CLIENT_ORDERS_DATA"],
     }),
+    cancelOrder: builder.mutation<IResponse, { id: string; reason: string; cancelled_products?: string[] }>({
+      query: ({ id, reason, cancelled_products }) => ({
+        url: `/${id}/cancel`,
+        method: HTTP_REQUEST.POST,
+        body: { reason, cancelled_products },
+      }),
+      invalidatesTags: ["ORDER_DATA", "CLIENT_ORDERS_DATA", "ORDERS_LIST"],
+    }),
     getOrderFiltersOfCompany: builder.query<
       IResponse<IOrderFilterCompanyResponse>,
       void
@@ -507,6 +515,7 @@ export const {
   useAddAmcPaymentsMutation,
   useUpdateAMCByIdMutation,
   useDeleteOrderByIdMutation,
+  useCancelOrderMutation,
   useDeleteAMCPaymentByIdMutation,
   useGetOrderFiltersOfCompanyQuery,
   useExportAmcToExcelMutation,

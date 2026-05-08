@@ -34,7 +34,7 @@ import {
   IClientDataObject,
   useGenerateNewClientIdQuery,
   useGetAllParentCompaniesQuery,
-  useCheckClientNameQuery,
+  useCheckClientDuplicateQuery,
 } from "@/redux/api/client";
 import { decrypt } from "@/utils/crypto";
 import { useRef } from "react";
@@ -213,10 +213,13 @@ const ClientDetail: React.FC<IProps> = ({
     };
   }, [nameValue]);
 
-  const { data: checkNameData } = useCheckClientNameQuery(
-    debouncedName && debouncedName.trim().length > 0
-      ? debouncedName.trim()
-      : "",
+  const { data: checkNameData } = useCheckClientDuplicateQuery(
+    {
+      name: debouncedName && debouncedName.trim().length > 0
+        ? debouncedName.trim()
+        : "",
+      exclude_id: defaultValue?._id,
+    },
     { skip: !debouncedName || !debouncedName.trim() }
   );
 
@@ -273,12 +276,13 @@ const ClientDetail: React.FC<IProps> = ({
                         Client(s) with this name already exist:
                       </div>
                       <ul className="space-y-1">
-                        {checkNameData.data.clients.map((client) => (
+                        {checkNameData.data.clients.map((client: { _id: string; name: string; client_id?: string }) => (
                           <li
                             key={client._id}
-                            className="text-xs text-gray-700 px-2 py-1 rounded hover:bg-gray-50"
+                            className="text-xs text-gray-700 px-2 py-1 rounded hover:bg-gray-50 flex justify-between items-center"
                           >
-                            {client.name}
+                            <span className="font-medium">{client.name}</span>
+                            <span className="text-[10px] bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">{client.client_id}</span>
                           </li>
                         ))}
                       </ul>

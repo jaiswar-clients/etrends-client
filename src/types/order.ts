@@ -148,6 +148,9 @@ export interface IOrderObject<P = string> {
     license: boolean;
   };
   additional_services?: IAdditionalServiceObject[];
+  cancelled_at?: string;
+  cancellation_reason?: string;
+  cancelled_products?: string[];
   _id: string;
 }
 

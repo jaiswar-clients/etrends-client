@@ -66,6 +66,12 @@ const CHART_COLORS = {
   collected: "#10b981",
 };
 
+const ORDER_TYPE_OPTIONS = [
+  { label: "All", value: "all" },
+  { label: "New Sales", value: "new" },
+  { label: "AMC", value: "amc" },
+] as const;
+
 const generateYears = () => {
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth();
@@ -518,17 +524,18 @@ const RevenueReportDashboard = () => {
   const [filterType, setFilterType] = useState<FilterType>(DEFAULT_FILTER);
   const [selectedPeriod, setSelectedPeriod] = useState<{ period: string; year: number; month: number } | null>(null);
   const [isExporting, setIsExporting] = useState<boolean>(false);
+  const [orderTypes, setOrderTypes] = useState<string>("all");
 
   // Get token from Redux store
   const token = useAppSelector((state) => state.user.user.token);
 
   const revenueFilters: IReportQueries = useMemo(() => ({
     filter: filterType,
-    options: { year: fiscalYear },
-  }), [fiscalYear, filterType]);
+    options: { year: fiscalYear, orderTypes },
+  }), [fiscalYear, filterType, orderTypes]);
 
   const { data: revenueData, isLoading: isRevenueLoading } = useGetRevenueDashboardQuery(revenueFilters);
-  const { data: expectedVsCollectedData, isLoading: isExpectedVsCollectedLoading } = useGetExpectedVsCollectedQuery({ fiscalYear, filter: filterType });
+  const { data: expectedVsCollectedData, isLoading: isExpectedVsCollectedLoading } = useGetExpectedVsCollectedQuery({ fiscalYear, filter: filterType, orderTypes });
   const { data: clientHealthData, isLoading: isClientHealthLoading } = useGetClientHealthDashboardQuery({ fiscalYear });
 
   const revenueChartData = useMemo(() => {
@@ -595,8 +602,13 @@ const RevenueReportDashboard = () => {
         return;
       }
 
+      const params = new URLSearchParams();
+      params.append('fiscalYear', fiscalYear.toString());
+      params.append('filter', filterType);
+      if (orderTypes) params.append('orderTypes', orderTypes);
+
       const response = await fetch(
-        `${apiUrl}/reports/export-excel?fiscalYear=${fiscalYear}&filter=${filterType}`,
+        `${apiUrl}/reports/export-excel?${params.toString()}`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -678,6 +690,23 @@ const RevenueReportDashboard = () => {
                 {isExporting ? 'Exporting...' : 'Export Excel'}
               </Button>
             </div>
+          </div>
+          <div className="flex items-center gap-1.5 mt-2">
+            <span className="text-[10px] text-slate-500 mr-1">Revenue Stream:</span>
+            {ORDER_TYPE_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setOrderTypes(opt.value)}
+                className={cn(
+                  "px-2.5 py-0.5 text-[10px] font-medium rounded-full border transition-colors",
+                  orderTypes === opt.value
+                    ? "bg-blue-600 text-white border-blue-600"
+                    : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
+                )}
+              >
+                {opt.label}
+              </button>
+            ))}
           </div>
         </div>
       </div>

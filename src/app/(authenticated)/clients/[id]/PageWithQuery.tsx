@@ -69,7 +69,7 @@ interface RevenueBreakdownProps {
   total: number;
 }
 
-const RevenueBreakdownTable = ({ breakdown, total }: RevenueBreakdownProps) => {
+const RevenueBreakdownTable = ({ breakdown, total, balance }: RevenueBreakdownProps & { balance?: number }) => {
   const items = [
     { name: "Base Cost", value: breakdown.base_cost },
     { name: "Customizations", value: breakdown.customizations },
@@ -94,6 +94,15 @@ const RevenueBreakdownTable = ({ breakdown, total }: RevenueBreakdownProps) => {
             </TableCell>
           </TableRow>
         ))}
+
+        {balance !== undefined && (
+          <TableRow className="bg-amber-50">
+            <TableCell className="font-medium text-amber-800">Balance Payment</TableCell>
+            <TableCell className="text-right font-medium text-amber-800">
+              {balance.toLocaleString("en-IN")}
+            </TableCell>
+          </TableRow>
+        )}
 
         <TableRow className="bg-zinc-200 rounded">
           <TableHead className="text-black">Total</TableHead>
@@ -420,6 +429,7 @@ const PageWithQuery = ({ id }: { id: string }) => {
                     }
                   }
                   total={clientProfitData?.data.total_profit || 0}
+                  balance={clientProfitData?.data.balance}
                 />
               </DialogContent>
             </Dialog>
@@ -552,9 +562,16 @@ const PageWithQuery = ({ id }: { id: string }) => {
   return (
     <div>
       <div className="flex justify-between items-start">
-        <Typography variant="h1" className="text-3xl">
-          {data?.data.name}
-        </Typography>
+        <div>
+          <Typography variant="h1" className="text-3xl">
+            {data?.data.name}
+          </Typography>
+          {data?.data.client_id && (
+            <p className="text-sm text-muted-foreground mt-1">
+              Client ID: {data?.data.client_id}
+            </p>
+          )}
+        </div>
         <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
           <DialogTrigger asChild>
             <Button variant="destructive" className="flex items-center gap-2">

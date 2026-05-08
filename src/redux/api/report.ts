@@ -14,6 +14,7 @@ export interface IReportQueries {
     endDate?: Date;
     year?: number;
     quarter?: string;
+    orderTypes?: string;
   };
 }
 
@@ -249,6 +250,7 @@ export const reportApi = createApi({
         if (options?.quarter) params.append("quarter", options.quarter);
         if (options?.startDate) params.append("startDate", options.startDate.toString());
         if (options?.endDate) params.append("endDate", options.endDate.toString());
+        if (options?.orderTypes) params.append("orderTypes", options.orderTypes);
         return {
           url: `/revenue-dashboard?${params.toString()}`,
           method: HTTP_REQUEST.GET,
@@ -257,10 +259,10 @@ export const reportApi = createApi({
     }),
     getExpectedVsCollected: builder.query<
       IResponse<IExpectedVsCollectedResponse>,
-      { fiscalYear: number; filter?: IReportFilters }
+      { fiscalYear: number; filter?: IReportFilters; orderTypes?: string }
     >({
-      query: ({ fiscalYear, filter = 'monthly' }) => ({
-        url: `/expected-vs-collected?fiscalYear=${fiscalYear}&filter=${filter}`,
+      query: ({ fiscalYear, filter = 'monthly', orderTypes }) => ({
+        url: `/expected-vs-collected?fiscalYear=${fiscalYear}&filter=${filter}${orderTypes ? `&orderTypes=${orderTypes}` : ''}`,
         method: HTTP_REQUEST.GET,
       }),
     }),

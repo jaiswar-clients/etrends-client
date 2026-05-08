@@ -18,16 +18,17 @@ import Typography from '@/components/ui/Typography'
 import { ORDER_STATUS_ENUM } from '@/types/client'
 import { SubmitHandler, useFieldArray, useForm } from 'react-hook-form'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import ProductDropdown from '@/components/common/ProductDropdown'
 import { AmountInput } from '@/components/ui/AmountInput'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import DatePicker from '@/components/ui/datepicker'
-import { CircleCheck, CirclePlus, CircleX, Edit, File, IndianRupee, Trash2, Wrench, X, History, Clock } from 'lucide-react'
+import { CircleCheck, CirclePlus, CircleX, Edit, File, IndianRupee, Trash2, Wrench, X, History, Clock, Ban } from 'lucide-react'
 import { Separator } from '@radix-ui/react-separator'
 import { useToast } from '@/hooks/use-toast'
 import { IPaymentTerm, LicenseDetails, OrderDetailInputs } from '@/types/order'
 import { useAppSelector } from '@/redux/hook'
-import { IOrderObject, PAYMENT_STATUS_ENUM, useDeleteOrderByIdMutation } from '@/redux/api/order'
+import { IOrderObject, PAYMENT_STATUS_ENUM, useDeleteOrderByIdMutation, useCancelOrderMutation } from '@/redux/api/order'
 import {
     Tooltip,
     TooltipContent,
@@ -96,6 +97,8 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
     const [statusChangeDate, setStatusChangeDate] = useState<Date>(new Date());
     const [showStatusLogsModal, setShowStatusLogsModal] = useState(false);
     const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+    const [showCancelConfirmation, setShowCancelConfirmation] = useState(false);
+    const [cancelReason, setCancelReason] = useState("");
     const [showAmcRateHistoryModal, setShowAmcRateHistoryModal] = useState(false);
     const [initialAmcStartDate, setInitialAmcStartDate] = useState<Date | null>(null);
     const [showAmcStartChangeModal, setShowAmcStartChangeModal] = useState(false);
@@ -109,6 +112,7 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
     const { user } = useAppSelector(state => state.user)
 
     const [deleteOrderById, { isLoading: isDeleting }] = useDeleteOrderByIdMutation();
+    const [cancelOrder, { isLoading: isCancelling }] = useCancelOrderMutation();
 
     const amcHistoryForm = useForm({
         defaultValues: {
@@ -1262,6 +1266,82 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
         </Dialog>
     );
 
+    const handleCancelOrder = async () => {
+        if (!defaultValue?._id) return;
+        if (!cancelReason.trim()) {
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "Please provide a cancellation reason"
+            });
+            return;
+        }
+
+        try {
+            await cancelOrder({
+                id: defaultValue._id,
+                reason: cancelReason.trim(),
+            }).unwrap();
+            toast({
+                variant: "success",
+                title: "Order Cancelled",
+                description: "The order has been cancelled successfully"
+            });
+            setShowCancelConfirmation(false);
+            setCancelReason("");
+            router.back();
+        } catch (error: any) {
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: error.message || "An error occurred while cancelling the order"
+            });
+        }
+    };
+
+    const CancelConfirmationDialog = () => (
+        <Dialog open={showCancelConfirmation} onOpenChange={setShowCancelConfirmation}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle className="text-orange-600">Cancel Order</DialogTitle>
+                    <DialogDescription>
+                        Are you sure you want to cancel this order? The order will be marked as inactive and cannot be reactivated.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-3 py-2">
+                    <div>
+                        <label className="text-sm font-medium text-gray-700 mb-1 block">Cancellation Reason <span className="text-red-500">*</span></label>
+                        <Textarea
+                            placeholder="Enter reason for cancellation..."
+                            value={cancelReason}
+                            onChange={(e) => setCancelReason(e.target.value)}
+                            className="w-full"
+                            rows={3}
+                        />
+                    </div>
+                </div>
+                <DialogFooter className="flex items-center justify-end space-x-2 pt-4">
+                    <Button
+                        variant="outline"
+                        onClick={() => {
+                            setShowCancelConfirmation(false);
+                            setCancelReason("");
+                        }}
+                    >
+                        Close
+                    </Button>
+                    <Button
+                        variant="destructive"
+                        onClick={handleCancelOrder}
+                        loading={{ isLoading: isCancelling, loader: "tailspin" }}
+                    >
+                        Yes, Cancel Order
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+
     const finalJSX = (
         <div className="mt-1 p-2">
             {defaultValue?._id && (
@@ -1285,6 +1365,17 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
                             </>
                         )}
                     </Button>
+                    {!defaultValue?.cancelled_at && (
+                        <Button
+                            type='button'
+                            variant='outline'
+                            className='w-36 justify-between border-orange-500 text-orange-600 hover:bg-orange-50 hover:text-orange-700'
+                            onClick={() => setShowCancelConfirmation(true)}
+                        >
+                            <Ban />
+                            <span>Cancel Order</span>
+                        </Button>
+                    )}
                     <Button
                         type='button'
                         variant='destructive'
@@ -1411,6 +1502,18 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
                                 />
                                 {renderFormField("amc_rate_change_frequency_in_years", "AMC Rate Change Frequency (Years)", "Enter frequency in years", "number")}
                             </div>
+                            {defaultValue?.cancelled_at && (
+                                <div className="bg-orange-50 border border-orange-200 rounded-md p-3 mb-4 flex items-start gap-3">
+                                    <Ban className="w-5 h-5 text-orange-600 mt-0.5 flex-shrink-0" />
+                                    <div>
+                                        <p className="text-sm font-semibold text-orange-800">Order Cancelled</p>
+                                        <p className="text-xs text-orange-700 mt-0.5">
+                                            Cancelled on {new Date(defaultValue.cancelled_at).toLocaleDateString('en-IN')}
+                                            {defaultValue.cancellation_reason ? ` · Reason: ${defaultValue.cancellation_reason}` : ''}
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
                             <div className="md:flex items-start gap-4 w-full mt-4">
                                 {renderFormField("training_and_implementation_cost", "Training and Implementation Cost", "Training and Implementation Cost", "number")}
 
@@ -1769,6 +1872,7 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
 
             </Form>
             {DeleteConfirmationDialog()}
+            {CancelConfirmationDialog()}
         </div>
     )
 
