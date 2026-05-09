@@ -106,21 +106,21 @@ const columns = (
     cell: ({ row }) => {
       const purchase = row.original;
       const badges = [];
-      if (purchase.customizations && purchase.customizations.length > 0) {
+      if (purchase.has_customizations) {
         badges.push(
           <Badge key="customization" variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 mr-1">
             Customization
           </Badge>
         );
       }
-      if (purchase.licenses && purchase.licenses.length > 0) {
+      if (purchase.has_licenses) {
         badges.push(
           <Badge key="license" variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 mr-1">
             License
           </Badge>
         );
       }
-      if (purchase.amc_id) {
+      if (purchase.has_amc) {
         badges.push(
           <Badge key="amc" variant="outline" className="bg-green-50 text-green-700 border-green-200 mr-1">
             AMC
@@ -783,25 +783,22 @@ const PurchasesList: React.FC<IProps> = ({
               )}
             </div>
 
-            {/* Cancelled Toggle */}
-            <div className="flex items-center bg-gray-100 rounded-md p-1">
-              <Button
-                variant={initialFilters.includeCancelled === false ? "secondary" : "ghost"}
-                size="sm"
-                className="h-8 text-xs"
-                onClick={() => onIncludeCancelledChange(false)}
-              >
-                Active
-              </Button>
-              <Button
-                variant={initialFilters.includeCancelled === true ? "secondary" : "ghost"}
-                size="sm"
-                className="h-8 text-xs"
-                onClick={() => onIncludeCancelledChange(true)}
-              >
-                Show Cancelled
-              </Button>
-            </div>
+            {/* Status Filter */}
+            <Select
+              value={initialFilters.status || "all"}
+              onValueChange={(value) =>
+                onFilterChange("status", value === "all" ? undefined : value)
+              }
+            >
+              <SelectTrigger className="w-[130px] capitalize">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
 
             {/* Export Button */}
             <Button

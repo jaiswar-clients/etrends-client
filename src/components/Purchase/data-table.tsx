@@ -6,7 +6,6 @@ import {
   flexRender,
   getCoreRowModel,
   useReactTable,
-  getPaginationRowModel,
 } from "@tanstack/react-table";
 import { useState, useMemo } from "react";
 import {
@@ -61,7 +60,6 @@ export function DataTable<TData, TValue>({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     getRowId: (row) => (row as any)._id || String(Math.random()), // Fallback to random ID if _id is not available
   });
 
@@ -82,7 +80,7 @@ export function DataTable<TData, TValue>({
     return new Intl.NumberFormat("en-IN", {
       style: "currency",
       currency: "INR",
-    }).format(amount);
+    }).format(amount ?? 0);
   };
 
   // Function to format date
@@ -138,7 +136,7 @@ export function DataTable<TData, TValue>({
                   <span>PO: {customization.purchase_order_number}</span>
                 </div>
                 <div className="flex items-center text-sm font-medium text-green-600">
-                  <DollarSign className="h-4 w-4 mr-1" />
+                  <IndianRupee className="h-4 w-4 mr-1" />
                   <span>{formatCurrency(customization.cost)}</span>
                 </div>
               </div>
@@ -155,7 +153,7 @@ export function DataTable<TData, TValue>({
                   <span>Modules:</span>
                 </div>
                 <div className="mt-1 flex flex-wrap gap-1">
-                  {customization.modules.map((module, idx) => (
+                  {(customization.modules || []).map((module, idx) => (
                     <Badge
                       key={idx}
                       variant="outline"
@@ -242,7 +240,7 @@ export function DataTable<TData, TValue>({
                   </div>
                   <span className="font-medium text-green-600">
                     {formatCurrency(
-                      license.rate.amount * (license.total_license || 1)
+                      (license.rate?.amount || 0) * (license.total_license || 1)
                     )}
                   </span>
                 </div>
@@ -292,7 +290,7 @@ export function DataTable<TData, TValue>({
                   <span>Date: {formatDate(service.invoice_date)}</span>
                 </div>
                 <div className="flex items-center text-sm font-medium text-green-600">
-                  <DollarSign className="h-4 w-4 mr-1" />
+                  <IndianRupee className="h-4 w-4 mr-1" />
                   <span>{formatCurrency(service.cost)}</span>
                 </div>
               </div>
