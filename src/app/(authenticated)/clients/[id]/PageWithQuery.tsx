@@ -459,10 +459,17 @@ const PageWithQuery = ({ id }: { id: string }) => {
         <Typography variant="h2" className="text-3xl ">
           Orders
         </Typography>
-        <Button onClick={() => router.push(`/purchases/new/order/${id}`)}>
-          <Plus />
-          New Order
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" asChild>
+            <Link href={`/purchases?clientId=${id}`}>
+              View all purchases
+            </Link>
+          </Button>
+          <Button onClick={() => router.push(`/purchases/new/order/${id}`)}>
+            <Plus />
+            New Order
+          </Button>
+        </div>
       </div>
 
       <Table className="">

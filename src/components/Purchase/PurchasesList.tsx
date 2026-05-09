@@ -9,6 +9,13 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { IPurchase, PURCHASE_TYPE } from "@/types/order";
 import { ORDER_STATUS_ENUM } from "@/types/client";
@@ -33,6 +40,13 @@ import FinancialYearFilter from "../common/FinancialYearFilter";
 import { FileSpreadsheet } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAppSelector } from "@/redux/hook";
+
+const TYPE_OPTIONS = [
+  { label: "New Order", value: "new" },
+  { label: "AMC", value: "amc" },
+  { label: "Customization", value: "customization" },
+  { label: "Auditor License", value: "auditor_license" },
+];
 
 const columns = (
   router: ReturnType<typeof useRouter>,
@@ -67,19 +81,53 @@ const columns = (
     header: "Status",
     cell: ({ row }) => {
       const status = row.getValue("status") as string;
+      const isCancelled = !!row.original.cancelled_at;
       return (
         <Badge
           variant={
-            status === ORDER_STATUS_ENUM.ACTIVE
-              ? "success"
-              : status === ORDER_STATUS_ENUM.INACTIVE
-                ? "destructive"
-                : "default"
+            isCancelled
+              ? "secondary"
+              : status === ORDER_STATUS_ENUM.ACTIVE
+                ? "success"
+                : status === ORDER_STATUS_ENUM.INACTIVE
+                  ? "destructive"
+                  : "default"
           }
+          className={isCancelled ? "bg-gray-300 text-gray-700" : ""}
         >
-          {status}
+          {isCancelled ? "Cancelled" : status}
         </Badge>
       );
+    },
+  },
+  {
+    id: "badges",
+    header: "Tags",
+    cell: ({ row }) => {
+      const purchase = row.original;
+      const badges = [];
+      if (purchase.customizations && purchase.customizations.length > 0) {
+        badges.push(
+          <Badge key="customization" variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 mr-1">
+            Customization
+          </Badge>
+        );
+      }
+      if (purchase.licenses && purchase.licenses.length > 0) {
+        badges.push(
+          <Badge key="license" variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 mr-1">
+            License
+          </Badge>
+        );
+      }
+      if (purchase.amc_id) {
+        badges.push(
+          <Badge key="amc" variant="outline" className="bg-green-50 text-green-700 border-green-200 mr-1">
+            AMC
+          </Badge>
+        );
+      }
+      return <div className="flex flex-wrap gap-1">{badges}</div>;
     },
   },
   {
@@ -100,6 +148,7 @@ const columns = (
             e.stopPropagation(); // Prevent row click toggle
             router.push(
               `/purchases/${purchase._id}?type=${PURCHASE_TYPE.ORDER}&client=${purchase.client_id._id}`,
+              { scroll: false }
             );
           }}
         >
@@ -120,16 +169,20 @@ interface IProps {
   initialFilters: {
     client?: string;
     clientId?: string;
-    product?: string;
+    products?: string[];
+    productIds?: string[];
     status?: string;
     purchaseType?: string;
     parentCompany?: string;
     parentCompanyId?: string;
     amcPending: boolean;
     page: number;
+    pageSize: number;
     fy?: string;
     startDate?: string;
     endDate?: string;
+    types?: string[];
+    includeCancelled?: boolean;
   };
   onFilterChange: (
     filterType:
@@ -139,11 +192,15 @@ interface IProps {
       | "purchaseType"
       | "parentCompany"
       | "clientId"
-      | "parentCompanyId",
-    value: string | undefined,
+      | "parentCompanyId"
+      | "productIds",
+    value: string | string[] | undefined,
   ) => void;
   onAmcPendingChange: (value: boolean) => void;
   onPageChange: (page: number) => void;
+  onPageSizeChange: (size: number) => void;
+  onTypesChange: (types: string[]) => void;
+  onIncludeCancelledChange: (value: boolean) => void;
   isLoading?: boolean;
   selectedFY?: string;
   onFYFilterChange: (fy: string | undefined) => void;
@@ -161,6 +218,9 @@ const PurchasesList: React.FC<IProps> = ({
   onFilterChange,
   onAmcPendingChange,
   onPageChange,
+  onPageSizeChange,
+  onTypesChange,
+  onIncludeCancelledChange,
   isLoading,
   selectedFY,
   onFYFilterChange,
@@ -183,16 +243,21 @@ const PurchasesList: React.FC<IProps> = ({
 
   const router = useRouter();
 
-  // Get unique values for status and product filters
+  // Get unique values for status filter
   const uniqueStatus = useMemo(
     () => Array.from(new Set(data.map((d) => d.status))),
     [data],
   );
 
-  const uniqueProducts = useMemo(
-    () => [...new Set(products.map((product: any) => product.short_name))],
-    [products],
-  );
+  const uniqueProducts = useMemo(() => {
+    const productMap = new Map();
+    products.forEach((product: any) => {
+      if (!productMap.has(product._id)) {
+        productMap.set(product._id, product);
+      }
+    });
+    return Array.from(productMap.values());
+  }, [products]);
 
   const onTabFilterChange = (tab: keyof typeof activeTabFilters) => {
     const newValue = !activeTabFilters[tab];
@@ -224,6 +289,41 @@ const PurchasesList: React.FC<IProps> = ({
     setParentSearch("");
   };
 
+  const handleProductToggle = (productId: string, productName: string, checked: boolean) => {
+    const currentIds = initialFilters.productIds || [];
+    const currentNames = initialFilters.products || [];
+    if (checked) {
+      onFilterChange("productIds", [...currentIds, productId]);
+      onFilterChange("product", [...currentNames, productName]);
+    } else {
+      onFilterChange("productIds", currentIds.filter((id) => id !== productId));
+      onFilterChange("product", currentNames.filter((name) => name !== productName));
+    }
+  };
+
+  const handleProductSelectAll = (checked: boolean) => {
+    if (checked) {
+      onFilterChange("productIds", uniqueProducts.map((p: any) => p._id));
+      onFilterChange("product", uniqueProducts.map((p: any) => p.short_name));
+    } else {
+      onFilterChange("productIds", []);
+      onFilterChange("product", []);
+    }
+  };
+
+  const handleTypeToggle = (typeValue: string, checked: boolean) => {
+    const current = initialFilters.types || [];
+    if (checked) {
+      onTypesChange([...current, typeValue]);
+    } else {
+      onTypesChange(current.filter((t) => t !== typeValue));
+    }
+  };
+
+  const handleTypeSelectAll = (checked: boolean) => {
+    onTypesChange(checked ? TYPE_OPTIONS.map((t) => t.value) : []);
+  };
+
   const tableColumns = useMemo(
     () => columns(router, pagination),
     [router, pagination],
@@ -244,8 +344,10 @@ const PurchasesList: React.FC<IProps> = ({
         parent_company_id: initialFilters.parentCompanyId,
         client_id: initialFilters.clientId,
         client_name: initialFilters.client,
-        product_id: initialFilters.product,
+        product_id: initialFilters.productIds?.join(",") || undefined,
         status: initialFilters.status as any,
+        types: initialFilters.types?.join(",") || undefined,
+        include_cancelled: initialFilters.includeCancelled,
         startDate: initialFilters.startDate,
         endDate: initialFilters.endDate,
       });
@@ -299,6 +401,39 @@ const PurchasesList: React.FC<IProps> = ({
       parent.name.toLowerCase().includes(parentSearch.toLowerCase()),
     );
   }, [filtersData?.data?.parents, parentSearch]);
+
+  // Helper to render selected products chip
+  const selectedProductsLabel = useMemo(() => {
+    const selectedIds = initialFilters.productIds || [];
+    if (selectedIds.length === 0) return null;
+    if (selectedIds.length <= 2) {
+      return selectedIds
+        .map((id) => uniqueProducts.find((p: any) => p._id === id)?.short_name || "")
+        .filter(Boolean)
+        .join(", ");
+    }
+    return `${selectedIds.length} selected`;
+  }, [initialFilters.productIds, uniqueProducts]);
+
+  // Helper to render selected types chip
+  const selectedTypesLabel = useMemo(() => {
+    const selected = initialFilters.types || [];
+    if (selected.length === 0) return null;
+    if (selected.length <= 2) {
+      return selected
+        .map((v) => TYPE_OPTIONS.find((t) => t.value === v)?.label || v)
+        .join(", ");
+    }
+    return `${selected.length} selected`;
+  }, [initialFilters.types]);
+
+  const allProductsSelected =
+    uniqueProducts.length > 0 &&
+    uniqueProducts.length === (initialFilters.productIds || []).length;
+
+  const allTypesSelected =
+    TYPE_OPTIONS.length > 0 &&
+    TYPE_OPTIONS.length === (initialFilters.types || []).length;
 
   return (
     <div>
@@ -525,13 +660,16 @@ const PurchasesList: React.FC<IProps> = ({
 
             {/* Products Filter */}
             <div className="relative">
-              {initialFilters.product ? (
+              {selectedProductsLabel ? (
                 <div className="flex items-center space-x-1 h-10 px-4 py-2 bg-gray-100 rounded-md">
                   <span className="text-sm font-medium">
-                    {initialFilters.product}
+                    {selectedProductsLabel}
                   </span>
                   <button
-                    onClick={() => onFilterChange("product", undefined)}
+                    onClick={() => {
+                      onFilterChange("productIds", []);
+                      onFilterChange("product", []);
+                    }}
                     className="ml-1 text-gray-500 hover:text-gray-700"
                   >
                     <svg
@@ -561,25 +699,110 @@ const PurchasesList: React.FC<IProps> = ({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    {uniqueProducts.map((product: string) => (
+                    <DropdownMenuCheckboxItem
+                      checked={allProductsSelected}
+                      onCheckedChange={(value) => handleProductSelectAll(value)}
+                    >
+                      Select All
+                    </DropdownMenuCheckboxItem>
+                    {uniqueProducts.map((product: any) => (
                       <DropdownMenuCheckboxItem
-                        key={product}
+                        key={product._id}
                         className="capitalize"
-                        checked={initialFilters.product === product}
+                        checked={initialFilters.productIds?.includes(product._id)}
                         onCheckedChange={(value) => {
-                          onFilterChange(
-                            "product",
-                            value ? product : undefined,
-                          );
+                          handleProductToggle(product._id, product.short_name, value);
                         }}
                       >
-                        {product}
+                        {product.short_name}
                       </DropdownMenuCheckboxItem>
                     ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
               )}
             </div>
+
+            {/* Order Type Filter */}
+            <div className="relative">
+              {selectedTypesLabel ? (
+                <div className="flex items-center space-x-1 h-10 px-4 py-2 bg-gray-100 rounded-md">
+                  <span className="text-sm font-medium">
+                    {selectedTypesLabel}
+                  </span>
+                  <button
+                    onClick={() => onTypesChange([])}
+                    className="ml-1 text-gray-500 hover:text-gray-700"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <line x1="18" y1="6" x2="6" y2="18"></line>
+                      <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                  </button>
+                </div>
+              ) : (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="capitalize min-w-[120px]"
+                    >
+                      Type <ChevronDown className="ml-2 h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuCheckboxItem
+                      checked={allTypesSelected}
+                      onCheckedChange={(value) => handleTypeSelectAll(value)}
+                    >
+                      Select All
+                    </DropdownMenuCheckboxItem>
+                    {TYPE_OPTIONS.map((type) => (
+                      <DropdownMenuCheckboxItem
+                        key={type.value}
+                        className="capitalize"
+                        checked={initialFilters.types?.includes(type.value)}
+                        onCheckedChange={(value) => {
+                          handleTypeToggle(type.value, value);
+                        }}
+                      >
+                        {type.label}
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
+
+            {/* Cancelled Toggle */}
+            <div className="flex items-center bg-gray-100 rounded-md p-1">
+              <Button
+                variant={initialFilters.includeCancelled === false ? "secondary" : "ghost"}
+                size="sm"
+                className="h-8 text-xs"
+                onClick={() => onIncludeCancelledChange(false)}
+              >
+                Active
+              </Button>
+              <Button
+                variant={initialFilters.includeCancelled === true ? "secondary" : "ghost"}
+                size="sm"
+                className="h-8 text-xs"
+                onClick={() => onIncludeCancelledChange(true)}
+              >
+                Show Cancelled
+              </Button>
+            </div>
+
             {/* Export Button */}
             <Button
               onClick={handleExportClick}
@@ -614,18 +837,38 @@ const PurchasesList: React.FC<IProps> = ({
 
         {/* Pagination */}
         <div className="flex items-center justify-between py-4 border-t">
-          {/* Items Count Display */}
-          <div className="text-sm text-muted-foreground whitespace-nowrap">
-            <span className="font-medium text-foreground">
-              {data.length > 0
-                ? `${Math.min((initialFilters.page - 1) * pagination.limit + 1, pagination.total)}-${Math.min(initialFilters.page * pagination.limit, pagination.total)}`
-                : "0-0"}
-            </span>
-            <span className="mx-2">of</span>
-            <span className="font-medium text-foreground">
-              {pagination.total}
-            </span>
-            <span className="ml-1">items</span>
+          {/* Items Count Display + Page Size */}
+          <div className="flex items-center gap-4">
+            <div className="text-sm text-muted-foreground whitespace-nowrap">
+              <span className="font-medium text-foreground">
+                {data.length > 0
+                  ? `${Math.min((initialFilters.page - 1) * pagination.limit + 1, pagination.total)}-${Math.min(initialFilters.page * pagination.limit, pagination.total)}`
+                  : "0-0"}
+              </span>
+              <span className="mx-2">of</span>
+              <span className="font-medium text-foreground">
+                {pagination.total}
+              </span>
+              <span className="ml-1">items</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Show</span>
+              <Select
+                value={String(initialFilters.pageSize)}
+                onValueChange={(value) => onPageSizeChange(parseInt(value))}
+              >
+                <SelectTrigger className="w-[70px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[10, 20, 50, 100].map((size) => (
+                    <SelectItem key={size} value={String(size)}>{size}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <span className="text-sm text-muted-foreground">per page</span>
+            </div>
           </div>
 
           {/* Pagination */}

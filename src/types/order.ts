@@ -151,6 +151,7 @@ export interface IOrderObject<P = string> {
   cancelled_at?: string;
   cancellation_reason?: string;
   cancelled_products?: string[];
+  amc_id?: string;
   _id: string;
 }
 

@@ -18,6 +18,15 @@ import CustomizationForm, { ICustomizationInputs } from './Form/CustomizationFor
 import LicenseForm, { ILicenseInputs } from './Form/LicenseForm'
 import { useRouter } from 'next/navigation'
 import AdditionalServiceForm, { IAdditionalServiceInputs } from './Form/AdditionalServiceForm'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { formatCurrency } from "@/lib/utils";
 
 interface IProps {
     id: string,
@@ -136,10 +145,85 @@ const PurchaseDetail: React.FC<IProps> = ({ id, type, clientId }) => {
         }
     }
 
+    const renderAMCBreakdown = () => {
+        const order = orderData?.data;
+        if (!order || type !== PURCHASE_TYPE.ORDER) return null;
+
+        const baseAmc = order.amc_rate?.amount || 0;
+        const basePercentage = order.amc_rate?.percentage || 0;
+
+        const customizationRows = (order.customizations || [])
+            .filter((c) => c.amc_rate && c.amc_rate.amount > 0)
+            .map((c) => ({
+                label: c.title || "Customization",
+                amount: c.amc_rate!.amount,
+                percentage: c.amc_rate!.percentage,
+            }));
+
+        const licenseRows = (order.licenses || [])
+            .filter((l) => l.amc_rate && l.amc_rate.amount > 0)
+            .map((l) => ({
+                label: "License",
+                amount: l.amc_rate!.amount,
+                percentage: l.amc_rate!.percentage,
+            }));
+
+        const totalAmc =
+            baseAmc +
+            customizationRows.reduce((sum, r) => sum + r.amount, 0) +
+            licenseRows.reduce((sum, r) => sum + r.amount, 0);
+
+        return (
+            <div className="mt-6 border rounded-lg p-4 bg-white">
+                <h3 className="text-lg font-semibold mb-3">AMC Breakdown</h3>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Component</TableHead>
+                            <TableHead className="text-right">Percentage</TableHead>
+                            <TableHead className="text-right">Amount</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        <TableRow>
+                            <TableCell className="font-medium">Base AMC</TableCell>
+                            <TableCell className="text-right">{basePercentage}%</TableCell>
+                            <TableCell className="text-right">{formatCurrency(baseAmc)}</TableCell>
+                        </TableRow>
+                        {customizationRows.map((row, idx) => (
+                            <TableRow key={`customization-${idx}`}>
+                                <TableCell>{row.label}</TableCell>
+                                <TableCell className="text-right">{row.percentage}%</TableCell>
+                                <TableCell className="text-right">{formatCurrency(row.amount)}</TableCell>
+                            </TableRow>
+                        ))}
+                        {licenseRows.map((row, idx) => (
+                            <TableRow key={`license-${idx}`}>
+                                <TableCell>{row.label}</TableCell>
+                                <TableCell className="text-right">{row.percentage}%</TableCell>
+                                <TableCell className="text-right">{formatCurrency(row.amount)}</TableCell>
+                            </TableRow>
+                        ))}
+                        <TableRow className="font-semibold bg-gray-50">
+                            <TableCell>Total AMC</TableCell>
+                            <TableCell className="text-right">—</TableCell>
+                            <TableCell className="text-right">{formatCurrency(totalAmc)}</TableCell>
+                        </TableRow>
+                    </TableBody>
+                </Table>
+            </div>
+        );
+    };
+
     const renderPurchaseDetail = () => {
         switch (type) {
             case PURCHASE_TYPE.ORDER:
-                return <OrderDetail isLoading={isUpdateOrderLoading} title="Order Detail" handler={async () => { }} defaultValue={orderData?.data} updateHandler={updateOrderHandler} defaultOpen={true} />
+                return (
+                    <div>
+                        <OrderDetail isLoading={isUpdateOrderLoading} title="Order Detail" handler={async () => { }} defaultValue={orderData?.data} updateHandler={updateOrderHandler} defaultOpen={true} />
+                        {renderAMCBreakdown()}
+                    </div>
+                )
             case PURCHASE_TYPE.CUSTOMIZATION:
                 return <CustomizationForm label='Customization Detail' isLoading={isCustomizationApiLoading} handler={updateCustomizationHandler} defaultValue={customizationData?.data} clientId={clientId} disable={true} />
             case PURCHASE_TYPE.LICENSE:

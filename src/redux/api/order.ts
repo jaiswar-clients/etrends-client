@@ -117,6 +117,8 @@ export const orderApi = createApi({
         client_name?: string;
         product_id?: string;
         status?: ORDER_STATUS_ENUM;
+        types?: string;
+        include_cancelled?: boolean;
         startDate?: string;
         endDate?: string;
       }
@@ -131,6 +133,8 @@ export const orderApi = createApi({
         if (body.client_name) params.append("client_name", body.client_name);
         if (body.product_id) params.append("product_id", body.product_id);
         if (body.status) params.append("status", body.status);
+        if (body.types) params.append("types", body.types);
+        if (body.include_cancelled !== undefined) params.append("include_cancelled", body.include_cancelled.toString());
         if (body.startDate) params.append("startDate", body.startDate);
         if (body.endDate) params.append("endDate", body.endDate);
         return `/all-orders?${params.toString()}`;
@@ -435,6 +439,8 @@ export const orderApi = createApi({
         client_name?: string;
         product_id?: string;
         status?: ORDER_STATUS_ENUM;
+        types?: string;
+        include_cancelled?: boolean;
         startDate?: string;
         endDate?: string;
       }

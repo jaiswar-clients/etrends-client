@@ -43,11 +43,11 @@ const Purchase: React.FC<IProps> = ({ page: initialPage }) => {
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [selectedItem, setSelectedItem] = useState<typeof dropdownItems[0] | null>(null)
     const [selectedClientId, setSelectedClientId] = useState<string>('')
-    
+
     const router = useRouter()
     const pathname = usePathname()
     const searchParams = useSearchParams()
-    
+
     // Create function to update URL query params
     const createQueryString = (params: Record<string, string | number | undefined>) => {
         const newSearchParams = new URLSearchParams(searchParams?.toString())
@@ -66,20 +66,25 @@ const Purchase: React.FC<IProps> = ({ page: initialPage }) => {
         const initialClientFilter = searchParams?.get('client')
         const initialClientIdFilter = searchParams?.get('clientId')
         const initialProductFilter = searchParams?.get('product')
+        const initialProductIdsFilter = searchParams?.get('productIds')
         const initialStatusFilter = searchParams?.get('status')
         const initialPurchaseTypeFilter = searchParams?.get('purchaseType')
         const initialParentCompanyFilter = searchParams?.get('parentCompany')
         const initialParentCompanyIdFilter = searchParams?.get('parentCompanyId')
         const initialAmcPendingFilter = searchParams?.get('amcPending') === 'true'
         const initialFY = searchParams?.get('fy')
-        const initialStartDate = searchParams?.get('startDate') 
+        const initialStartDate = searchParams?.get('startDate')
         const initialEndDate = searchParams?.get('endDate')
         const urlPage = searchParams?.get('page')
-        
+        const urlPageSize = searchParams?.get('pageSize')
+        const initialTypes = searchParams?.get('types')
+        const initialIncludeCancelled = searchParams?.get('include_cancelled') === 'true'
+
         return {
             client: initialClientFilter || undefined,
             clientId: initialClientIdFilter || undefined,
-            product: initialProductFilter || undefined,
+            products: initialProductFilter ? initialProductFilter.split(',') : [],
+            productIds: initialProductIdsFilter ? initialProductIdsFilter.split(',') : [],
             status: initialStatusFilter || undefined,
             purchaseType: initialPurchaseTypeFilter || undefined,
             parentCompany: initialParentCompanyFilter || undefined,
@@ -88,19 +93,24 @@ const Purchase: React.FC<IProps> = ({ page: initialPage }) => {
             fy: initialFY || undefined,
             startDate: initialStartDate || undefined,
             endDate: initialEndDate || undefined,
-            page: urlPage ? parseInt(urlPage) : (initialPage || 1)
+            page: urlPage ? parseInt(urlPage) : (initialPage || 1),
+            pageSize: urlPageSize ? parseInt(urlPageSize) : 10,
+            types: initialTypes ? initialTypes.split(',') : [],
+            includeCancelled: initialIncludeCancelled
         }
     })
 
     // Prepare filters for API query
-    const { data, refetch, isFetching } = useGetAllOrdersWithAttributesQuery({ 
+    const { data, refetch, isFetching } = useGetAllOrdersWithAttributesQuery({
         page: queryArgs.page,
-        limit: 10, // Assuming a default limit or get it from queryArgs if available
+        limit: queryArgs.pageSize,
         parent_company_id: queryArgs.parentCompanyId,
         client_id: queryArgs.clientId,
         client_name: queryArgs.client,
-        product_id: queryArgs.product,
-        status: queryArgs.status as any, // Keep as any if ORDER_STATUS_ENUM is handled by the hook
+        product_id: queryArgs.productIds.join(',') || undefined,
+        status: queryArgs.status as any,
+        types: queryArgs.types.join(',') || undefined,
+        include_cancelled: queryArgs.includeCancelled,
         startDate: queryArgs.startDate,
         endDate: queryArgs.endDate
     })
@@ -111,7 +121,8 @@ const Purchase: React.FC<IProps> = ({ page: initialPage }) => {
         const queryString = createQueryString({
             client: queryArgs.client,
             clientId: queryArgs.clientId,
-            product: queryArgs.product,
+            product: queryArgs.products.length > 0 ? queryArgs.products.join(',') : undefined,
+            productIds: queryArgs.productIds.length > 0 ? queryArgs.productIds.join(',') : undefined,
             status: queryArgs.status,
             purchaseType: queryArgs.purchaseType,
             parentCompany: queryArgs.parentCompany,
@@ -120,13 +131,16 @@ const Purchase: React.FC<IProps> = ({ page: initialPage }) => {
             fy: queryArgs.fy,
             startDate: queryArgs.startDate,
             endDate: queryArgs.endDate,
-            page: queryArgs.page
+            page: queryArgs.page,
+            pageSize: queryArgs.pageSize,
+            types: queryArgs.types.length > 0 ? queryArgs.types.join(',') : undefined,
+            include_cancelled: queryArgs.includeCancelled ? 'true' : undefined
         })
-        
+
         // Use replace to avoid adding duplicate entries to history
         router.replace(`${pathname}?${queryString}`, { scroll: false })
     }, [queryArgs, router, pathname])
-    
+
     // Effect to refetch data when page changes
     useEffect(() => {
         refetch()
@@ -147,10 +161,10 @@ const Purchase: React.FC<IProps> = ({ page: initialPage }) => {
     }
 
     const handleFilterChange = (
-        filterType: 'client' | 'product' | 'status' | 'purchaseType' | 'parentCompany' | 'clientId' | 'parentCompanyId',
-        value: string | undefined
+        filterType: 'client' | 'product' | 'status' | 'purchaseType' | 'parentCompany' | 'clientId' | 'parentCompanyId' | 'productIds',
+        value: string | string[] | undefined
     ) => {
-        setQueryArgs(prev => ({ ...prev, [filterType]: value, page: 1 })) // Reset page on filter change
+        setQueryArgs(prev => ({ ...prev, [filterType]: value, page: 1 }))
     }
 
     const handleAmcPendingChange = (value: boolean) => {
@@ -177,6 +191,18 @@ const Purchase: React.FC<IProps> = ({ page: initialPage }) => {
 
     const handlePageChange = (page: number) => {
         setQueryArgs(prev => ({ ...prev, page }))
+    }
+
+    const handlePageSizeChange = (pageSize: number) => {
+        setQueryArgs(prev => ({ ...prev, pageSize, page: 1 }))
+    }
+
+    const handleTypesChange = (types: string[]) => {
+        setQueryArgs(prev => ({ ...prev, types, page: 1 }))
+    }
+
+    const handleIncludeCancelledChange = (includeCancelled: boolean) => {
+        setQueryArgs(prev => ({ ...prev, includeCancelled, page: 1 }))
     }
 
     return (
@@ -236,6 +262,9 @@ const Purchase: React.FC<IProps> = ({ page: initialPage }) => {
                 onFilterChange={handleFilterChange}
                 onAmcPendingChange={handleAmcPendingChange}
                 onPageChange={handlePageChange}
+                onPageSizeChange={handlePageSizeChange}
+                onTypesChange={handleTypesChange}
+                onIncludeCancelledChange={handleIncludeCancelledChange}
                 isLoading={isFetching}
                 selectedFY={queryArgs.fy}
                 onFYFilterChange={handleFYFilterChange}
