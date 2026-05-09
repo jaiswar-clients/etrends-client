@@ -28,12 +28,18 @@ export interface IDetailedOverAllSalesReportResponse {
   total: number;
 }
 
+/**
+ * @deprecated Use getClientHealthDashboard instead
+ */
 export interface IAMCAnnualBreakDown {
   period: string;
   totalExpected: number;
   totalCollected: number;
 }
 
+/**
+ * @deprecated Use getClientHealthDashboard instead
+ */
 export interface IIndustryWiseRevenue {
   industry: string;
   period: string;
@@ -41,6 +47,9 @@ export interface IIndustryWiseRevenue {
   [key: string]: any;
 }
 
+/**
+ * @deprecated Use getRevenueDashboard instead
+ */
 export interface IProductWiseRevenueReportResponse {
   productId: string;
   productName: string;
@@ -49,12 +58,18 @@ export interface IProductWiseRevenueReportResponse {
   cumulativePercentage: number;
 }
 
+/**
+ * @deprecated Use getRevenueDashboard instead
+ */
 export interface ITotalBillingReport {
   period: string;
   total_amc_billing: number;
   total_purchase_billing: number;
 }
 
+/**
+ * @deprecated Use getExpectedVsCollected instead
+ */
 export interface IExpectedVsReceivedRevenue {
   period: string;
   expected_amount: number;
@@ -192,6 +207,9 @@ export const reportApi = createApi({
     },
   }),
   endpoints: (builder) => ({
+    /**
+     * @deprecated Use getClientHealthDashboard instead
+     */
     getAMCAnnualBreakDown: builder.query<
       IResponse<IAMCAnnualBreakDown[]>,
       IReportQueries
@@ -202,6 +220,9 @@ export const reportApi = createApi({
       }),
     }),
     // NEW QUERIES
+    /**
+     * @deprecated Use getRevenueDashboard instead
+     */
     getTotalBillingReport: builder.query<
       IResponse<ITotalBillingReport[]>,
       IReportQueries
@@ -211,6 +232,9 @@ export const reportApi = createApi({
         method: HTTP_REQUEST.GET,
       }),
     }),
+    /**
+     * @deprecated Use getExpectedVsCollected instead
+     */
     getExpectedVsReceivedRevenue: builder.query<
       IResponse<IExpectedVsReceivedRevenue[]>,
       IReportQueries
@@ -220,6 +244,9 @@ export const reportApi = createApi({
         method: HTTP_REQUEST.GET,
       }),
     }),
+    /**
+     * @deprecated Use getClientHealthDashboard instead
+     */
     getIndustryWiseRevenueReport: builder.query<
       IResponse<IIndustryWiseRevenue[]>,
       IReportQueries
@@ -229,6 +256,9 @@ export const reportApi = createApi({
         method: HTTP_REQUEST.GET,
       }),
     }),
+    /**
+     * @deprecated Use getRevenueDashboard instead
+     */
     getProductWiseRevenueReport: builder.query<
       IResponse<IProductWiseRevenueReportResponse[]>,
       IReportQueries
@@ -289,13 +319,20 @@ export const reportApi = createApi({
 });
 
 export const {
-  useGetProductWiseRevenueReportQuery,
-  useGetAMCAnnualBreakDownQuery,
-  useGetIndustryWiseRevenueReportQuery,
-  useGetTotalBillingReportQuery,
-  useGetExpectedVsReceivedRevenueQuery,
+  useGetProductWiseRevenueReportQuery: useGetProductWiseRevenueReportQueryDeprecated,
+  useGetAMCAnnualBreakDownQuery: useGetAMCAnnualBreakDownQueryDeprecated,
+  useGetIndustryWiseRevenueReportQuery: useGetIndustryWiseRevenueReportQueryDeprecated,
+  useGetTotalBillingReportQuery: useGetTotalBillingReportQueryDeprecated,
+  useGetExpectedVsReceivedRevenueQuery: useGetExpectedVsReceivedRevenueQueryDeprecated,
   useGetRevenueDashboardQuery,
   useGetExpectedVsCollectedQuery,
   useGetMonthlyRevenueBreakdownQuery,
   useGetClientHealthDashboardQuery,
 } = reportApi;
+
+// Backward compatibility aliases (deprecated)
+export const useGetProductWiseRevenueReportQuery = useGetProductWiseRevenueReportQueryDeprecated;
+export const useGetAMCAnnualBreakDownQuery = useGetAMCAnnualBreakDownQueryDeprecated;
+export const useGetIndustryWiseRevenueReportQuery = useGetIndustryWiseRevenueReportQueryDeprecated;
+export const useGetTotalBillingReportQuery = useGetTotalBillingReportQueryDeprecated;
+export const useGetExpectedVsReceivedRevenueQuery = useGetExpectedVsReceivedRevenueQueryDeprecated;

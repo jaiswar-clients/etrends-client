@@ -1,4 +1,7 @@
 "use client"
+/**
+ * @deprecated This component is deprecated. Use the new Revenue Dashboard instead.
+ */
 
 import { Bar, Line, XAxis, YAxis, CartesianGrid, Legend, ComposedChart, ResponsiveContainer, Label } from "recharts"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"

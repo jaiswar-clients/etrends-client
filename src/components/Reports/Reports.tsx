@@ -1,4 +1,8 @@
 "use client";
+/**
+ * @deprecated This component is deprecated. Use the new Revenue Dashboard at
+ * @/app/(authenticated)/reports/page.tsx instead. This will be removed in a future version.
+ */
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   IReportQueries,
@@ -392,6 +396,23 @@ const Reports = () => {
 
   return (
     <div className="">
+      <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3">
+        <div className="text-amber-600 mt-0.5">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+          </svg>
+        </div>
+        <div>
+          <h4 className="text-sm font-semibold text-amber-800">Deprecated Component</h4>
+          <p className="text-xs text-amber-700 mt-0.5">
+            This reports page is deprecated. Please use the new{" "}
+            <a href="/reports" className="underline font-medium hover:text-amber-900">
+              Revenue Dashboard
+            </a>{" "}
+            for your reporting needs. This page will be removed in a future version.
+          </p>
+        </div>
+      </div>
       <div className="flex justify-between items-center ">
         <div className="flex justify-start items-center gap-3">
           {filters.filter === "quarterly" && (

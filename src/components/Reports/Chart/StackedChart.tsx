@@ -1,4 +1,7 @@
 "use client";
+/**
+ * @deprecated This component is deprecated. Use the new Revenue Dashboard charts instead.
+ */
 
 import React, { memo, useMemo } from "react";
 import {
