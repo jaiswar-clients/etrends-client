@@ -20,7 +20,6 @@ import {
   FileType2,
   Box,
   Receipt,
-  DollarSign,
   Plus,
   IndianRupee,
 } from "lucide-react";

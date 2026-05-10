@@ -200,7 +200,6 @@ interface IProps {
   onPageChange: (page: number) => void;
   onPageSizeChange: (size: number) => void;
   onTypesChange: (types: string[]) => void;
-  onIncludeCancelledChange: (value: boolean) => void;
   isLoading?: boolean;
   selectedFY?: string;
   onFYFilterChange: (fy: string | undefined) => void;
@@ -220,7 +219,6 @@ const PurchasesList: React.FC<IProps> = ({
   onPageChange,
   onPageSizeChange,
   onTypesChange,
-  onIncludeCancelledChange,
   isLoading,
   selectedFY,
   onFYFilterChange,

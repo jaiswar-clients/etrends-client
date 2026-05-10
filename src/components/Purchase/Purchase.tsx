@@ -201,10 +201,6 @@ const Purchase: React.FC<IProps> = ({ page: initialPage }) => {
         setQueryArgs(prev => ({ ...prev, types, page: 1 }))
     }
 
-    const handleIncludeCancelledChange = (includeCancelled: boolean) => {
-        setQueryArgs(prev => ({ ...prev, includeCancelled, page: 1 }))
-    }
-
     return (
         <div>
             <div className="flex items-center justify-between">
@@ -264,7 +260,6 @@ const Purchase: React.FC<IProps> = ({ page: initialPage }) => {
                 onPageChange={handlePageChange}
                 onPageSizeChange={handlePageSizeChange}
                 onTypesChange={handleTypesChange}
-                onIncludeCancelledChange={handleIncludeCancelledChange}
                 isLoading={isFetching}
                 selectedFY={queryArgs.fy}
                 onFYFilterChange={handleFYFilterChange}
