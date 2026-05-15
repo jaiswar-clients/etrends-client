@@ -27,6 +27,7 @@ import {
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import PurchasesList from './PurchasesList'
 import { useGetAllOrdersWithAttributesQuery } from '@/redux/api/order'
+import { PAYMENT_STATUS_ENUM } from '@/types/order'
 
 const dropdownItems = [
     { href: '/purchases/new/order', label: 'Order' },
@@ -79,6 +80,7 @@ const Purchase: React.FC<IProps> = ({ page: initialPage }) => {
         const urlPageSize = searchParams?.get('pageSize')
         const initialTypes = searchParams?.get('types')
         const initialIncludeCancelled = searchParams?.get('include_cancelled') === 'true'
+        const initialPaymentStatus = searchParams?.get('paymentStatus') as PAYMENT_STATUS_ENUM | undefined
 
         return {
             client: initialClientFilter || undefined,
@@ -96,7 +98,8 @@ const Purchase: React.FC<IProps> = ({ page: initialPage }) => {
             page: urlPage ? parseInt(urlPage) : (initialPage || 1),
             pageSize: urlPageSize ? parseInt(urlPageSize) : 10,
             types: initialTypes ? initialTypes.split(',') : [],
-            includeCancelled: initialIncludeCancelled
+            includeCancelled: initialIncludeCancelled,
+            paymentStatus: initialPaymentStatus
         }
     })
 
@@ -112,7 +115,8 @@ const Purchase: React.FC<IProps> = ({ page: initialPage }) => {
         types: queryArgs.types.join(',') || undefined,
         include_cancelled: queryArgs.includeCancelled,
         startDate: queryArgs.startDate,
-        endDate: queryArgs.endDate
+        endDate: queryArgs.endDate,
+        payment_status: queryArgs.paymentStatus
     })
     const { data: clientsList } = useGetClientsQuery({ all: true })
 
@@ -134,7 +138,8 @@ const Purchase: React.FC<IProps> = ({ page: initialPage }) => {
             page: queryArgs.page,
             pageSize: queryArgs.pageSize,
             types: queryArgs.types.length > 0 ? queryArgs.types.join(',') : undefined,
-            include_cancelled: queryArgs.includeCancelled ? 'true' : undefined
+            include_cancelled: queryArgs.includeCancelled ? 'true' : undefined,
+            paymentStatus: queryArgs.paymentStatus || undefined
         })
 
         // Use replace to avoid adding duplicate entries to history
@@ -201,6 +206,10 @@ const Purchase: React.FC<IProps> = ({ page: initialPage }) => {
         setQueryArgs(prev => ({ ...prev, types, page: 1 }))
     }
 
+    const handlePaymentStatusChange = (value: string | undefined) => {
+        setQueryArgs(prev => ({ ...prev, paymentStatus: value as PAYMENT_STATUS_ENUM | undefined, page: 1 }))
+    }
+
     return (
         <div>
             <div className="flex items-center justify-between">
@@ -260,6 +269,7 @@ const Purchase: React.FC<IProps> = ({ page: initialPage }) => {
                 onPageChange={handlePageChange}
                 onPageSizeChange={handlePageSizeChange}
                 onTypesChange={handleTypesChange}
+                onPaymentStatusChange={handlePaymentStatusChange}
                 isLoading={isFetching}
                 selectedFY={queryArgs.fy}
                 onFYFilterChange={handleFYFilterChange}

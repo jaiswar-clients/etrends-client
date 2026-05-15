@@ -184,6 +184,7 @@ interface IProps {
     endDate?: string;
     types?: string[];
     includeCancelled?: boolean;
+    paymentStatus?: string;
   };
   onFilterChange: (
     filterType:
@@ -201,6 +202,7 @@ interface IProps {
   onPageChange: (page: number) => void;
   onPageSizeChange: (size: number) => void;
   onTypesChange: (types: string[]) => void;
+  onPaymentStatusChange: (value: string | undefined) => void;
   isLoading?: boolean;
   selectedFY?: string;
   onFYFilterChange: (fy: string | undefined) => void;
@@ -220,6 +222,7 @@ const PurchasesList: React.FC<IProps> = ({
   onPageChange,
   onPageSizeChange,
   onTypesChange,
+  onPaymentStatusChange,
   isLoading,
   selectedFY,
   onFYFilterChange,
@@ -243,12 +246,6 @@ const PurchasesList: React.FC<IProps> = ({
   });
 
   const router = useRouter();
-
-  // Get unique values for status filter
-  const uniqueStatus = useMemo(
-    () => Array.from(new Set(data.map((d) => d.status))),
-    [data],
-  );
 
   const uniqueProducts = useMemo(() => {
     const productMap = new Map();
@@ -351,6 +348,7 @@ const PurchasesList: React.FC<IProps> = ({
         include_cancelled: initialFilters.includeCancelled,
         startDate: initialFilters.startDate,
         endDate: initialFilters.endDate,
+        payment_status: initialFilters.paymentStatus as any,
       });
 
       if ("data" in result) {
@@ -616,61 +614,6 @@ const PurchasesList: React.FC<IProps> = ({
           </div>
 
           <div className="flex items-center gap-3 flex-wrap">
-            {/* Status Filter */}
-            <div className="relative">
-              {initialFilters.status ? (
-                <div className="flex items-center space-x-1 h-10 px-4 py-2 bg-gray-100 rounded-md">
-                  <span className="text-sm font-medium capitalize">
-                    {initialFilters.status}
-                  </span>
-                  <button
-                    onClick={() => onFilterChange("status", undefined)}
-                    className="ml-1 text-gray-500 hover:text-gray-700"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <line x1="18" y1="6" x2="6" y2="18"></line>
-                      <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
-                  </button>
-                </div>
-              ) : (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="capitalize min-w-[120px]"
-                    >
-                      Status <ChevronDown className="ml-2 h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    {uniqueStatus.map((status) => (
-                      <DropdownMenuCheckboxItem
-                        key={status}
-                        className="capitalize"
-                        checked={initialFilters.status === status}
-                        onCheckedChange={(value) => {
-                          onFilterChange("status", value ? status : undefined);
-                        }}
-                      >
-                        {status}
-                      </DropdownMenuCheckboxItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
-            </div>
-
             {/* Products Filter */}
             <div className="relative">
               {selectedProductsLabel ? (
@@ -796,9 +739,28 @@ const PurchasesList: React.FC<IProps> = ({
               )}
             </div>
 
+            {/* Payment Status Filter */}
+            <Select
+              value={initialFilters.paymentStatus || ""}
+              onValueChange={(value) =>
+                onPaymentStatusChange(value === "all" ? undefined : value)
+              }
+            >
+              <SelectTrigger className="w-[150px] capitalize">
+                <SelectValue placeholder="Payment Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="proforma">Proforma</SelectItem>
+                <SelectItem value="invoice">Invoice</SelectItem>
+                <SelectItem value="paid">Paid</SelectItem>
+              </SelectContent>
+            </Select>
+
             {/* Status Filter */}
             <Select
-              value={initialFilters.status || "all"}
+              value={initialFilters.status || ""}
               onValueChange={(value) =>
                 onFilterChange("status", value === "all" ? undefined : value)
               }

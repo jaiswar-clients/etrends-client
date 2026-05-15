@@ -121,6 +121,7 @@ export const orderApi = createApi({
         include_cancelled?: boolean;
         startDate?: string;
         endDate?: string;
+        payment_status?: PAYMENT_STATUS_ENUM;
       }
     >({
       query: (body) => {
@@ -137,6 +138,7 @@ export const orderApi = createApi({
         if (body.include_cancelled !== undefined) params.append("include_cancelled", body.include_cancelled.toString());
         if (body.startDate) params.append("startDate", body.startDate);
         if (body.endDate) params.append("endDate", body.endDate);
+        if (body.payment_status) params.append("payment_status", body.payment_status);
         return `/all-orders?${params.toString()}`;
       },
       providesTags: ["ORDERS_LIST"],
@@ -443,6 +445,7 @@ export const orderApi = createApi({
         include_cancelled?: boolean;
         startDate?: string;
         endDate?: string;
+        payment_status?: PAYMENT_STATUS_ENUM;
       }
     >({
       query: (params) => ({
