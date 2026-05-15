@@ -46,6 +46,7 @@ const TYPE_OPTIONS = [
   { label: "AMC", value: "amc" },
   { label: "Customization", value: "customization" },
   { label: "Auditor License", value: "auditor_license" },
+  { label: "Additional Service", value: "additional_service" },
 ];
 
 const columns = (
