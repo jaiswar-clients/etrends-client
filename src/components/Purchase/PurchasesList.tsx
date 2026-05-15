@@ -230,6 +230,8 @@ const PurchasesList: React.FC<IProps> = ({
   const { data: filtersData } = useGetOrderFiltersOfCompanyQuery();
   const [clientSearch, setClientSearch] = useState("");
   const [parentSearch, setParentSearch] = useState("");
+  const [clientDropdownOpen, setClientDropdownOpen] = useState(false);
+  const [parentDropdownOpen, setParentDropdownOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const { toast } = useToast();
   const [exportPurchasesToExcel] = useExportPurchasesToExcelMutation();
@@ -475,7 +477,7 @@ const PurchasesList: React.FC<IProps> = ({
                   </button>
                 </div>
               ) : (
-                <DropdownMenu>
+                <DropdownMenu open={clientDropdownOpen} onOpenChange={setClientDropdownOpen}>
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="outline"
@@ -484,13 +486,18 @@ const PurchasesList: React.FC<IProps> = ({
                       Client <ChevronDown className="ml-2 h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-[250px]">
+                  <DropdownMenuContent align="start" className="w-[250px]" onFocus={(e) => e.preventDefault()}>
                     <div className="px-2 py-2">
                       <Input
                         placeholder="Search clients..."
                         value={clientSearch}
-                        onChange={(e) => setClientSearch(e.target.value)}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          setClientSearch(e.target.value);
+                        }}
+                        onKeyDown={(e) => e.stopPropagation()}
                         className="mb-2"
+                        autoFocus
                       />
                     </div>
                     <div className="max-h-[200px] overflow-y-auto">
@@ -505,6 +512,7 @@ const PurchasesList: React.FC<IProps> = ({
                                 value ? client.name : undefined,
                                 value ? client._id : undefined,
                               );
+                              setClientDropdownOpen(false);
                             }}
                           >
                             {client.name}
@@ -551,7 +559,7 @@ const PurchasesList: React.FC<IProps> = ({
                   </button>
                 </div>
               ) : (
-                <DropdownMenu>
+                <DropdownMenu open={parentDropdownOpen} onOpenChange={setParentDropdownOpen}>
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="outline"
@@ -560,13 +568,18 @@ const PurchasesList: React.FC<IProps> = ({
                       Parent <ChevronDown className="ml-2 h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-[250px]">
+                  <DropdownMenuContent align="start" className="w-[250px]" onFocus={(e) => e.preventDefault()}>
                     <div className="px-2 py-2">
                       <Input
                         placeholder="Search parent companies..."
                         value={parentSearch}
-                        onChange={(e) => setParentSearch(e.target.value)}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          setParentSearch(e.target.value);
+                        }}
+                        onKeyDown={(e) => e.stopPropagation()}
                         className="mb-2"
+                        autoFocus
                       />
                     </div>
                     <div className="max-h-[200px] overflow-y-auto">
@@ -583,6 +596,7 @@ const PurchasesList: React.FC<IProps> = ({
                                 value ? parent.name : undefined,
                                 value ? parent._id : undefined,
                               );
+                              setParentDropdownOpen(false);
                             }}
                           >
                             {parent.name}

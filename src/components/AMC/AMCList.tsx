@@ -129,6 +129,7 @@ const AMCList: React.FC<IProps> = ({
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = useState({});
   const [clientSearch, setClientSearch] = useState("");
+  const [clientDropdownOpen, setClientDropdownOpen] = useState(false);
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -680,19 +681,24 @@ const AMCList: React.FC<IProps> = ({
                 </button>
               </div>
             ) : (
-              <DropdownMenu>
+              <DropdownMenu open={clientDropdownOpen} onOpenChange={setClientDropdownOpen}>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline">
                     Clients <ChevronDown className="ml-2 h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-[250px]">
+                <DropdownMenuContent align="start" className="w-[250px]" onFocus={(e) => e.preventDefault()}>
                   <div className="px-2 py-2">
                     <Input
                       placeholder="Search clients..."
                       value={clientSearch}
-                      onChange={(e) => setClientSearch(e.target.value)}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        setClientSearch(e.target.value);
+                      }}
+                      onKeyDown={(e) => e.stopPropagation()}
                       className="mb-2"
+                      autoFocus
                     />
                   </div>
                   <div className="max-h-[200px] overflow-y-auto">
@@ -706,6 +712,7 @@ const AMCList: React.FC<IProps> = ({
                             handleClientSelection(
                               value ? client._id : undefined,
                             );
+                            setClientDropdownOpen(false);
                           }}
                         >
                           {client.name}
