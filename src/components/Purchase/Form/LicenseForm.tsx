@@ -182,6 +182,8 @@ const LicenseForm: React.FC<ILicenseProps> = ({ clientId, handler, isLoading, la
             total_license: 'Total License',
             product_id: 'Product',
             purchase_date: 'Purchase Date',
+            invoice_number: 'Invoice Number',
+            invoice_date: 'Invoice Date',
         };
 
         const missingFields = Object.entries(requiredFields)

@@ -42,6 +42,7 @@ import {
   useGetClientHealthDashboardQuery,
   IReportQueries,
 } from "@/redux/api/report";
+import PendingBreakdownSection from "@/components/Reports/PendingBreakdownSection";
 import { useAppSelector } from "@/redux/hook";
 import { cn, formatCurrency, formatIndianNumber } from "@/lib/utils";
 import {
@@ -809,6 +810,11 @@ const RevenueReportDashboard = () => {
                 </div>
               </>
             )}
+
+            {/* Row 4: Pending Payment Breakdown */}
+            <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4">
+              <PendingBreakdownSection />
+            </div>
 
             {/* Footer */}
             <div className="flex items-center justify-between px-3 py-2 bg-slate-100 rounded text-[10px] text-slate-500">

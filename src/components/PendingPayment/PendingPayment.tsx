@@ -2,8 +2,10 @@
 import { useGetAllPendingPaymentsQuery, useGetOrderFiltersOfCompanyQuery } from '@/redux/api/order'
 import React, { useState, useEffect } from 'react'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
-import PendingPaymentsDataTable from './PendingPaymentsDataTable'
+import PendingPaymentTabs from './PendingPaymentTabs'
 import Typography from '../ui/Typography'
+import { getCurrentFinancialYearId } from '@/components/common/FinancialYearFilter'
+import { IPendingPaymentType } from '@/types/order'
 
 const PendingPayment = () => {
     const router = useRouter()
@@ -22,17 +24,24 @@ const PendingPayment = () => {
         return newSearchParams.toString()
     }
     
-    const [queryArgs, setQueryArgs] = useState(() => {
+    const [queryArgs, setQueryArgs] = useState<{
+        page: number;
+        fy: string | undefined;
+        startDate: string | undefined;
+        endDate: string | undefined;
+        clientId: string | undefined;
+        type: IPendingPaymentType;
+    }>(() => {
         const pageParam = searchParams.get('page')
         const fyParam = searchParams.get('fy')
         const startDateParam = searchParams.get('startDate')
         const endDateParam = searchParams.get('endDate')
         const clientIdParam = searchParams.get('clientId')
-        const typeParam = searchParams.get('type') as 'order' | 'amc' | 'all' | null
-        
+        const typeParam = searchParams.get('type') as IPendingPaymentType | null
+
         return {
             page: pageParam ? parseInt(pageParam) : 1,
-            fy: fyParam || undefined,
+            fy: fyParam || getCurrentFinancialYearId(),
             startDate: startDateParam || undefined,
             endDate: endDateParam || undefined,
             clientId: clientIdParam || undefined,
@@ -94,7 +103,7 @@ const PendingPayment = () => {
         setQueryArgs(prev => ({ ...prev, clientId, page: 1 }))
     }
     
-    const handleTypeFilterChange = (type: 'order' | 'amc' | 'all') => {
+    const handleTypeFilterChange = (type: IPendingPaymentType) => {
         setQueryArgs(prev => ({ ...prev, type, page: 1 }))
     }
     
@@ -110,10 +119,10 @@ const PendingPayment = () => {
                 {isLoading ? (
                     <div>Loading...</div>
                 ) : (
-                    <PendingPaymentsDataTable 
-                        handlePagination={handlePagination} 
-                        data={data?.data?.pending_payments ?? []} 
-                        pagination={data?.data.pagination ?? { total: 0, currentPage: 1, totalPages: 1, limit: 10, hasPreviousPage: false, hasNextPage: false }} 
+                    <PendingPaymentTabs
+                        handlePagination={handlePagination}
+                        data={data?.data?.pending_payments ?? []}
+                        pagination={data?.data.pagination ?? { total: 0, currentPage: 1, totalPages: 1, limit: 10, hasPreviousPage: false, hasNextPage: false }}
                         selectedFY={queryArgs.fy}
                         onFYFilterChange={handleFYFilterChange}
                         onCustomDateChange={handleCustomDateChange}

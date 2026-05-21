@@ -9,6 +9,14 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CustomDateRangePicker } from './DateRangePicker';
 
+export const getCurrentFinancialYearId = (): string => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = now.getMonth(); // 0-indexed
+    const startYear = m >= 3 ? y : y - 1; // April = month 3
+    return `FY${startYear}-${startYear + 1}`;
+};
+
 // Generate financial years from 2000 to current year + 10
 export const generateFinancialYears = () => {
     const currentYear = new Date().getFullYear();

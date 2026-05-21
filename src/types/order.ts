@@ -218,23 +218,34 @@ export enum PURCHASE_TYPE {
 }
 
 export type IPendingPaymentType =
-  | "amc"
   | "order"
+  | "amc"
   | "license"
   | "customization"
-  | "additional_service";
+  | "all";
 
 export interface IPendingPayment {
   _id: string;
-  type: IPendingPaymentType;
-  status: PAYMENT_STATUS_ENUM;
-  pending_amount: number;
-  payment_identifier?: string | number;
-  name: string;
-  payment_date: string;
+  payment_identifier: string;
+  type: "order" | "amc" | "license" | "customization";
   client_name: string;
   product_name: string;
-  [key: string]: any;
+  invoice_number?: string;
+  invoice_date?: string; // ISO date
+  payment_date?: string;
+  pending_amount: number;
+  order_total: number;
+  balance: number; // fraction 0..1
+  status: PAYMENT_STATUS_ENUM;
+}
+
+export interface IAmcStartMissingRow {
+  order_id: string;
+  client_name: string;
+  product_name: string;
+  purchased_date: string;
+  base_cost: number;
+  pending_balance: number;
 }
 
 export interface IPendingPaymentPagination {

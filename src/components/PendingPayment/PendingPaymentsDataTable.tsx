@@ -16,7 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import {
   Pagination,
   PaginationContent,
@@ -32,6 +32,9 @@ import {
   IPendingPaymentType,
   IUpdatePendingPaymentRequest,
   PAYMENT_STATUS_ENUM,
+} from "@/types/order";
+import {
+  useLazyExportPendingPaymentsQuery,
   useUpdatePendingPaymentMutation,
 } from "@/redux/api/order";
 
@@ -46,7 +49,6 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Badge } from "../ui/badge";
 import { formatCurrency } from "@/lib/utils";
 import FinancialYearFilter from "../common/FinancialYearFilter";
 import { IFilteredClient } from "@/types/order";
@@ -65,18 +67,10 @@ interface IProps {
   clients: IFilteredClient[];
   selectedClientId?: string;
   onClientFilterChange: (clientId: string | undefined) => void;
-  selectedType: "order" | "amc" | "all";
-  onTypeFilterChange: (type: "order" | "amc" | "all") => void;
+  selectedType: IPendingPaymentType;
+  onTypeFilterChange: (type: IPendingPaymentType) => void;
 }
 
-// Define type for grouped data
-interface GroupedPayment {
-  clientName: string;
-  productName: string;
-  totalAmount: number;
-  count: number;
-  payments: IPendingPayment[];
-}
 
 export default function DataTableWithModalAndPagination({
   data,
@@ -102,13 +96,15 @@ export default function DataTableWithModalAndPagination({
       payment_identifier: "",
       status: "",
       payment_receive_date: new Date(),
-      type: "PENDING" as IPendingPaymentType,
+      type: "order" as IPendingPaymentType,
       _id: "",
     },
   });
 
   const [updatePendingPaymentApi, { isLoading }] =
     useUpdatePendingPaymentMutation();
+  const [triggerExport] = useLazyExportPendingPaymentsQuery();
+  const [isExporting, setIsExporting] = useState(false);
 
   const form = useForm<{
     payment_receive_date: Date;
@@ -125,7 +121,6 @@ export default function DataTableWithModalAndPagination({
   const [selectedItem, setSelectedItem] = useState<IPendingPayment | null>(
     null,
   );
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [clientSearch, setClientSearch] = useState("");
 
   const handleRowClick: (item: IPendingPayment) => void = (item) => {
@@ -137,14 +132,24 @@ export default function DataTableWithModalAndPagination({
     setIsModalOpen(true);
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
+  const formatDate = (dateInput?: string | Date | null) => {
+    if (!dateInput) return "-";
+    const date = new Date(dateInput);
     return date.toLocaleDateString("en-US", {
       year: "numeric",
       month: "long",
       day: "numeric",
     });
   };
+
+  const labelForType = (t: IPendingPaymentType) =>
+    ({
+      all: 'All Types',
+      order: 'New Order',
+      customization: 'Customization',
+      license: 'Auditor Licences',
+      amc: 'AMC',
+    })[t] ?? t;
 
   const onSubmit = async (data: {
     payment_receive_date: Date;
@@ -195,45 +200,55 @@ export default function DataTableWithModalAndPagination({
     setClientSearch("");
   };
 
-  // Group data by client_name + product_name
-  const groupedData = useMemo<GroupedPayment[]>(() => {
-    const groupMap = new Map<string, GroupedPayment>();
+  const handleExportClick = async () => {
+    setIsExporting(true);
+    try {
+      toast({
+        title: "Preparing export",
+        description: "Generating Excel file with pending payments...",
+        variant: "default",
+      });
 
-    data.forEach((item) => {
-      const key = `${item.client_name}-${item.product_name}`;
+      const result = await triggerExport({
+        startDate: dateRange.startDate?.toISOString(),
+        endDate: dateRange.endDate?.toISOString(),
+        clientId: selectedClientId,
+        type: selectedType,
+      });
 
-      if (!groupMap.has(key)) {
-        groupMap.set(key, {
-          clientName: item.client_name,
-          productName: item.product_name,
-          totalAmount: 0,
-          count: 0,
-          payments: [],
+      if ("data" in result) {
+        const blob = result.data as Blob;
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        const currentDate = new Date().toISOString().split("T")[0];
+        link.href = url;
+        link.setAttribute(
+          "download",
+          `PendingPayments_Export_${currentDate}.xlsx`,
+        );
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+
+        toast({
+          title: "Export successful",
+          description: "Pending payments exported to Excel.",
+          variant: "default",
         });
-      }
-
-      const group = groupMap.get(key)!;
-      group.payments.push(item);
-      group.totalAmount += item.pending_amount;
-      group.count += 1;
-    });
-
-    return Array.from(groupMap.values());
-  }, [data]);
-
-  // No need to filter the data by type anymore as it's already filtered server-side
-  const filteredGroupedData = groupedData;
-
-  const toggleGroupExpansion = (groupKey: string) => {
-    setExpandedGroups((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(groupKey)) {
-        newSet.delete(groupKey);
       } else {
-        newSet.add(groupKey);
+        throw new Error("Export failed");
       }
-      return newSet;
-    });
+    } catch (error) {
+      console.error("Export error:", error);
+      toast({
+        title: "Export failed",
+        description: "Could not generate Excel file. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const renderFilters = () => (
@@ -296,6 +311,11 @@ export default function DataTableWithModalAndPagination({
                     onChange={(e) => setClientSearch(e.target.value)}
                     className="mb-2"
                   />
+                  {clientSearch.length > 0 && clientSearch.length < 3 && (
+                    <p className="text-xs text-muted-foreground">
+                      Type at least 3 characters to search
+                    </p>
+                  )}
                 </div>
                 <div className="max-h-[200px] overflow-y-auto">
                   {filteredClients.length > 0 ? (
@@ -323,42 +343,36 @@ export default function DataTableWithModalAndPagination({
         </div>
       </div>
       <div className="flex items-center gap-4">
-        {/* Type Filter Dropdown - Modified to use server-side filtering */}
+        <Button
+          variant="outline"
+          onClick={handleExportClick}
+          disabled={isExporting || data.length === 0}
+        >
+          {isExporting ? "Exporting..." : "Export"}
+        </Button>
+        {/* Type Filter Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" className="ml-auto capitalize">
-              {selectedType === "all" ? "All Types" : selectedType}{" "}
+              {labelForType(selectedType)}
               <ChevronDown className="ml-2 h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuCheckboxItem
-              className="capitalize"
-              checked={selectedType === "all"}
-              onCheckedChange={(checked) => {
-                if (checked) onTypeFilterChange("all");
-              }}
-            >
-              All Types
-            </DropdownMenuCheckboxItem>
-            <DropdownMenuCheckboxItem
-              className="capitalize"
-              checked={selectedType === "order"}
-              onCheckedChange={(checked) => {
-                if (checked) onTypeFilterChange("order");
-              }}
-            >
-              Order
-            </DropdownMenuCheckboxItem>
-            <DropdownMenuCheckboxItem
-              className="capitalize"
-              checked={selectedType === "amc"}
-              onCheckedChange={(checked) => {
-                if (checked) onTypeFilterChange("amc");
-              }}
-            >
-              AMC
-            </DropdownMenuCheckboxItem>
+            {(
+              ["all", "order", "customization", "license", "amc"] as IPendingPaymentType[]
+            ).map((type) => (
+              <DropdownMenuCheckboxItem
+                key={type}
+                className="capitalize"
+                checked={selectedType === type}
+                onCheckedChange={(checked) => {
+                  if (checked) onTypeFilterChange(type);
+                }}
+              >
+                {labelForType(type)}
+              </DropdownMenuCheckboxItem>
+            ))}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -379,107 +393,43 @@ export default function DataTableWithModalAndPagination({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-10"></TableHead>
-              <TableHead>Client Name</TableHead>
+              <TableHead>Order #</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead>Balance</TableHead>
               <TableHead>Product Name</TableHead>
-              <TableHead>Count</TableHead>
-              <TableHead>Total Pending Amount</TableHead>
+              <TableHead>Invoice Type</TableHead>
+              <TableHead>Date</TableHead>
+              <TableHead className="text-right">Pending Amount</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredGroupedData.map((group, groupIndex) => {
-              const groupKey = `${group.clientName}-${group.productName}`;
-              const isExpanded = expandedGroups.has(groupKey);
+            {data.map((payment) => (
+              <TableRow
+                key={`${payment._id}-${payment.payment_identifier}`}
+                onClick={() => handleRowClick(payment)}
+                className="cursor-pointer hover:bg-muted/50"
+              >
+                <TableCell className="font-mono text-xs">
+                  {payment._id.slice(-6)}
+                </TableCell>
+                <TableCell>{labelForType(payment.type)}</TableCell>
+                <TableCell>{payment.balance.toFixed(2)}</TableCell>
+                <TableCell>{payment.product_name}</TableCell>
+                <TableCell>
+                  {payment.invoice_number ? "Invoice" : "-"}
+                </TableCell>
+                <TableCell>
+                  {formatDate(payment.invoice_date || payment.payment_date)}
+                </TableCell>
+                <TableCell className="text-right font-medium">
+                  {formatCurrency(payment.pending_amount)}
+                </TableCell>
+              </TableRow>
+            ))}
 
-              return (
-                <React.Fragment key={groupKey}>
-                  {/* Parent row (grouped data) */}
-                  <TableRow
-                    className={`cursor-pointer hover:bg-muted/50 group ${groupIndex > 0 ? "border-t" : ""}`}
-                    onClick={() => toggleGroupExpansion(groupKey)}
-                  >
-                    <TableCell className="p-2 w-10">
-                      {isExpanded ? (
-                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                      )}
-                    </TableCell>
-                    <TableCell className="font-semibold">
-                      {group.clientName}
-                    </TableCell>
-                    <TableCell>{group.productName}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{group.count} payments</Badge>
-                    </TableCell>
-                    <TableCell className="text-right font-medium">
-                      {formatCurrency(group.totalAmount)}
-                    </TableCell>
-                  </TableRow>
-
-                  {/* Child rows (individual payments) */}
-                  {isExpanded && (
-                    <TableRow className="bg-muted/50">
-                      <TableCell colSpan={5} className="p-0">
-                        <div className="overflow-hidden pl-10">
-                          <Table>
-                            <TableHeader>
-                              <TableRow className="bg-muted/50 text-xs text-muted-foreground">
-                                <TableHead className="w-10"></TableHead>
-                                <TableHead>Name</TableHead>
-                                <TableHead>Type</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead className="text-right">
-                                  Amount
-                                </TableHead>
-                                <TableHead>Expected Payment Date</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {group.payments.map((payment) => (
-                                <TableRow
-                                  key={`${payment._id}-${payment.payment_identifier}`}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleRowClick(payment);
-                                  }}
-                                  className="cursor-pointer hover:bg-muted/70 text-sm"
-                                >
-                                  <TableCell className="w-10"></TableCell>
-                                  <TableCell>{payment.name}</TableCell>
-                                  <TableCell>
-                                    {payment.type === "order"
-                                      ? "Invoice"
-                                      : "AMC"}
-                                  </TableCell>
-                                  <TableCell>
-                                    <span
-                                      className={`${paymentStatusColor(payment.status)} text-white px-2 py-1 rounded-md text-xs`}
-                                    >
-                                      {payment.status}
-                                    </span>
-                                  </TableCell>
-                                  <TableCell className="text-right font-medium">
-                                    {formatCurrency(payment.pending_amount)}
-                                  </TableCell>
-                                  <TableCell>
-                                    {formatDate(payment.payment_date)}
-                                  </TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </React.Fragment>
-              );
-            })}
-
-            {filteredGroupedData.length === 0 && (
+            {data.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center">
+                <TableCell colSpan={7} className="h-24 text-center">
                   No results found.
                 </TableCell>
               </TableRow>
@@ -490,8 +440,7 @@ export default function DataTableWithModalAndPagination({
 
       <div className="flex items-center justify-between space-x-2 py-4">
         <div className="text-sm text-muted-foreground whitespace-nowrap">
-          Showing {filteredGroupedData.length} client groups (Total{" "}
-          {pagination.total} payments)
+          Showing {data.length} of {pagination.total} payments
         </div>
         <Pagination>
           <PaginationContent>

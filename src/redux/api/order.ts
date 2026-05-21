@@ -21,6 +21,7 @@ import {
   IAMCPayment,
   IAMCPaymentReview,
   IOrderFilterCompanyResponse,
+  IAmcStartMissingRow,
 } from "@/types/order";
 
 // Re-export types that are used by other components
@@ -306,7 +307,7 @@ export const orderApi = createApi({
         endDate?: string;
         clientId?: string;
         clientName?: string; // Added clientName for potential future use, though API might only use clientId
-        type?: "order" | "amc" | "all"; // Added type filter
+        type?: IPendingPaymentType; // Added type filter
       }
     >({
       query: (body) => {
@@ -321,6 +322,45 @@ export const orderApi = createApi({
         return `/pending-payments?${params.toString()}`;
       },
       providesTags: ["PENDING_PAYMENTS_LIST"],
+    }),
+    exportPendingPayments: builder.query<
+      Blob,
+      {
+        page?: number;
+        limit?: number;
+        startDate?: string;
+        endDate?: string;
+        clientId?: string;
+        clientName?: string;
+        type?: IPendingPaymentType;
+      }
+    >({
+      query: (body) => {
+        const params = new URLSearchParams();
+        if (body.startDate) params.append("startDate", body.startDate);
+        if (body.endDate) params.append("endDate", body.endDate);
+        if (body.clientId) params.append("clientId", body.clientId);
+        if (body.clientName) params.append("clientName", body.clientName);
+        if (body.type) params.append("type", body.type);
+        return {
+          url: `/pending-payments/export?${params.toString()}`,
+          responseHandler: async (response: Response) => await response.blob(),
+          cache: "no-cache",
+        };
+      },
+    }),
+    getAmcStartMissing: builder.query<
+      IResponse<{ rows: IAmcStartMissingRow[]; pagination: IPendingPaymentPagination }>,
+      { page?: number; limit?: number; clientId?: string; clientName?: string }
+    >({
+      query: (body) => {
+        const params = new URLSearchParams();
+        if (body.page) params.append("page", body.page.toString());
+        if (body.limit) params.append("limit", body.limit.toString());
+        if (body.clientId) params.append("clientId", body.clientId);
+        if (body.clientName) params.append("clientName", body.clientName);
+        return `/pending-payments/amc-start-missing?${params.toString()}`;
+      },
     }),
     updatePendingPayment: builder.mutation<
       IResponse,
@@ -527,8 +567,10 @@ export const {
   useCancelOrderMutation,
   useDeleteAMCPaymentByIdMutation,
   useGetOrderFiltersOfCompanyQuery,
+  useGetAmcStartMissingQuery,
   useExportAmcToExcelMutation,
   useExportPurchasesToExcelMutation,
+  useLazyExportPendingPaymentsQuery,
   useCreateAmcPaymentsForAllAmcsMutation,
   useCreateAmcPaymentsByAmcIdMutation,
   useCheckDuplicatesMutation,
