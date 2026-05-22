@@ -436,6 +436,27 @@ export const orderApi = createApi({
       }),
       invalidatesTags: ["ORDERS_LIST", "CLIENT_ORDERS_DATA"],
     }),
+    deleteLicenseById: builder.mutation<IResponse, string>({
+      query: (id) => ({
+        url: `/license/${id}`,
+        method: HTTP_REQUEST.DELETE,
+      }),
+      invalidatesTags: ["ORDER_DATA", "CLIENT_ORDERS_DATA", "ORDERS_LIST"],
+    }),
+    deleteCustomizationById: builder.mutation<IResponse, string>({
+      query: (id) => ({
+        url: `/customization/${id}`,
+        method: HTTP_REQUEST.DELETE,
+      }),
+      invalidatesTags: ["ORDER_DATA", "CLIENT_ORDERS_DATA", "ORDERS_LIST"],
+    }),
+    deleteAdditionalServiceById: builder.mutation<IResponse, string>({
+      query: (id) => ({
+        url: `/additional-service/${id}`,
+        method: HTTP_REQUEST.DELETE,
+      }),
+      invalidatesTags: ["ORDER_DATA", "CLIENT_ORDERS_DATA", "ORDERS_LIST"],
+    }),
     cancelOrder: builder.mutation<IResponse, { id: string; reason: string; cancelled_products?: string[] }>({
       query: ({ id, reason, cancelled_products }) => ({
         url: `/${id}/cancel`,
@@ -564,6 +585,9 @@ export const {
   useAddAmcPaymentsMutation,
   useUpdateAMCByIdMutation,
   useDeleteOrderByIdMutation,
+  useDeleteLicenseByIdMutation,
+  useDeleteCustomizationByIdMutation,
+  useDeleteAdditionalServiceByIdMutation,
   useCancelOrderMutation,
   useDeleteAMCPaymentByIdMutation,
   useGetOrderFiltersOfCompanyQuery,

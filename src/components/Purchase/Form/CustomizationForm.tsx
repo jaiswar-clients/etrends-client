@@ -707,24 +707,19 @@ const CustomizationForm: React.FC<ICustomationProps> = ({ clientId, handler, isL
                                         <FormItem>
                                             <FormLabel className='text-gray-500 text-sm'>Payment Status</FormLabel>
                                             <FormControl>
-                                                <Select onValueChange={field.onChange}>
+                                                <Select value={field.value} onValueChange={field.onChange}>
                                                     <SelectTrigger className="w-full bg-white" disabled={disableInput}>
-                                                        <SelectValue className="capitalize" placeholder=
-                                                            {
-                                                                field.value === PAYMENT_STATUS_ENUM.PAID ? (
-                                                                    <div className="flex items-center">
-                                                                        <div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div>
-                                                                        {PAYMENT_STATUS_ENUM.PAID}
-                                                                    </div>
-                                                                ) : (
-                                                                    <div className="flex items-center">
-                                                                        <div className="w-2 h-2 rounded-full bg-red-500 mr-2"></div>
-                                                                        <span className="capitalize">{PAYMENT_STATUS_ENUM.PENDING}</span>
-                                                                    </div>
-                                                                )
-                                                            }
-                                                        >
-                                                        </SelectValue>
+                                                        <SelectValue className="capitalize" placeholder={
+                                                            <div className="flex items-center">
+                                                                <div className={`w-2 h-2 rounded-full mr-2 ${
+                                                                    field.value === PAYMENT_STATUS_ENUM.PAID ? 'bg-green-500' :
+                                                                    field.value === PAYMENT_STATUS_ENUM.INVOICE ? 'bg-blue-500' :
+                                                                    field.value === PAYMENT_STATUS_ENUM.PROFORMA ? 'bg-yellow-500' :
+                                                                    'bg-red-500'
+                                                                }`} />
+                                                                <span className="capitalize">{field.value || PAYMENT_STATUS_ENUM.PENDING}</span>
+                                                            </div>
+                                                        } />
                                                     </SelectTrigger>
                                                     <SelectContent className='bg-white'>
                                                         {
@@ -732,17 +727,15 @@ const CustomizationForm: React.FC<ICustomationProps> = ({ clientId, handler, isL
                                                                 .filter(([key]) => isNaN(Number(key)))
                                                                 .map(([key, value]) => (
                                                                     <SelectItem value={value} key={key} className='capitalize'>
-                                                                        {value === PAYMENT_STATUS_ENUM.PAID ? (
-                                                                            <div className="flex items-center">
-                                                                                <div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div>
-                                                                                {value}
-                                                                            </div>
-                                                                        ) : (
-                                                                            <div className="flex items-center">
-                                                                                <div className="w-2 h-2 rounded-full bg-red-500 mr-2"></div>
-                                                                                <span className="capitalize">{value}</span>
-                                                                            </div>
-                                                                        )}
+                                                                        <div className="flex items-center">
+                                                                            <div className={`w-2 h-2 rounded-full mr-2 ${
+                                                                                value === PAYMENT_STATUS_ENUM.PAID ? 'bg-green-500' :
+                                                                                value === PAYMENT_STATUS_ENUM.INVOICE ? 'bg-blue-500' :
+                                                                                value === PAYMENT_STATUS_ENUM.PROFORMA ? 'bg-yellow-500' :
+                                                                                'bg-red-500'
+                                                                            }`} />
+                                                                            <span className="capitalize">{value}</span>
+                                                                        </div>
                                                                     </SelectItem>
                                                                 ))
                                                         }
