@@ -83,6 +83,7 @@ export const orderApi = createApi({
     "ADDITIONAL_SERVICE_DATA",
     "AMC_PAYMENT_REVIEW",
     "AMC_LIST",
+    "PENDING_PAYMENTS",
   ],
   endpoints: (builder) => ({
     getOrderById: builder.query<IResponse<IOrderObject>, string>({
@@ -472,6 +473,68 @@ export const orderApi = createApi({
         body,
       }),
     }),
+    getPendingPayments: builder.query<
+      IResponse<{
+        data: any[];
+        pagination: {
+          total: number;
+          limit: number;
+          page: number;
+          pages: number;
+          hasNextPage: boolean;
+          hasPreviousPage: boolean;
+        };
+        total_amount: {
+          total: number;
+          new_order: number;
+          customization: number;
+          auditor_licence: number;
+          amc: number;
+        };
+      }>,
+      {
+        page?: number;
+        limit?: number;
+        startDate?: string;
+        endDate?: string;
+        client_id?: string;
+        product_id?: string;
+        type?: string;
+      }
+    >({
+      query: (body) => {
+        const params = new URLSearchParams();
+        if (body.page) params.append('page', body.page.toString());
+        if (body.limit) params.append('limit', body.limit.toString());
+        if (body.startDate) params.append('startDate', body.startDate);
+        if (body.endDate) params.append('endDate', body.endDate);
+        if (body.client_id) params.append('client_id', body.client_id);
+        if (body.product_id) params.append('product_id', body.product_id);
+        if (body.type) params.append('type', body.type);
+        return `/pending-payments?${params.toString()}`;
+      },
+      providesTags: ['PENDING_PAYMENTS'],
+    }),
+    exportPendingPaymentsToExcel: builder.mutation<
+      Blob,
+      {
+        startDate?: string;
+        endDate?: string;
+        client_id?: string;
+        product_id?: string;
+        type?: string;
+      }
+    >({
+      query: (params) => ({
+        url: `/export-pending-payments`,
+        method: HTTP_REQUEST.GET,
+        params,
+        responseHandler: async (response) => {
+          const blob = await response.blob();
+          return blob;
+        },
+      }),
+    }),
   }),
 });
 
@@ -508,4 +571,6 @@ export const {
   useCreateAmcPaymentsForAllAmcsMutation,
   useCreateAmcPaymentsByAmcIdMutation,
   useCheckDuplicatesMutation,
+  useGetPendingPaymentsQuery,
+  useExportPendingPaymentsToExcelMutation,
 } = orderApi;
