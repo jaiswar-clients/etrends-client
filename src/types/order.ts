@@ -217,60 +217,6 @@ export enum PURCHASE_TYPE {
   ORDER = "order",
 }
 
-export type IPendingPaymentType =
-  | "order"
-  | "amc"
-  | "license"
-  | "customization"
-  | "all";
-
-export interface IPendingPayment {
-  _id: string;
-  payment_identifier: string;
-  type: "order" | "amc" | "license" | "customization";
-  client_name: string;
-  client_id: string;
-  order_id: string;
-  product_name: string;
-  invoice_number?: string;
-  invoice_date?: string; // ISO date
-  payment_date?: string;
-  pending_amount: number;
-  order_total: number;
-  status: PAYMENT_STATUS_ENUM;
-}
-
-export interface IAmcStartMissingRow {
-  order_id: string;
-  client_name: string;
-  product_name: string;
-  purchased_date: string;
-  base_cost: number;
-  pending_balance: number;
-}
-
-export interface IPendingPaymentPagination {
-  total: number;
-  currentPage: number;
-  totalPages: number;
-  limit: number;
-  hasNextPage: boolean;
-  hasPreviousPage: boolean;
-}
-
-export interface IPendingPaymentResponse {
-  pending_payments: IPendingPayment[];
-  pagination: IPendingPaymentPagination;
-}
-
-export interface IUpdatePendingPaymentRequest {
-  _id: string;
-  type: IPendingPaymentType;
-  payment_identifier: string | number;
-  status: string;
-  payment_receive_date: Date;
-}
-
 export interface IPurchase extends IOrderObject<IProduct> {
   client_id: IClientDataObject & {
     parent_company?: IClientDataObject;

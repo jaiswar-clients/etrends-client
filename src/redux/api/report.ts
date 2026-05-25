@@ -315,18 +315,6 @@ export const reportApi = createApi({
         method: HTTP_REQUEST.GET,
       }),
     }),
-    getPendingBreakdown: builder.query<
-      {
-        fy: string;
-        granularity: string;
-        buckets: Array<{ label: string; pending_amount: number; count: number }>;
-        totals: { pending_amount: number; count: number };
-      },
-      { fy: string; granularity: 'monthly' | 'quarterly' | 'half-yearly' | 'yearly' }
-    >({
-      query: ({ fy, granularity }) =>
-        `/reports/pending-breakdown?fy=${encodeURIComponent(fy)}&granularity=${granularity}`,
-    }),
   }),
 });
 
@@ -340,7 +328,6 @@ export const {
   useGetExpectedVsCollectedQuery,
   useGetMonthlyRevenueBreakdownQuery,
   useGetClientHealthDashboardQuery,
-  useGetPendingBreakdownQuery,
 } = reportApi;
 
 // Backward compatibility aliases (deprecated)
