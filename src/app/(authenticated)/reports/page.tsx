@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback, Suspense } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import {
   Bar,
   BarChart,
@@ -42,7 +43,7 @@ import {
   useGetClientHealthDashboardQuery,
   IReportQueries,
 } from "@/redux/api/report";
-import PendingBreakdownSection from "@/components/Reports/PendingBreakdownSection";
+
 import { useAppSelector } from "@/redux/hook";
 import { cn, formatCurrency, formatIndianNumber } from "@/lib/utils";
 import {
@@ -517,15 +518,75 @@ const CompactConcentrationRisk = ({ concentrationRisk }: {
 
 // Main Dashboard Component
 const RevenueReportDashboard = () => {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
   const currentMonth = new Date().getMonth();
   const currentYear = new Date().getFullYear();
   const defaultFiscalYear = currentMonth < 3 ? currentYear - 1 : currentYear;
 
-  const [fiscalYear, setFiscalYear] = useState<number>(defaultFiscalYear);
-  const [filterType, setFilterType] = useState<FilterType>(DEFAULT_FILTER);
+  // Initialize state from URL search params
+  const urlFy = searchParams.get("fy");
+  const urlFilter = searchParams.get("filter") as FilterType | null;
+  const urlOrderTypes = searchParams.get("orderTypes");
+
+  const [fiscalYear, setFiscalYearState] = useState<number>(
+    urlFy && !isNaN(Number(urlFy)) ? Number(urlFy) : defaultFiscalYear
+  );
+  const [filterType, setFilterTypeState] = useState<FilterType>(
+    urlFilter && ["monthly", "quarterly", "half-yearly"].includes(urlFilter)
+      ? urlFilter
+      : DEFAULT_FILTER
+  );
   const [selectedPeriod, setSelectedPeriod] = useState<{ period: string; year: number; month: number } | null>(null);
   const [isExporting, setIsExporting] = useState<boolean>(false);
-  const [orderTypes, setOrderTypes] = useState<string>("all");
+  const [orderTypes, setOrderTypesState] = useState<string>(
+    urlOrderTypes || "all"
+  );
+
+  // Sync filters to URL
+  const updateUrlParams = useCallback(
+    (updates: { fy?: number; filter?: FilterType; orderTypes?: string }) => {
+      const params = new URLSearchParams(searchParams.toString());
+      const fy = updates.fy ?? fiscalYear;
+      const filter = updates.filter ?? filterType;
+      const ot = updates.orderTypes ?? orderTypes;
+
+      params.set("fy", fy.toString());
+      params.set("filter", filter);
+      if (ot && ot !== "all") {
+        params.set("orderTypes", ot);
+      } else {
+        params.delete("orderTypes");
+      }
+
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    },
+    [searchParams, router, pathname, fiscalYear, filterType, orderTypes]
+  );
+
+  const setFiscalYear = useCallback(
+    (fy: number) => {
+      setFiscalYearState(fy);
+      updateUrlParams({ fy });
+    },
+    [updateUrlParams]
+  );
+  const setFilterType = useCallback(
+    (filter: FilterType) => {
+      setFilterTypeState(filter);
+      updateUrlParams({ filter });
+    },
+    [updateUrlParams]
+  );
+  const setOrderTypes = useCallback(
+    (ot: string) => {
+      setOrderTypesState(ot);
+      updateUrlParams({ orderTypes: ot });
+    },
+    [updateUrlParams]
+  );
 
   // Get token from Redux store
   const token = useAppSelector((state) => state.user.user.token);
@@ -679,6 +740,7 @@ const RevenueReportDashboard = () => {
                   <SelectContent>
                     <SelectItem value="monthly" className="text-xs">Monthly</SelectItem>
                     <SelectItem value="quarterly" className="text-xs">Quarterly</SelectItem>
+                    <SelectItem value="half-yearly" className="text-xs">Half Yearly</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -811,11 +873,6 @@ const RevenueReportDashboard = () => {
               </>
             )}
 
-            {/* Row 4: Pending Payment Breakdown */}
-            <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4">
-              <PendingBreakdownSection />
-            </div>
-
             {/* Footer */}
             <div className="flex items-center justify-between px-3 py-2 bg-slate-100 rounded text-[10px] text-slate-500">
               <div className="flex items-center gap-1">
@@ -840,6 +897,10 @@ const RevenueReportDashboard = () => {
   );
 };
 
-const Page = () => <RevenueReportDashboard />;
+const Page = () => (
+  <Suspense fallback={<Loading />}>
+    <RevenueReportDashboard />
+  </Suspense>
+);
 
 export default Page;

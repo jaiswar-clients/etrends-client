@@ -229,13 +229,14 @@ export interface IPendingPayment {
   payment_identifier: string;
   type: "order" | "amc" | "license" | "customization";
   client_name: string;
+  client_id: string;
+  order_id: string;
   product_name: string;
   invoice_number?: string;
   invoice_date?: string; // ISO date
   payment_date?: string;
   pending_amount: number;
   order_total: number;
-  balance: number; // fraction 0..1
   status: PAYMENT_STATUS_ENUM;
 }
 

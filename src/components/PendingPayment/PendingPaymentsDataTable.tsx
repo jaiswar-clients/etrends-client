@@ -9,14 +9,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, ExternalLink } from "lucide-react";
 import {
   Pagination,
   PaginationContent,
@@ -30,18 +24,10 @@ import {
   IPendingPayment,
   IPendingPaymentPagination,
   IPendingPaymentType,
-  IUpdatePendingPaymentRequest,
-  PAYMENT_STATUS_ENUM,
 } from "@/types/order";
-import {
-  useLazyExportPendingPaymentsQuery,
-  useUpdatePendingPaymentMutation,
-} from "@/redux/api/order";
+import { useLazyExportPendingPaymentsQuery } from "@/redux/api/order";
 
-import { useForm } from "react-hook-form";
-import { Form, FormControl, FormField, FormItem, FormLabel } from "../ui/form";
 import { Input } from "../ui/input";
-import DatePicker from "../ui/datepicker";
 import { toast } from "@/hooks/use-toast";
 import {
   DropdownMenu,
@@ -52,6 +38,7 @@ import {
 import { formatCurrency } from "@/lib/utils";
 import FinancialYearFilter from "../common/FinancialYearFilter";
 import { IFilteredClient } from "@/types/order";
+import Link from "next/link";
 
 interface IProps {
   data: IPendingPayment[];
@@ -71,6 +58,19 @@ interface IProps {
   onTypeFilterChange: (type: IPendingPaymentType) => void;
 }
 
+function getEntityLink(payment: IPendingPayment): string {
+  switch (payment.type) {
+    case "amc":
+      return `/amc/${payment.order_id}`;
+    case "license":
+      return `/purchases/${payment._id}?type=license&client=${payment.client_id}`;
+    case "customization":
+      return `/purchases/${payment._id}?type=customization&client=${payment.client_id}`;
+    case "order":
+    default:
+      return `/purchases/${payment.order_id}?type=order&client=${payment.client_id}`;
+  }
+}
 
 export default function DataTableWithModalAndPagination({
   data,
@@ -86,51 +86,9 @@ export default function DataTableWithModalAndPagination({
   selectedType,
   onTypeFilterChange,
 }: IProps) {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [updatePayment, setUpdatePayment] = useState<{
-    modal: boolean;
-    data: IUpdatePendingPaymentRequest;
-  }>({
-    modal: false,
-    data: {
-      payment_identifier: "",
-      status: "",
-      payment_receive_date: new Date(),
-      type: "order" as IPendingPaymentType,
-      _id: "",
-    },
-  });
-
-  const [updatePendingPaymentApi, { isLoading }] =
-    useUpdatePendingPaymentMutation();
   const [triggerExport] = useLazyExportPendingPaymentsQuery();
   const [isExporting, setIsExporting] = useState(false);
-
-  const form = useForm<{
-    payment_receive_date: Date;
-    status: PAYMENT_STATUS_ENUM;
-  }>({
-    defaultValues: {
-      payment_receive_date: undefined,
-      status: PAYMENT_STATUS_ENUM.PAID,
-    },
-  });
-
-  const { handleSubmit } = form;
-
-  const [selectedItem, setSelectedItem] = useState<IPendingPayment | null>(
-    null,
-  );
   const [clientSearch, setClientSearch] = useState("");
-
-  const handleRowClick: (item: IPendingPayment) => void = (item) => {
-    const payment_identifier =
-      item.type === "order" || item.type === "amc"
-        ? item.payment_identifier
-        : item._id;
-    setSelectedItem({ ...item, payment_identifier });
-    setIsModalOpen(true);
-  };
 
   const formatDate = (dateInput?: string | Date | null) => {
     if (!dateInput) return "-";
@@ -150,43 +108,6 @@ export default function DataTableWithModalAndPagination({
       license: 'Auditor Licences',
       amc: 'AMC',
     })[t] ?? t;
-
-  const onSubmit = async (data: {
-    payment_receive_date: Date;
-    status: PAYMENT_STATUS_ENUM;
-  }) => {
-    if (!data.payment_receive_date) {
-      toast({
-        title: "Payment Receive Date is required",
-        description: "Please select a date",
-        variant: "destructive",
-      });
-      return;
-    }
-    try {
-      await updatePendingPaymentApi({
-        payment_identifier: updatePayment?.data.payment_identifier ?? "",
-        status: PAYMENT_STATUS_ENUM.PAID,
-        payment_receive_date: data.payment_receive_date,
-        type: updatePayment.data.type as IPendingPaymentType,
-        _id: updatePayment.data._id,
-      }).unwrap();
-      toast({
-        title: "Payment Updated",
-        description: "Payment has been successfully updated",
-        variant: "success",
-      });
-      setUpdatePayment({ modal: false, data: updatePayment.data });
-      setIsModalOpen(false);
-    } catch (error) {
-      console.log(error);
-      toast({
-        title: "Error",
-        description: "An error occurred while updating the payment",
-        variant: "destructive",
-      });
-    }
-  };
 
   const filteredClients = useMemo(() => {
     if (!clients) return [];
@@ -254,21 +175,19 @@ export default function DataTableWithModalAndPagination({
   const renderFilters = () => (
     <div className="flex items-center justify-between py-4 flex-wrap gap-3">
       <div className="flex items-center gap-2 flex-wrap">
-        {/* Financial Year Filter */}
         <FinancialYearFilter
           selectedFY={selectedFY}
           onFYFilterChange={onFYFilterChange}
           onCustomDateChange={onCustomDateChange}
           dateRange={{
             startDate:
-              dateRange.startDate ?? new Date(new Date().getFullYear(), 3, 1), // set to april 1st of the year
+              dateRange.startDate ?? new Date(new Date().getFullYear(), 3, 1),
             endDate:
-              dateRange.endDate ?? new Date(new Date().getFullYear(), 2, 31), // set to march 31st of the year
+              dateRange.endDate ?? new Date(new Date().getFullYear(), 2, 31),
           }}
           buttonLabel="Financial Year"
         />
 
-        {/* Client Filter Dropdown */}
         <div className="relative">
           {selectedClientId &&
           clients.find((c) => c._id === selectedClientId) ? (
@@ -350,7 +269,6 @@ export default function DataTableWithModalAndPagination({
         >
           {isExporting ? "Exporting..." : "Export"}
         </Button>
-        {/* Type Filter Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" className="ml-auto capitalize">
@@ -379,13 +297,6 @@ export default function DataTableWithModalAndPagination({
     </div>
   );
 
-  const paymentStatusColor = (status: PAYMENT_STATUS_ENUM) => {
-    if (status === PAYMENT_STATUS_ENUM.PAID) return "bg-green-700";
-    if (status === PAYMENT_STATUS_ENUM.PENDING) return "bg-red-600";
-    if (status === PAYMENT_STATUS_ENUM.PROFORMA) return "bg-yellow-600";
-    if (status === PAYMENT_STATUS_ENUM.INVOICE) return "bg-blue-600";
-  };
-
   return (
     <div className="container">
       {renderFilters()}
@@ -395,25 +306,22 @@ export default function DataTableWithModalAndPagination({
             <TableRow>
               <TableHead>Order #</TableHead>
               <TableHead>Type</TableHead>
-              <TableHead>Balance</TableHead>
+              <TableHead>Client</TableHead>
               <TableHead>Product Name</TableHead>
               <TableHead>Invoice Type</TableHead>
               <TableHead>Date</TableHead>
               <TableHead className="text-right">Pending Amount</TableHead>
+              <TableHead className="w-[80px]">Action</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {data.map((payment) => (
-              <TableRow
-                key={`${payment._id}-${payment.payment_identifier}`}
-                onClick={() => handleRowClick(payment)}
-                className="cursor-pointer hover:bg-muted/50"
-              >
+              <TableRow key={`${payment._id}-${payment.payment_identifier}`}>
                 <TableCell className="font-mono text-xs">
                   {payment._id.slice(-6)}
                 </TableCell>
                 <TableCell>{labelForType(payment.type)}</TableCell>
-                <TableCell>{payment.balance.toFixed(2)}</TableCell>
+                <TableCell>{payment.client_name}</TableCell>
                 <TableCell>{payment.product_name}</TableCell>
                 <TableCell>
                   {payment.invoice_number ? "Invoice" : "-"}
@@ -424,12 +332,19 @@ export default function DataTableWithModalAndPagination({
                 <TableCell className="text-right font-medium">
                   {formatCurrency(payment.pending_amount)}
                 </TableCell>
+                <TableCell>
+                  <Link href={getEntityLink(payment)}>
+                    <Button variant="ghost" size="icon" title="View details">
+                      <ExternalLink className="h-4 w-4" />
+                    </Button>
+                  </Link>
+                </TableCell>
               </TableRow>
             ))}
 
             {data.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center">
+                <TableCell colSpan={8} className="h-24 text-center">
                   No results found.
                 </TableCell>
               </TableRow>
@@ -464,7 +379,6 @@ export default function DataTableWithModalAndPagination({
 
             {Array.from({ length: pagination.totalPages }).map((_, index) => {
               const pageNumber = index + 1;
-              // Show first, last, current and pages around current
               if (
                 pageNumber === 1 ||
                 pageNumber === pagination.totalPages ||
@@ -486,7 +400,6 @@ export default function DataTableWithModalAndPagination({
                 );
               }
 
-              // Show ellipsis for skipped pages
               if (
                 (pageNumber === 2 && pagination.currentPage > 3) ||
                 (pageNumber === pagination.totalPages - 1 &&
@@ -522,148 +435,6 @@ export default function DataTableWithModalAndPagination({
           </PaginationContent>
         </Pagination>
       </div>
-
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Item Details</DialogTitle>
-          </DialogHeader>
-          {selectedItem && (
-            <div className="mt-4">
-              <Table>
-                <TableBody>
-                  <TableRow>
-                    <TableCell className="font-medium">Name</TableCell>
-                    <TableCell>{selectedItem.client_name}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">Type</TableCell>
-                    <TableCell>{selectedItem.type}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">Status</TableCell>
-                    <TableCell>
-                      <span
-                        className={`${paymentStatusColor(selectedItem.status)} text-white px-2 py-1 rounded-md`}
-                      >
-                        {selectedItem.status}
-                      </span>
-                    </TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">
-                      Pending Amount
-                    </TableCell>
-                    <TableCell>
-                      {formatCurrency(selectedItem.pending_amount)}
-                    </TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">
-                      Expected Payment Date
-                    </TableCell>
-                    <TableCell>
-                      {formatDate(selectedItem.payment_date)}
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </div>
-          )}
-          <div className="mt-6 flex justify-end">
-            <Button variant={"secondary"} onClick={() => setIsModalOpen(false)}>
-              Close
-            </Button>
-            <Button
-              className="ml-2"
-              onClick={() => {
-                setUpdatePayment({
-                  modal: true,
-                  data: {
-                    payment_identifier: selectedItem?.payment_identifier ?? "",
-                    status: selectedItem?.status ?? "",
-                    payment_receive_date: new Date(
-                      selectedItem?.payment_date ?? Date.now(),
-                    ),
-                    type: selectedItem?.type as IPendingPaymentType,
-                    _id: selectedItem?._id ?? "",
-                  },
-                });
-              }}
-            >
-              Update
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={updatePayment.modal}
-        onOpenChange={() =>
-          setUpdatePayment({ modal: false, data: updatePayment.data })
-        }
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Update Payment</DialogTitle>
-          </DialogHeader>
-          <div className="mt-4">
-            <Form {...form}>
-              <form action="" onSubmit={handleSubmit(onSubmit)}>
-                <FormItem>
-                  <FormLabel htmlFor="payment_identifier">
-                    Payment Status
-                  </FormLabel>
-                  <Input value={PAYMENT_STATUS_ENUM.PAID} disabled />
-                </FormItem>
-
-                <br />
-                <FormField
-                  control={form.control}
-                  name={`payment_receive_date`}
-                  render={({ field }) => (
-                    <FormItem className="w-full mb-4 md:mb-0">
-                      <FormLabel className="text-gray-500">
-                        Payment Receive Date
-                      </FormLabel>
-                      <FormControl>
-                        <DatePicker
-                          onDateChange={field.onChange}
-                          date={field.value}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-                <div className="mt-6 flex justify-end">
-                  <Button
-                    variant={"secondary"}
-                    type="button"
-                    onClick={() =>
-                      setUpdatePayment({
-                        modal: false,
-                        data: updatePayment.data,
-                      })
-                    }
-                  >
-                    Close
-                  </Button>
-                  <Button
-                    className="ml-2 w-36"
-                    type="submit"
-                    loading={{
-                      isLoading,
-                      loader: "tailspin",
-                    }}
-                  >
-                    Update
-                  </Button>
-                </div>
-              </form>
-            </Form>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

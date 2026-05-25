@@ -5,7 +5,7 @@ import { RootState } from "../store";
 
 const reportUrl = `${process.env.NEXT_PUBLIC_API_URL}/reports`;
 
-export type IReportFilters = "monthly" | "quarterly" | "yearly" | "all";
+export type IReportFilters = "monthly" | "quarterly" | "half-yearly" | "yearly" | "all";
 
 export interface IReportQueries {
   filter: IReportFilters;
