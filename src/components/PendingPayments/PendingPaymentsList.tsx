@@ -97,8 +97,6 @@ interface IProps {
   }
   totalAmount: {
     total: number
-    invoice: number
-    pending: number
     new_order: number
     customization: number
     auditor_licence: number
@@ -356,25 +354,6 @@ const PendingPaymentsList: React.FC<IProps> = ({
         cell: ({ row }) => formatCurrency(row.original.amount),
       },
       {
-        id: "scenario",
-        header: "Scenario",
-        cell: ({ row }) => {
-          const isInvoice = row.original.status === "invoice"
-          return (
-            <Badge
-              variant="outline"
-              className={
-                isInvoice
-                  ? "bg-blue-100 text-blue-800 border-blue-200"
-                  : "bg-amber-100 text-amber-800 border-amber-200"
-              }
-            >
-              {isInvoice ? "Invoice Raised" : "PO Balance"}
-            </Badge>
-          )
-        },
-      },
-      {
         id: "actions",
         header: "Actions",
         cell: ({ row }) => {
@@ -429,7 +408,7 @@ const PendingPaymentsList: React.FC<IProps> = ({
   return (
     <div>
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:!grid-cols-2 lg:!grid-cols-3 xl:!grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:!grid-cols-2 lg:!grid-cols-3 xl:!grid-cols-5 gap-4 mb-6">
         <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg text-blue-700">Total Pending</CardTitle>
@@ -440,26 +419,6 @@ const PendingPaymentsList: React.FC<IProps> = ({
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg text-purple-700">Invoice Raised</CardTitle>
-            <CardDescription>Scenario 2</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-purple-800">{formatCurrency(totalAmount.invoice)}</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-amber-50 to-amber-100 border-amber-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg text-amber-700">PO Balance</CardTitle>
-            <CardDescription>Scenario 3</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-amber-800">{formatCurrency(totalAmount.pending)}</p>
-          </CardContent>
-        </Card>
-
         <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg text-green-700">New Orders</CardTitle>
@@ -467,6 +426,36 @@ const PendingPaymentsList: React.FC<IProps> = ({
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-green-800">{formatCurrency(totalAmount.new_order)}</p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg text-purple-700">Customization</CardTitle>
+            <CardDescription>Subtotal</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-purple-800">{formatCurrency(totalAmount.customization)}</p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg text-orange-700">Auditor Licences</CardTitle>
+            <CardDescription>Subtotal</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-orange-800">{formatCurrency(totalAmount.auditor_licence)}</p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-red-50 to-red-100 border-red-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg text-red-700">AMC</CardTitle>
+            <CardDescription>Subtotal</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-red-800">{formatCurrency(totalAmount.amc)}</p>
           </CardContent>
         </Card>
       </div>

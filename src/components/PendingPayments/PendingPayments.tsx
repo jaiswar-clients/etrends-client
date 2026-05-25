@@ -187,8 +187,6 @@ const PendingPayments = () => {
         pagination={data?.data?.pagination ?? { total: 0, limit: 10, page: 1, pages: 0, hasNextPage: false, hasPreviousPage: false }}
         totalAmount={{
             total: data?.data?.total_amount?.total ?? 0,
-            invoice: data?.data?.total_amount?.invoice ?? 0,
-            pending: data?.data?.total_amount?.pending ?? 0,
             new_order: data?.data?.total_amount?.new_order ?? 0,
             customization: data?.data?.total_amount?.customization ?? 0,
             auditor_licence: data?.data?.total_amount?.auditor_licence ?? 0,

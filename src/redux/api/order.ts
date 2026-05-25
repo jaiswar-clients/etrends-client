@@ -486,8 +486,6 @@ export const orderApi = createApi({
         };
         total_amount: {
           total: number;
-          invoice: number;
-          pending: number;
           new_order: number;
           customization: number;
           auditor_licence: number;
