@@ -390,6 +390,8 @@ const CustomizationForm: React.FC<ICustomationProps> = ({ clientId, handler, isL
         if (!data.product_id) missingFields.push('Product');
         if (!data.cost) missingFields.push('Cost');
         if (!data.invoice_document) missingFields.push('Invoice Document');
+        if (!data.invoice_number) missingFields.push('Invoice Number');
+        if (!data.invoice_date) missingFields.push('Invoice Date');
         if (!data.purchased_date) missingFields.push('Purchased Date');
         if (!data.modules.length) missingFields.push('Modules');
 

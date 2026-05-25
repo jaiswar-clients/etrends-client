@@ -21,7 +21,7 @@ import { Avatar, AvatarImage } from "../ui/avatar"
 import { AvatarFallback } from "@radix-ui/react-avatar"
 import { usePathname } from "next/navigation"
 import { useAppSelector } from "@/redux/hook"
-import { Bell, CircleDashed, Bot } from "lucide-react"
+import { Bell, Bot } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 // Menu items.
@@ -40,11 +40,6 @@ const items = [
         title: "AMC",
         url: "amc",
         icon: HiOutlineWrenchScrewdriver,
-    },
-    {
-        title: "Pending Payments",
-        url: "pending-payments",
-        icon: CircleDashed,
     },
     {
         title: "Reminders",

@@ -12,12 +12,7 @@ import {
   PAYMENT_STATUS_ENUM,
   IAMCObject,
   IUpdateOrderRequest,
-  IPendingPaymentResponse,
-  IUpdatePendingPaymentRequest,
   IPurchase,
-  IPendingPayment,
-  IPendingPaymentPagination,
-  IPendingPaymentType,
   IAMCPayment,
   IAMCPaymentReview,
   IOrderFilterCompanyResponse,
@@ -27,10 +22,6 @@ import {
 export type {
   IOrderObject,
   TransformedAMCObject,
-  IPendingPayment,
-  IPendingPaymentPagination,
-  IPendingPaymentType,
-  IUpdatePendingPaymentRequest,
   ICreateAmcPaymentsResponse,
 };
 export { PAYMENT_STATUS_ENUM };
@@ -92,7 +83,6 @@ export const orderApi = createApi({
     "ADDITIONAL_SERVICE_DATA",
     "AMC_PAYMENT_REVIEW",
     "AMC_LIST",
-    "PENDING_PAYMENTS_LIST",
   ],
   endpoints: (builder) => ({
     getOrderById: builder.query<IResponse<IOrderObject>, string>({
@@ -297,42 +287,6 @@ export const orderApi = createApi({
         }`,
       providesTags: ["AMC_LIST"],
     }),
-    getAllPendingPayments: builder.query<
-      IResponse<IPendingPaymentResponse>,
-      {
-        page?: number;
-        limit?: number;
-        startDate?: string;
-        endDate?: string;
-        clientId?: string;
-        clientName?: string; // Added clientName for potential future use, though API might only use clientId
-        type?: "order" | "amc" | "all"; // Added type filter
-      }
-    >({
-      query: (body) => {
-        const params = new URLSearchParams();
-        if (body.page) params.append("page", body.page.toString());
-        if (body.limit) params.append("limit", body.limit.toString());
-        if (body.startDate) params.append("startDate", body.startDate);
-        if (body.endDate) params.append("endDate", body.endDate);
-        if (body.clientId) params.append("clientId", body.clientId);
-        if (body.type) params.append("type", body.type);
-        // if (body.clientName) params.append('clientName', body.clientName); // Uncomment if API supports clientName filter
-        return `/pending-payments?${params.toString()}`;
-      },
-      providesTags: ["PENDING_PAYMENTS_LIST"],
-    }),
-    updatePendingPayment: builder.mutation<
-      IResponse,
-      IUpdatePendingPaymentRequest
-    >({
-      query: (body) => ({
-        url: `/pending-payments/${body._id}`,
-        method: HTTP_REQUEST.PATCH,
-        body,
-      }),
-      invalidatesTags: ["PENDING_PAYMENTS_LIST"],
-    }),
     updateAMCPaymentById: builder.mutation<
       IResponse,
       {
@@ -488,7 +442,7 @@ export const orderApi = createApi({
         method: HTTP_REQUEST.POST,
         body,
       }),
-      invalidatesTags: ["AMC_LIST", "AMC_DATA", "PENDING_PAYMENTS_LIST"],
+      invalidatesTags: ["AMC_LIST", "AMC_DATA"],
     }),
     createAmcPaymentsByAmcId: builder.mutation<
       IResponse<ICreateAmcPaymentsResponse>,
@@ -499,7 +453,7 @@ export const orderApi = createApi({
         method: HTTP_REQUEST.POST,
         body: { till_year },
       }),
-      invalidatesTags: ["AMC_DATA", "AMC_PAYMENT_REVIEW", "PENDING_PAYMENTS_LIST"],
+      invalidatesTags: ["AMC_DATA", "AMC_PAYMENT_REVIEW"],
     }),
     checkDuplicates: builder.mutation<
       IResponse<{ hasDuplicate: boolean; duplicateRecords: any[] }>,
@@ -538,8 +492,6 @@ export const {
   useUpdateLicenseByIdMutation,
   useUpdateAdditionalServiceByIdMutation,
   useGetAllAMCQuery,
-  useGetAllPendingPaymentsQuery,
-  useUpdatePendingPaymentMutation,
   useUpdateAMCPaymentByIdMutation,
   useGetAMCPaymentReviewMutation,
   useAddAmcPaymentsMutation,
