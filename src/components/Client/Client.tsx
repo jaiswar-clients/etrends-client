@@ -136,7 +136,7 @@ const Client = () => {
     }, [queryArgs.page, refetch])
 
     const handleFilterChange = (
-        filterType: 'client' | 'product' | 'industry' | 'parentCompany' | 'clientId' | 'productId' | 'parentCompanyId',
+        filterType: 'client' | 'product' | 'products' | 'industry' | 'parentCompany' | 'clientId' | 'productId' | 'productIds' | 'parentCompanyId',
         value: string | string[] | undefined
     ) => {
         setQueryArgs(prev => ({ ...prev, [filterType]: value, page: 1 })) // Reset page on filter change

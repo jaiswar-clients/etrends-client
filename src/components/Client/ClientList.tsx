@@ -63,10 +63,12 @@ interface IProps {
     filterType:
       | "client"
       | "product"
+      | "products"
       | "industry"
       | "parentCompany"
       | "clientId"
       | "productId"
+      | "productIds"
       | "parentCompanyId",
     value: string | string[] | undefined,
   ) => void;
@@ -130,15 +132,6 @@ const columns = (
     cell: ({ row }) => (
       <div className="">{row.original.products.join(", ")}</div>
     ),
-  },
-  {
-    accessorKey: "createdAt",
-    header: "Date Joined",
-    cell: ({ row }) => {
-      const date = new Date(row.getValue("createdAt") as string);
-      const formatted = date.toLocaleDateString();
-      return <div>{formatted}</div>;
-    },
   },
   {
     accessorKey: "first_order_date",
@@ -245,21 +238,21 @@ const ClientList: React.FC<IProps> = ({
     const currentIds = initialFilters.productIds || [];
     const currentNames = initialFilters.products || [];
     if (checked) {
-      onFilterChange("productId", [...currentIds, productId]);
-      onFilterChange("product", [...currentNames, productName]);
+      onFilterChange("productIds", [...currentIds, productId]);
+      onFilterChange("products", [...currentNames, productName]);
     } else {
-      onFilterChange("productId", currentIds.filter((id) => id !== productId));
-      onFilterChange("product", currentNames.filter((name) => name !== productName));
+      onFilterChange("productIds", currentIds.filter((id) => id !== productId));
+      onFilterChange("products", currentNames.filter((name) => name !== productName));
     }
   };
 
   const handleProductSelectAll = (checked: boolean) => {
     if (checked) {
-      onFilterChange("productId", uniqueProducts.map((p: any) => p._id));
-      onFilterChange("product", uniqueProducts.map((p: any) => p.short_name));
+      onFilterChange("productIds", uniqueProducts.map((p: any) => p._id));
+      onFilterChange("products", uniqueProducts.map((p: any) => p.short_name));
     } else {
-      onFilterChange("productId", []);
-      onFilterChange("product", []);
+      onFilterChange("productIds", []);
+      onFilterChange("products", []);
     }
   };
 
@@ -661,8 +654,8 @@ const ClientList: React.FC<IProps> = ({
                 </span>
                 <button
                   onClick={() => {
-                    onFilterChange("productId", []);
-                    onFilterChange("product", []);
+                    onFilterChange("productIds", []);
+                    onFilterChange("products", []);
                   }}
                   className="ml-1 text-gray-500 hover:text-gray-700"
                 >
