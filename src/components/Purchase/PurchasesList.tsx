@@ -349,6 +349,7 @@ const PurchasesList: React.FC<IProps> = ({
         startDate: initialFilters.startDate,
         endDate: initialFilters.endDate,
         payment_status: initialFilters.paymentStatus as any,
+        amc_pending: initialFilters.amcPending,
       });
 
       if ("data" in result) {

@@ -113,6 +113,7 @@ export const orderApi = createApi({
         startDate?: string;
         endDate?: string;
         payment_status?: PAYMENT_STATUS_ENUM;
+        amc_pending?: boolean;
       }
     >({
       query: (body) => {
@@ -130,6 +131,7 @@ export const orderApi = createApi({
         if (body.startDate) params.append("startDate", body.startDate);
         if (body.endDate) params.append("endDate", body.endDate);
         if (body.payment_status) params.append("payment_status", body.payment_status);
+        if (body.amc_pending !== undefined) params.append("amc_pending", body.amc_pending.toString());
         return `/all-orders?${params.toString()}`;
       },
       providesTags: ["ORDERS_LIST"],
@@ -301,7 +303,7 @@ export const orderApi = createApi({
         method: HTTP_REQUEST.PATCH,
         body: data,
       }),
-      invalidatesTags: ["AMC_PAYMENT_REVIEW", "AMC_DATA"],
+      invalidatesTags: ["AMC_LIST", "AMC_PAYMENT_REVIEW", "AMC_DATA"],
     }),
     updateAMCById: builder.mutation<
       IResponse,
@@ -312,7 +314,7 @@ export const orderApi = createApi({
         method: HTTP_REQUEST.PATCH,
         body: data,
       }),
-      invalidatesTags: ["AMC_DATA"],
+      invalidatesTags: ["AMC_LIST", "AMC_DATA"],
     }),
     deleteAMCPaymentById: builder.mutation<
       IResponse,
@@ -322,7 +324,7 @@ export const orderApi = createApi({
         url: `/amc/${amcId}/payment/${paymentId}`,
         method: HTTP_REQUEST.DELETE,
       }),
-      invalidatesTags: ["AMC_DATA"],
+      invalidatesTags: ["AMC_LIST", "AMC_DATA"],
     }),
     getAMCPaymentReview: builder.mutation<
       IResponse<IAMCPaymentReview[]>,
@@ -342,7 +344,7 @@ export const orderApi = createApi({
         method: HTTP_REQUEST.PATCH,
         body: body.payments,
       }),
-      invalidatesTags: ["AMC_PAYMENT_REVIEW", "AMC_DATA"],
+      invalidatesTags: ["AMC_LIST", "AMC_PAYMENT_REVIEW", "AMC_DATA"],
     }),
     deleteOrderById: builder.mutation<IResponse, string>({
       query: (id) => ({
@@ -422,6 +424,7 @@ export const orderApi = createApi({
         startDate?: string;
         endDate?: string;
         payment_status?: PAYMENT_STATUS_ENUM;
+        amc_pending?: boolean;
       }
     >({
       query: (params) => ({
@@ -454,7 +457,7 @@ export const orderApi = createApi({
         method: HTTP_REQUEST.POST,
         body: { till_year },
       }),
-      invalidatesTags: ["AMC_DATA", "AMC_PAYMENT_REVIEW"],
+      invalidatesTags: ["AMC_LIST", "AMC_DATA", "AMC_PAYMENT_REVIEW"],
     }),
     checkDuplicates: builder.mutation<
       IResponse<{ hasDuplicate: boolean; duplicateRecords: any[] }>,
