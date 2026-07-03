@@ -121,9 +121,9 @@ interface IProps {
   onPageChange: (page: number) => void;
   currentPage: number;
   initialClientFilter?: string;
-  initialProductFilter?: string;
+  initialProductFilter?: string[];
   onClientFilterChange: (client: string | undefined) => void;
-  onProductFilterChange: (product: string | undefined) => void;
+  onProductFilterChange: (products: string[] | undefined) => void;
   activeFilters: string[];
   dateRangeSelector: { show: boolean; startDate: Date; endDate: Date };
   isLoading?: boolean;
@@ -346,7 +346,7 @@ const AMCList: React.FC<IProps> = ({
     if (initialClientFilter) {
       table.getColumn("client")?.setFilterValue(initialClientFilter);
     }
-    if (initialProductFilter) {
+    if (initialProductFilter && initialProductFilter.length > 0) {
       table.getColumn("order")?.setFilterValue(initialProductFilter);
     }
   }, [initialClientFilter, initialProductFilter, activeFilters, table]);
@@ -402,8 +402,8 @@ const AMCList: React.FC<IProps> = ({
       if (initialClientFilter) {
         params.append("client_id", initialClientFilter);
       }
-      if (initialProductFilter) {
-        params.append("product_id", initialProductFilter);
+      if (initialProductFilter && initialProductFilter.length > 0) {
+        params.append("product_id", initialProductFilter.join(","));
       }
 
       const exportUrl = `${
@@ -467,8 +467,10 @@ const AMCList: React.FC<IProps> = ({
   }, [initialClientFilter, companyData?.clients]);
 
   const productName = useMemo(() => {
-    if (!initialProductFilter) return undefined;
-    return initialProductFilter;
+    if (!initialProductFilter || initialProductFilter.length === 0) {
+      return undefined;
+    }
+    return initialProductFilter.join(",");
   }, [initialProductFilter]);
 
   const selectedFinancialYear = useMemo(() => {
@@ -564,7 +566,7 @@ const AMCList: React.FC<IProps> = ({
       {/* Active Filters Indicator - Business Clarity */}
       {(activeFilters.length > 0 ||
         initialClientFilter ||
-        initialProductFilter ||
+        (initialProductFilter && initialProductFilter.length > 0) ||
         selectedFY) && (
         <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
           <h3 className="text-sm font-medium text-blue-900 mb-2">
@@ -610,18 +612,28 @@ const AMCList: React.FC<IProps> = ({
                 </button>
               </span>
             )}
-            {initialProductFilter && (
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                {productName}
-                <button
-                  onClick={() => onProductFilterChange(undefined)}
-                  className="ml-1.5 h-3 w-3 rounded-full bg-orange-600 text-white hover:bg-orange-700 flex items-center justify-center"
-                  aria-label="Remove product filter"
+            {initialProductFilter &&
+              initialProductFilter.length > 0 &&
+              initialProductFilter.map((product) => (
+                <span
+                  key={product}
+                  className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800"
                 >
-                  ×
-                </button>
-              </span>
-            )}
+                  {product}
+                  <button
+                    onClick={() => {
+                      const next = initialProductFilter.filter(
+                        (p) => p !== product,
+                      );
+                      onProductFilterChange(next.length > 0 ? next : undefined);
+                    }}
+                    className="ml-1.5 h-3 w-3 rounded-full bg-orange-600 text-white hover:bg-orange-700 flex items-center justify-center"
+                    aria-label={`Remove ${product} filter`}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
           </div>
         </div>
       )}
@@ -653,7 +665,7 @@ const AMCList: React.FC<IProps> = ({
             {initialClientFilter ? (
               <div className="flex items-center space-x-1 h-10 px-4 py-2 bg-gray-100 rounded-md">
                 <span className="text-sm font-medium">
-                  {initialClientFilter}
+                  {clientName || initialClientFilter}
                 </span>
                 <button
                   onClick={() => handleClientSelection(undefined)}
@@ -702,7 +714,7 @@ const AMCList: React.FC<IProps> = ({
                         <DropdownMenuCheckboxItem
                           key={client._id}
                           className="capitalize"
-                          checked={initialClientFilter === client.name}
+                          checked={initialClientFilter === client._id}
                           onCheckedChange={(value) => {
                             handleClientSelection(
                               value ? client._id : undefined,
@@ -724,22 +736,52 @@ const AMCList: React.FC<IProps> = ({
             )}
           </div>
 
-          {/* Products Dropdown */}
+          {/* Products Dropdown - Multi-select */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline">
-                {initialProductFilter || "Products"}{" "}
+                {initialProductFilter && initialProductFilter.length > 0
+                  ? initialProductFilter.length === 1
+                    ? initialProductFilter[0]
+                    : `Products (${initialProductFilter.length})`
+                  : "Products"}
                 <ChevronDown className="ml-2 h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="w-[240px]">
+              <div className="flex items-center justify-between px-2 py-2 border-b">
+                <span className="text-xs font-medium text-gray-600">
+                  {initialProductFilter && initialProductFilter.length > 0
+                    ? `${initialProductFilter.length} selected`
+                    : "Select products"}
+                </span>
+                {initialProductFilter && initialProductFilter.length > 0 && (
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onProductFilterChange(undefined);
+                    }}
+                    className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
               {uniqueProducts.map((product) => (
                 <DropdownMenuCheckboxItem
                   key={product}
                   className="capitalize"
-                  checked={initialProductFilter === product}
+                  checked={
+                    !!initialProductFilter &&
+                    initialProductFilter.includes(product)
+                  }
                   onCheckedChange={(value) => {
-                    onProductFilterChange(value ? product : undefined);
+                    const current = initialProductFilter || [];
+                    const next = value
+                      ? [...current, product]
+                      : current.filter((p) => p !== product);
+                    onProductFilterChange(next.length > 0 ? next : undefined);
                   }}
                 >
                   {product}
