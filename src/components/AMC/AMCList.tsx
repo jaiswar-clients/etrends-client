@@ -61,6 +61,44 @@ import FinancialYearFilter, {
 
 const financialYears = generateFinancialYears();
 
+const filterPaymentsByDateAndStatus = (
+  payments: any[],
+  filters: string[],
+  dateRange: { startDate?: Date; endDate?: Date }
+) => {
+  if (!payments || !Array.isArray(payments)) return [];
+  if (filters.length === 0) return [];
+
+  const startDate = dateRange.startDate ? new Date(dateRange.startDate) : null;
+  const endDate = dateRange.endDate ? new Date(dateRange.endDate) : null;
+
+  if (startDate) startDate.setHours(0, 0, 0, 0);
+  if (endDate) endDate.setHours(23, 59, 59, 999);
+
+  return payments.filter((payment) => {
+    for (const filterType of filters) {
+      const paymentFromDate = new Date(payment.from_date);
+      const dateInRange =
+        (!startDate || paymentFromDate >= startDate) &&
+        (!endDate || paymentFromDate <= endDate);
+
+      let match = false;
+      switch (filterType) {
+        case "paid":
+        case "pending":
+        case "proforma":
+        case "invoice":
+          match =
+            payment.status === filterType &&
+            ((!startDate && !endDate) || dateInRange);
+          break;
+      }
+      if (match) return true;
+    }
+    return false;
+  });
+};
+
 interface IProps {
   pagination: {
     total: number;
@@ -148,69 +186,11 @@ const AMCList: React.FC<IProps> = ({
   };
 
   // Filter payments based on current filters - matching backend logic exactly
-  const getFilteredPayments = (payments: any[], filters: string[]) => {
-    if (!payments || !Array.isArray(payments)) return [];
-
-    // Process date filters - matching backend logic
-    const startDate = dateRangeSelector.startDate
-      ? new Date(dateRangeSelector.startDate)
-      : null;
-    const endDate = dateRangeSelector.endDate
-      ? new Date(dateRangeSelector.endDate)
-      : null;
-
-    if (startDate) startDate.setHours(0, 0, 0, 0);
-    if (endDate) endDate.setHours(23, 59, 59, 999);
-
-    const filteredResults = payments.filter((payment) => {
-      // If no filters are selected, don't show any payments
-      if (filters.length === 0) return false;
-
-      // Check this specific payment against each of the user's selected filters
-      let paymentMatchedAnyFilter = false;
-
-      for (const filterType of filters) {
-        const paymentFromDate = new Date(payment.from_date);
-        const dateInRange =
-          (!startDate || paymentFromDate >= startDate) &&
-          (!endDate || paymentFromDate <= endDate);
-
-        let currentFilterMatch = false;
-
-        // Direct string comparison instead of enum comparison
-        switch (filterType) {
-          case "paid":
-            currentFilterMatch =
-              payment.status === "paid" &&
-              ((!startDate && !endDate) || dateInRange);
-            break;
-          case "pending":
-            currentFilterMatch =
-              payment.status === "pending" &&
-              ((!startDate && !endDate) || dateInRange);
-            break;
-          case "proforma":
-            currentFilterMatch =
-              payment.status === "proforma" &&
-              ((!startDate && !endDate) || dateInRange);
-            break;
-          case "invoice":
-            currentFilterMatch =
-              payment.status === "invoice" &&
-              ((!startDate && !endDate) || dateInRange);
-            break;
-        }
-
-        if (currentFilterMatch) {
-          paymentMatchedAnyFilter = true;
-          break; // No need to check other filters for this payment
-        }
-      }
-
-      return paymentMatchedAnyFilter;
+  const getFilteredPayments = (payments: any[]) => {
+    return filterPaymentsByDateAndStatus(payments, activeFilters, {
+      startDate: dateRangeSelector.startDate,
+      endDate: dateRangeSelector.endDate,
     });
-
-    return filteredResults;
   };
 
   // Format the date for display
@@ -224,15 +204,30 @@ const AMCList: React.FC<IProps> = ({
   };
 
   const tableData = useMemo(() => {
-    const mappedData = data.map((d) => ({
-      id: d._id,
-      client: d.client.name,
-      order: d.products.map((p) => p.short_name).join(", "),
-      status: d.last_payment?.status || "",
-      orderId: d.order?._id,
-      amount: formatCurrency(d.amount),
-      amcObject: d, // Store the full AMC object
-    }));
+    const mappedData = data.map((d) => {
+      const filteredPayments = filterPaymentsByDateAndStatus(
+        d.payments || [],
+        activeFilters,
+        {
+          startDate: dateRangeSelector.startDate,
+          endDate: dateRangeSelector.endDate,
+        },
+      );
+      const filteredAmount = filteredPayments.reduce(
+        (sum, payment) => sum + (Number(payment.amc_rate_amount) || 0),
+        0,
+      );
+
+      return {
+        id: d._id,
+        client: d.client.name,
+        order: d.products.map((p) => p.short_name).join(", "),
+        status: d.last_payment?.status || "",
+        orderId: d.order?._id,
+        amount: formatCurrency(filteredAmount),
+        amcObject: d, // Store the full AMC object
+      };
+    });
 
     // Set all rows to be collapsed by default for better readability
     const defaultExpandedState: Record<string, boolean> = {};
@@ -242,7 +237,7 @@ const AMCList: React.FC<IProps> = ({
     setExpandedRows(defaultExpandedState);
 
     return mappedData;
-  }, [data]);
+  }, [data, activeFilters, dateRangeSelector.startDate, dateRangeSelector.endDate]);
 
   const uniqueProducts = useMemo(
     () => [...new Set(products.map((product) => product.short_name))],
@@ -266,7 +261,7 @@ const AMCList: React.FC<IProps> = ({
         cell: ({ row }) => {
           const amcObject = row.original.amcObject;
           const payments = amcObject.payments || [];
-          const filteredPayments = getFilteredPayments(payments, activeFilters);
+          const filteredPayments = getFilteredPayments(payments);
 
           // Only show expand button if there are payments matching the filters
           if (filteredPayments.length === 0) return null;
@@ -300,7 +295,7 @@ const AMCList: React.FC<IProps> = ({
       },
       {
         accessorKey: "amount",
-        header: "Amount",
+        header: "AMC Amount",
       },
       {
         id: "actions",
@@ -820,7 +815,6 @@ const AMCList: React.FC<IProps> = ({
                                 row.amcObject.payments &&
                                 getFilteredPayments(
                                   row.amcObject.payments || [],
-                                  activeFilters,
                                 ).length > 0
                               ) {
                                 newState[row.id] = !allExpanded;
@@ -870,7 +864,6 @@ const AMCList: React.FC<IProps> = ({
                       {row.amcObject.payments &&
                         getFilteredPayments(
                           row.amcObject.payments || [],
-                          activeFilters,
                         ).length > 0 && (
                           <Button
                             variant="ghost"
@@ -944,7 +937,6 @@ const AMCList: React.FC<IProps> = ({
                                 {
                                   getFilteredPayments(
                                     row.amcObject.payments || [],
-                                    activeFilters,
                                   ).length
                                 }
                                 /{row.amcObject.payments?.length || 0}
@@ -960,7 +952,6 @@ const AMCList: React.FC<IProps> = ({
                             {row.amcObject.payments &&
                               getFilteredPayments(
                                 row.amcObject.payments || [],
-                                activeFilters,
                               ).map((payment, index) => {
                                 // Determine which filters this payment matches
                                 const matchingFilters = activeFilters.filter(
@@ -1125,7 +1116,6 @@ const AMCList: React.FC<IProps> = ({
                             {(!row.amcObject.payments ||
                               getFilteredPayments(
                                 row.amcObject.payments || [],
-                                activeFilters,
                               ).length === 0) && (
                               <div className="text-center py-12">
                                 <div className="w-16 h-16 mx-auto mb-4 text-gray-300">
