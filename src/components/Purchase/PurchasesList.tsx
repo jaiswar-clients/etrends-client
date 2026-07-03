@@ -121,7 +121,7 @@ const columns = (
           </Badge>
         );
       }
-      if (purchase.has_amc) {
+      if (purchase.has_amc && purchase.amc_start_date) {
         badges.push(
           <Badge key="amc" variant="outline" className="bg-green-50 text-green-700 border-green-200 mr-1">
             AMC
