@@ -269,13 +269,13 @@ const Reports = () => {
       yPosition += 10;
       pdf.setFontSize(12).setFont("Helvetica", "", "normal");
       pdf.text(
-        `Total Purchase Billing: $${totalBillingRadialChartData.total_purchase_billing.toFixed(2)}`,
+        `Total Purchase Billing: ₹${totalBillingRadialChartData.total_purchase_billing.toFixed(2)}`,
         10,
         yPosition,
       );
       yPosition += 5;
       pdf.text(
-        `Total AMC Billing: $${totalBillingRadialChartData.total_amc_billing.toFixed(2)}`,
+        `Total AMC Billing: ₹${totalBillingRadialChartData.total_amc_billing.toFixed(2)}`,
         10,
         yPosition,
       );
@@ -287,13 +287,13 @@ const Reports = () => {
       yPosition += 10;
       pdf.setFontSize(12).setFont("Helvetica", "", "normal");
       pdf.text(
-        `Total Expected: $${totalAMCRevenueRadialChartData?.total_expected.toFixed(2)}`,
+        `Total Expected: ₹${totalAMCRevenueRadialChartData?.total_expected.toFixed(2)}`,
         10,
         yPosition,
       );
       yPosition += 5;
       pdf.text(
-        `Total Collected: $${totalAMCRevenueRadialChartData?.total_collected.toFixed(2)}`,
+        `Total Collected: ₹${totalAMCRevenueRadialChartData?.total_collected.toFixed(2)}`,
         10,
         yPosition,
       );
@@ -308,7 +308,7 @@ const Reports = () => {
         if (index < 3) {
           // Limit to first 3 entries to save space
           pdf.text(
-            `${item.period}: New Business $${item.value1.toFixed(2)}, AMC $${item.value2.toFixed(2)}`,
+            `${item.period}: New Business ₹${item.value1.toFixed(2)}, AMC ₹${item.value2.toFixed(2)}`,
             10,
             yPosition,
           );
@@ -326,7 +326,7 @@ const Reports = () => {
         if (index < 3) {
           // Limit to first 3 entries to save space
           pdf.text(
-            `${item.name}: $${item.revenue.toFixed(2)} (${item.cumulativePercentage.toFixed(2)}%)`,
+            `${item.name}: ₹${item.revenue.toFixed(2)} (${item.cumulativePercentage.toFixed(2)}%)`,
             10,
             yPosition,
           );
@@ -344,7 +344,7 @@ const Reports = () => {
         if (index < 3) {
           // Limit to first 3 entries to save space
           pdf.text(
-            `${item.period}: Expected $${item.value1.toFixed(2)}, Received $${item.value2.toFixed(2)}`,
+            `${item.period}: Expected ₹${item.value1.toFixed(2)}, Received ₹${item.value2.toFixed(2)}`,
             10,
             yPosition,
           );

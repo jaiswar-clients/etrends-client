@@ -30,7 +30,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Calendar,
-  DollarSign,
+  IndianRupee,
   Eye,
   Headphones,
   Key,
@@ -166,7 +166,7 @@ export function OrderDetailModal({
 
           <Card>
             <CardHeader className="flex flex-row items-center space-x-4 pb-2">
-              <DollarSign className="h-5 w-5 text-muted-foreground" />
+              <IndianRupee className="h-5 w-5 text-muted-foreground" />
               <CardTitle>Base Cost</CardTitle>
             </CardHeader>
             <CardContent>

@@ -51,7 +51,7 @@ import {
   Building2,
   Receipt,
   Target,
-  DollarSign,
+  IndianRupee,
   BarChart3,
   Download,
   AlertCircle,
@@ -782,7 +782,7 @@ const RevenueReportDashboard = () => {
           <>
             {/* Row 1: KPI Cards */}
             <div className="grid grid-cols-6 gap-2">
-              <CompactKPICard title="Total Revenue" value={formatIndianNumber(summary.total)} subtitle={formatCurrency(summary.total)} icon={DollarSign} color="#1e40af" />
+              <CompactKPICard title="Total Revenue" value={formatIndianNumber(summary.total)} subtitle={formatCurrency(summary.total)} icon={IndianRupee} color="#1e40af" />
               <CompactKPICard title="New Sales" value={formatIndianNumber(summary.newSales)} subtitle={formatCurrency(summary.newSales)} icon={Building2} color="#1e40af" />
               <CompactKPICard title="AMC Revenue" value={formatIndianNumber(summary.amc)} subtitle={formatCurrency(summary.amc)} icon={Receipt} color="#059669" />
               <CompactKPICard title="Collection Rate" value={`${summary.collectionRate.toFixed(0)}%`} subtitle={`of ${formatCurrency(summary.expected)}`} icon={Target} color={summary.collectionRate >= 80 ? "#059669" : summary.collectionRate >= 60 ? "#f59e0b" : "#dc2626"} />
