@@ -116,7 +116,8 @@ const Purchase: React.FC<IProps> = ({ page: initialPage }) => {
         include_cancelled: queryArgs.includeCancelled,
         startDate: queryArgs.startDate,
         endDate: queryArgs.endDate,
-        payment_status: queryArgs.paymentStatus
+        payment_status: queryArgs.paymentStatus,
+        amc_pending: queryArgs.amcPending
     })
     const { data: clientsList } = useGetClientsQuery({ all: true })
 
