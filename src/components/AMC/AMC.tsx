@@ -44,7 +44,10 @@ const AMC = () => {
         const initialEndDate = searchParams?.get('endDate')
         const initialPage = searchParams?.get('page')
         const initialClientId = searchParams?.get('client_id')
-        const initialProductId = searchParams?.get('product_id')
+        const initialProductIdRaw = searchParams?.get('product_id')
+        const initialProductIds = initialProductIdRaw
+            ? initialProductIdRaw.split(',').map((p) => p.trim()).filter(Boolean)
+            : undefined
         const initialFY = searchParams?.get('fy')
 
         // If FY is not in URL but dates are present, check if dates match a financial year
@@ -102,7 +105,7 @@ const AMC = () => {
             filters: initialFilters,
             options,
             client_id: initialClientId ?? undefined,
-            product_id: initialProductId ?? undefined,
+            product_ids: initialProductIds,
             fy: detectedFY ?? undefined
         }
     })
@@ -113,7 +116,7 @@ const AMC = () => {
         filter: queryArgs.filters.join(',') as AMC_FILTER,
         options: queryArgs.options,
         client_id: queryArgs.client_id,
-        product_id: queryArgs.product_id
+        product_id: queryArgs.product_ids
     })
 
     const { data: filtersData } = useGetOrderFiltersOfCompanyQuery()
@@ -126,7 +129,10 @@ const AMC = () => {
             endDate: queryArgs.options?.endDate,
             page: queryArgs.page,
             client_id: queryArgs.client_id,
-            product_id: queryArgs.product_id,
+            product_id:
+                queryArgs.product_ids && queryArgs.product_ids.length > 0
+                    ? queryArgs.product_ids.join(',')
+                    : undefined,
             fy: queryArgs.fy
         }
 
@@ -158,8 +164,12 @@ const AMC = () => {
         setQueryArgs(prevArgs => ({ ...prevArgs, client_id: client || undefined, page: 1 }))
     }
 
-    const handleProductFilterChange = (product: string | undefined) => {
-        setQueryArgs(prevArgs => ({ ...prevArgs, product_id: product || undefined, page: 1 }))
+    const handleProductFilterChange = (products: string[] | undefined) => {
+        setQueryArgs(prevArgs => ({
+            ...prevArgs,
+            product_ids: products && products.length > 0 ? products : undefined,
+            page: 1
+        }))
     }
 
     const handleFYFilterChange = (fy: string | undefined) => {
@@ -229,7 +239,7 @@ const AMC = () => {
         onPageChange={handlePagination}
         currentPage={queryArgs.page ?? 1}
         initialClientFilter={queryArgs.client_id}
-        initialProductFilter={queryArgs.product_id}
+        initialProductFilter={queryArgs.product_ids}
         onClientFilterChange={handleClientFilterChange}
         onProductFilterChange={handleProductFilterChange}
         activeFilters={queryArgs.filters}

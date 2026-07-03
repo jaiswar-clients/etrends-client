@@ -277,17 +277,19 @@ export const orderApi = createApi({
         filter?: AMC_FILTER;
         options: { startDate?: string; endDate?: string };
         client_id?: string;
-        product_id?: string;
+        product_id?: string | string[];
       }
     >({
-      query: (body) =>
-        `/all-amc?page=${body.page || 1}&limit=${10}&filter=${
+      query: (body) => {
+        const productIds = Array.isArray(body.product_id)
+          ? body.product_id.join(",")
+          : body.product_id || "";
+        return `/all-amc?page=${body.page || 1}&limit=${10}&filter=${
           body.filter
         }&startDate=${body.options.startDate}&endDate=${
           body.options.endDate
-        }&client_id=${body.client_id || ""}&product_id=${
-          body.product_id || ""
-        }`,
+        }&client_id=${body.client_id || ""}&product_id=${productIds}`;
+      },
       providesTags: ["AMC_LIST"],
     }),
     updateAMCPaymentById: builder.mutation<
