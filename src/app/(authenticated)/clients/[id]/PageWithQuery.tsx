@@ -351,7 +351,7 @@ const PageWithQuery = ({ id }: { id: string }) => {
         variant: "success",
         title: "Order Created",
       });
-      router.push(`/purchases?id=${order.data._id}`);
+      
     } catch (error: any) {
       toast({
         variant: "destructive",

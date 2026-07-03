@@ -4,7 +4,6 @@ import Typography from '@/components/ui/Typography'
 import { toast } from '@/hooks/use-toast'
 import { useCreateOrderMutation } from '@/redux/api/order'
 import { OrderDetailInputs } from '@/types/order'
-import { useRouter } from 'next/navigation'
 import React from 'react'
 import { useDuplicateCheck } from '@/hooks/useDuplicateCheck'
 
@@ -14,7 +13,6 @@ interface IProps {
 
 const NewOrder: React.FC<IProps> = ({ clientId }) => {
   const [createOrderApi, { isLoading }] = useCreateOrderMutation()
-  const router = useRouter()
   const { debouncedCheck, checkOnSubmit, isLoading: isCheckingDuplicates } = useDuplicateCheck({
     debounceMs: 500,
   })
@@ -30,7 +28,7 @@ const NewOrder: React.FC<IProps> = ({ clientId }) => {
         title: 'Order Created Successfully',
         description: 'Order has been created successfully'
       })
-      router.push(`/purchases?id=${order.data._id}`)
+      
     } catch (error: any) {
       // Handle error message which might be an array or string
       let errorMessage = 'Something went wrong'

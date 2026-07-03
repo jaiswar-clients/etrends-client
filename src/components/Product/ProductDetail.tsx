@@ -3,7 +3,6 @@ import { useGetProductByIdQuery, useUpdateProductByIdMutation } from '@/redux/ap
 import React from 'react'
 import CreateProduct, { IProductInputs } from './Create/CreateProduct'
 import { toast } from '@/hooks/use-toast'
-import { useRouter } from 'next/navigation'
 
 interface IProps {
     id: string
@@ -12,7 +11,6 @@ interface IProps {
 const ProductDetail: React.FC<IProps> = ({ id }) => {
     const { data } = useGetProductByIdQuery(id)
     const [updateProductByIdApi] = useUpdateProductByIdMutation()
-    const router = useRouter()
 
     const handler = async (data: IProductInputs) => {
         try {
@@ -21,7 +19,7 @@ const ProductDetail: React.FC<IProps> = ({ id }) => {
                 variant: "success",
                 title: "Product Updated",
             })
-            router.push(`/products`)
+            
         } catch (error) {
             console.error(error)
             toast({

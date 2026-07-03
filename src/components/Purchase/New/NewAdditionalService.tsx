@@ -1,7 +1,6 @@
 "use client"
 import { useAddAdditionalServiceMutation } from '@/redux/api/order'
 import { toast } from '@/hooks/use-toast'
-import { useRouter } from 'next/navigation'
 import AdditionalServiceForm, { IAdditionalServiceInputs } from '../Form/AdditionalServiceForm'
 import { useDuplicateCheck } from '@/hooks/useDuplicateCheck'
 
@@ -11,7 +10,6 @@ interface IProps {
 
 const NewAdditionalService: React.FC<IProps> = ({ clientId }) => {
     const [addAddtionalServiceApi, { isLoading }] = useAddAdditionalServiceMutation()
-    const router = useRouter()
     const { debouncedCheck, checkOnSubmit, isLoading: isCheckingDuplicates } = useDuplicateCheck()
 
     const onSubmit = async (data: IAdditionalServiceInputs, orderId?: string) => {
@@ -26,7 +24,7 @@ const NewAdditionalService: React.FC<IProps> = ({ clientId }) => {
                 title: 'Service Created Successfully',
                 description: 'Service has been created successfully'
             })
-            router.push(`/purchases?id=${resp.data._id}`)
+            
         } catch (error: any) {
             toast({
                 variant: 'destructive',

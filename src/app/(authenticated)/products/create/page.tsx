@@ -4,12 +4,10 @@ import Typography from '@/components/ui/Typography'
 import { toast } from '@/hooks/use-toast'
 import { useCreateProductMutation } from '@/redux/api/product'
 import { IProduct } from '@/types/product'
-import { useRouter } from 'next/navigation'
 import React from 'react'
 
 const Page = () => {
     const [createProductApi] = useCreateProductMutation()
-    const router = useRouter()
 
     const createProductHandler = async (data: Omit<IProduct, '_id'>): Promise<void> => {
         try {
@@ -18,7 +16,7 @@ const Page = () => {
                 variant: "default",
                 title: "Product Created",
             })
-            router.push('/products')
+            
         } catch (error: any) {
             toast({
                 variant: "destructive",

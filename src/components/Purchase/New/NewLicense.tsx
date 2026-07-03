@@ -1,7 +1,6 @@
 "use client"
 import { useAddLicenseMutation } from '@/redux/api/order'
 import { toast } from '@/hooks/use-toast'
-import { useRouter } from 'next/navigation'
 import LicenseForm, { ILicenseInputs } from '../Form/LicenseForm'
 import { useDuplicateCheck } from '@/hooks/useDuplicateCheck'
 
@@ -11,7 +10,6 @@ interface IProps {
 
 const NewLicense: React.FC<IProps> = ({ clientId }) => {
     const [addLicenseApi, { isLoading }] = useAddLicenseMutation()
-    const router = useRouter()
     const { debouncedCheck, checkOnSubmit, isLoading: isCheckingDuplicates } = useDuplicateCheck()
 
     const onSubmit = async (data: ILicenseInputs, orderId?: string) => {
@@ -26,7 +24,7 @@ const NewLicense: React.FC<IProps> = ({ clientId }) => {
                 title: "License Added Successfully",
                 description: "License has been added successfully"
             })
-            router.push(`/purchases?id=${license.data._id}`)
+            
         } catch (error: any) {
             toast({
                 variant: "destructive",

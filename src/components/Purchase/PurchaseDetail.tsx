@@ -19,7 +19,6 @@ import { toast } from '@/hooks/use-toast'
 import { OrderDetailInputs, PURCHASE_TYPE } from '@/types/order'
 import CustomizationForm, { ICustomizationInputs } from './Form/CustomizationForm'
 import LicenseForm, { ILicenseInputs } from './Form/LicenseForm'
-import { useRouter } from 'next/navigation'
 import AdditionalServiceForm, { IAdditionalServiceInputs } from './Form/AdditionalServiceForm'
 import {
   Table,
@@ -76,8 +75,6 @@ const PurchaseDetail: React.FC<IProps> = ({ id, type, clientId }) => {
         name: '',
     })
 
-    const router = useRouter()
-
     const updateOrderHandler = async (data: OrderDetailInputs) => {
         if (!orderData?.data._id) {
             toast({
@@ -94,7 +91,7 @@ const PurchaseDetail: React.FC<IProps> = ({ id, type, clientId }) => {
                 variant: "success",
                 title: "Order Updated",
             })
-            router.push(`/purchases?id=${orderData?.data._id}`)
+            
         } catch (error: any) {
             let errorMessage = 'Something went wrong'
             if (error?.data?.message) {
@@ -131,7 +128,7 @@ const PurchaseDetail: React.FC<IProps> = ({ id, type, clientId }) => {
                 variant: "success",
                 title: "Order Updated",
             })
-            router.push(`/purchases?id=${resp.data._id}`)
+            
         } catch (error: any) {
             toast({
                 variant: "destructive",
@@ -148,7 +145,7 @@ const PurchaseDetail: React.FC<IProps> = ({ id, type, clientId }) => {
                 variant: "success",
                 title: "Order Updated",
             })
-            router.push(`/purchases?id=${resp.data._id}`)
+            
         } catch (error: any) {
             toast({
                 variant: "destructive",
@@ -165,7 +162,7 @@ const PurchaseDetail: React.FC<IProps> = ({ id, type, clientId }) => {
                 variant: "success",
                 title: "Order Updated",
             })
-            router.push(`/purchases?id=${resp.data._id}`)
+            
         } catch (error: any) {
             toast({
                 variant: "destructive",
@@ -194,12 +191,6 @@ const PurchaseDetail: React.FC<IProps> = ({ id, type, clientId }) => {
                 title: `${deleteConfirm.name} deleted successfully`,
             })
             setDeleteConfirm({ show: false, type: null, id: null, name: '' })
-            if (type !== PURCHASE_TYPE.ORDER) {
-                const parentOrderId = (licenseData?.data as any)?.order_id
-                    || (customizationData?.data as any)?.order_id
-                    || additionalServiceData?.data?.order_id
-                router.push(`/purchases?id=${parentOrderId || id}`)
-            }
         } catch (error: any) {
             toast({
                 variant: "destructive",

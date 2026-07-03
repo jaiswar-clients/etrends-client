@@ -2,7 +2,6 @@
 import React from 'react'
 import { useAddCustomizationMutation } from '@/redux/api/order'
 import { toast } from '@/hooks/use-toast'
-import { useRouter } from 'next/navigation'
 import CustomizationForm, { ICustomizationInputs } from '../Form/CustomizationForm'
 import { useDuplicateCheck } from '@/hooks/useDuplicateCheck'
 
@@ -13,7 +12,6 @@ interface IProps {
 const NewCustomization: React.FC<IProps> = ({ clientId }) => {
     const [addCustomizationApi, { isLoading }] = useAddCustomizationMutation()
 
-    const router = useRouter()
     const { debouncedCheck, checkOnSubmit, isLoading: isCheckingDuplicates } = useDuplicateCheck()
 
     const onSubmit = async (data: ICustomizationInputs, orderId?: string) => {
@@ -30,7 +28,7 @@ const NewCustomization: React.FC<IProps> = ({ clientId }) => {
                 description: 'Customization has been created successfully'
             })
 
-            router.push(`/purchases?id=${customization.data._id}`)
+            
         } catch (error: any) {
             toast({
                 variant: 'destructive',

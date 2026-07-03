@@ -28,7 +28,6 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { useRouter } from "next/navigation";
 import { ClientDetailsInputs } from "@/types/client";
 import {
   IClientDataObject,
@@ -61,7 +60,6 @@ const ClientDetail: React.FC<IProps> = ({
 }) => {
   const [disableInput, setDisableInput] = useState(disable);
   const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter();
   const { data: clientId } = useGenerateNewClientIdQuery();
 
   const [filteredParentCompany, setFilteredParentCompany] = useState<
@@ -147,9 +145,7 @@ const ClientDetail: React.FC<IProps> = ({
         ...data,
         amc_frequency_in_months: Number(data.amc_frequency_in_months),
       });
-      if (!defaultValue?._id && dbClientId)
-        router.push(`/clients/${dbClientId}`);
-      else if (defaultValue?._id) setDisableInput(true);
+      if (defaultValue?._id) setDisableInput(true);
       setIsLoading(false);
     } catch (error) {
       console.error("Error submitting form:", error);
