@@ -65,6 +65,7 @@ interface IProps {
       | "product"
       | "products"
       | "industry"
+      | "industries"
       | "parentCompany"
       | "clientId"
       | "productId"
@@ -224,14 +225,14 @@ const ClientList: React.FC<IProps> = ({
   const handleIndustryToggle = (industry: string, checked: boolean) => {
     const current = initialFilters.industries || [];
     if (checked) {
-      onFilterChange("industry", [...current, industry]);
+      onFilterChange("industries", [...current, industry]);
     } else {
-      onFilterChange("industry", current.filter((i) => i !== industry));
+      onFilterChange("industries", current.filter((i) => i !== industry));
     }
   };
 
   const handleIndustrySelectAll = (checked: boolean) => {
-    onFilterChange("industry", checked ? uniqueIndustries : []);
+    onFilterChange("industries", checked ? uniqueIndustries : []);
   };
 
   const handleProductToggle = (productId: string, productName: string, checked: boolean) => {
@@ -592,7 +593,7 @@ const ClientList: React.FC<IProps> = ({
                   {selectedIndustriesLabel}
                 </span>
                 <button
-                  onClick={() => onFilterChange("industry", [])}
+                  onClick={() => onFilterChange("industries", [])}
                   className="ml-1 text-gray-500 hover:text-gray-700"
                 >
                   <svg
