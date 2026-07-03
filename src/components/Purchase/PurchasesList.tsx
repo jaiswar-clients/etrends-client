@@ -348,7 +348,7 @@ const PurchasesList: React.FC<IProps> = ({
         include_cancelled: initialFilters.includeCancelled,
         startDate: initialFilters.startDate,
         endDate: initialFilters.endDate,
-        payment_status: initialFilters.paymentStatus || undefined,
+        payment_status: (initialFilters.paymentStatus as any) || undefined,
         amc_pending: initialFilters.amcPending,
       });
 

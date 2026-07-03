@@ -5,6 +5,14 @@ import { useGetAllAMCQuery, useGetOrderFiltersOfCompanyQuery } from '@/redux/api
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { generateFinancialYears } from '@/components/common/FinancialYearFilter'
 
+const getDefaultFY = () => {
+    const now = new Date()
+    const y = now.getFullYear()
+    const m = now.getMonth()
+    const startYear = m >= 3 ? y : y - 1
+    return `FY${startYear}-${startYear + 1}`
+}
+
 export enum AMC_FILTER {
     PAID = 'paid',
     PENDING = 'pending',
@@ -39,12 +47,6 @@ const AMC = () => {
         const initialProductId = searchParams?.get('product_id')
         const initialFY = searchParams?.get('fy')
 
-        const options: { startDate?: string; endDate?: string } = {
-            
-        }
-        if (initialStartDate) options.startDate = initialStartDate
-        if (initialEndDate) options.endDate = initialEndDate
-
         // If FY is not in URL but dates are present, check if dates match a financial year
         let detectedFY = initialFY;
         if (!initialFY && initialStartDate && initialEndDate) {
@@ -54,19 +56,45 @@ const AMC = () => {
                     const d = new Date(dateStr);
                     return new Date(d.getFullYear(), d.getMonth(), d.getDate());
                 };
-                
+
                 const fyStart = normalizeDate(fy.startDate);
                 const fyEnd = normalizeDate(fy.endDate);
                 const inputStart = normalizeDate(initialStartDate);
                 const inputEnd = normalizeDate(initialEndDate);
-                
-                return fyStart.getTime() === inputStart.getTime() && 
+
+                return fyStart.getTime() === inputStart.getTime() &&
                        fyEnd.getTime() === inputEnd.getTime();
             });
             if (matchingFY) {
                 detectedFY = matchingFY.id;
             }
         }
+
+        // Default to current financial year when no FY or dates in URL
+        let startDate = initialStartDate || undefined
+        let endDate = initialEndDate || undefined
+        if (!initialStartDate && !initialEndDate && !detectedFY) {
+            detectedFY = getDefaultFY()
+            const financialYears = generateFinancialYears()
+            const defaultFYObj = financialYears.find(f => f.id === detectedFY)
+            if (defaultFYObj) {
+                const startYear = parseInt(defaultFYObj.id.substring(2, 6))
+                startDate = defaultFYObj.startDate
+                endDate = new Date(startYear + 1, 2, 31, 23, 59, 59, 999).toISOString()
+            }
+        } else if (detectedFY && !startDate && !endDate) {
+            const financialYears = generateFinancialYears()
+            const fyObj = financialYears.find(f => f.id === detectedFY)
+            if (fyObj) {
+                const startYear = parseInt(fyObj.id.substring(2, 6))
+                startDate = fyObj.startDate
+                endDate = new Date(startYear + 1, 2, 31, 23, 59, 59, 999).toISOString()
+            }
+        }
+
+        const options: { startDate?: string; endDate?: string } = {}
+        if (startDate) options.startDate = startDate
+        if (endDate) options.endDate = endDate
 
         return {
             page: initialPage ? Number(initialPage) : 1,

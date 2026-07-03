@@ -28,6 +28,15 @@ import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import PurchasesList from './PurchasesList'
 import { useGetAllOrdersWithAttributesQuery } from '@/redux/api/order'
 import { PAYMENT_STATUS_ENUM } from '@/types/order'
+import { generateFinancialYears } from '@/components/common/FinancialYearFilter'
+
+const getDefaultFY = () => {
+    const now = new Date()
+    const y = now.getFullYear()
+    const m = now.getMonth()
+    const startYear = m >= 3 ? y : y - 1
+    return `FY${startYear}-${startYear + 1}`
+}
 
 const dropdownItems = [
     { href: '/purchases/new/order', label: 'Order' },
@@ -82,6 +91,47 @@ const Purchase: React.FC<IProps> = ({ page: initialPage }) => {
         const initialIncludeCancelled = searchParams?.get('include_cancelled') === 'true'
         const initialPaymentStatus = searchParams?.get('paymentStatus') as PAYMENT_STATUS_ENUM | undefined
 
+        let startDate = initialStartDate || undefined
+        let endDate = initialEndDate || undefined
+        let fy = initialFY || undefined
+
+        // If FY is not in URL but dates are present, check if dates match a financial year
+        if (!initialFY && initialStartDate && initialEndDate) {
+            const financialYears = generateFinancialYears()
+            const matchingFY = financialYears.find(fy => {
+                const normalizeDate = (dateStr: string) => {
+                    const d = new Date(dateStr)
+                    return new Date(d.getFullYear(), d.getMonth(), d.getDate())
+                }
+                const fyStart = normalizeDate(fy.startDate)
+                const fyEnd = normalizeDate(fy.endDate)
+                const inputStart = normalizeDate(initialStartDate)
+                const inputEnd = normalizeDate(initialEndDate)
+                return fyStart.getTime() === inputStart.getTime() && fyEnd.getTime() === inputEnd.getTime()
+            })
+            if (matchingFY) fy = matchingFY.id
+        }
+
+        // Default to current financial year when no FY or dates in URL
+        if (!initialStartDate && !initialEndDate && !fy) {
+            fy = getDefaultFY()
+            const financialYears = generateFinancialYears()
+            const defaultFYObj = financialYears.find(f => f.id === fy)
+            if (defaultFYObj) {
+                const startYear = parseInt(defaultFYObj.id.substring(2, 6))
+                startDate = defaultFYObj.startDate
+                endDate = new Date(startYear + 1, 2, 31, 23, 59, 59, 999).toISOString()
+            }
+        } else if (fy && !startDate && !endDate) {
+            const financialYears = generateFinancialYears()
+            const fyObj = financialYears.find(f => f.id === fy)
+            if (fyObj) {
+                const startYear = parseInt(fyObj.id.substring(2, 6))
+                startDate = fyObj.startDate
+                endDate = new Date(startYear + 1, 2, 31, 23, 59, 59, 999).toISOString()
+            }
+        }
+
         return {
             client: initialClientFilter || undefined,
             clientId: initialClientIdFilter || undefined,
@@ -92,9 +142,9 @@ const Purchase: React.FC<IProps> = ({ page: initialPage }) => {
             parentCompany: initialParentCompanyFilter || undefined,
             parentCompanyId: initialParentCompanyIdFilter || undefined,
             amcPending: initialAmcPendingFilter,
-            fy: initialFY || undefined,
-            startDate: initialStartDate || undefined,
-            endDate: initialEndDate || undefined,
+            fy,
+            startDate,
+            endDate,
             page: urlPage ? parseInt(urlPage) : (initialPage || 1),
             pageSize: urlPageSize ? parseInt(urlPageSize) : 10,
             types: initialTypes ? initialTypes.split(',') : [],
@@ -178,16 +228,49 @@ const Purchase: React.FC<IProps> = ({ page: initialPage }) => {
     }
 
     const handleFYFilterChange = (fy: string | undefined) => {
-        setQueryArgs(prev => ({ ...prev, fy, page: 1 }))
+        setQueryArgs(prev => {
+            if (!fy) {
+                return { ...prev, fy: undefined, startDate: undefined, endDate: undefined, page: 1 }
+            }
+            const financialYears = generateFinancialYears()
+            const fyObj = financialYears.find(f => f.id === fy)
+            if (fyObj) {
+                const startYear = parseInt(fyObj.id.substring(2, 6))
+                const endDate = new Date(startYear + 1, 2, 31, 23, 59, 59, 999)
+                return {
+                    ...prev,
+                    fy,
+                    startDate: fyObj.startDate,
+                    endDate: endDate.toISOString(),
+                    page: 1,
+                }
+            }
+            return { ...prev, fy, page: 1 }
+        })
     }
 
     const handleCustomDateChange = (startDate: string, endDate: string) => {
-        setQueryArgs(prev => ({
-            ...prev,
-            startDate,
-            endDate,
-            page: 1
-        }))
+        setQueryArgs(prev => {
+            const financialYears = generateFinancialYears()
+            const matchingFY = financialYears.find(fy => {
+                const normalizeDate = (dateStr: string) => {
+                    const d = new Date(dateStr)
+                    return new Date(d.getFullYear(), d.getMonth(), d.getDate())
+                }
+                const fyStart = normalizeDate(fy.startDate)
+                const fyEnd = normalizeDate(fy.endDate)
+                const inputStart = normalizeDate(startDate)
+                const inputEnd = normalizeDate(endDate)
+                return fyStart.getTime() === inputStart.getTime() && fyEnd.getTime() === inputEnd.getTime()
+            })
+            return {
+                ...prev,
+                fy: matchingFY?.id,
+                startDate,
+                endDate,
+                page: 1
+            }
+        })
     }
 
     const dateRangeSelector = React.useMemo(() => ({
