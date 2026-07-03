@@ -106,6 +106,7 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
     const [showAmcStartLogsModal, setShowAmcStartLogsModal] = useState(false);
 
     const router = useRouter();
+    const formId = React.useId();
     const { uploadFile, getFileNameFromUrl } = useFileUpload()
     const { toast } = useToast()
     const { products } = useAppSelector(state => state.user)
@@ -1342,53 +1343,73 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
         </Dialog>
     );
 
+    const actionButtons = defaultValue?._id && (
+        <div className="sticky top-0 z-40 mb-2 flex justify-end gap-3 bg-white/95 backdrop-blur-sm border-b p-2 -mx-4 -mt-4">
+            <Link href={`/amc/${defaultValue?._id}`} passHref target="_blank">
+                <Button type='button' variant='default' className='w-36 justify-between'>
+                    <Wrench />
+                    <span>Show AMC</span>
+                </Button>
+            </Link>
+            <Button type='button' className={`w-36 justify-between ${!disableInput ? "bg-destructive hover:bg-destructive" : ""}`} onClick={() => setDisableInput(prev => !prev)}>
+                {disableInput ? (
+                    <>
+                        <Edit />
+                        <span>Start Editing</span>
+                    </>
+                ) : (
+                    <>
+                        <CircleX />
+                        <span>Close Editing</span>
+                    </>
+                )}
+            </Button>
+            {!defaultValue?.cancelled_at && (
+                <Button
+                    type='button'
+                    variant='outline'
+                    className='w-36 justify-between border-orange-500 text-orange-600 hover:bg-orange-50 hover:text-orange-700'
+                    onClick={() => setShowCancelConfirmation(true)}
+                >
+                    <Ban />
+                    <span>Cancel Order</span>
+                </Button>
+            )}
+            <Button
+                type='button'
+                variant='destructive'
+                className='w-36 justify-between'
+                onClick={() => setShowDeleteConfirmation(true)}
+            >
+                <Trash2 />
+                <span>Delete Order</span>
+            </Button>
+            <Button
+                type="submit"
+                form={formId}
+                disabled={disableInput || isLoading || !form.formState.isValid}
+                loading={{ isLoading, loader: "tailspin" }}
+                className='w-36 justify-between'
+            >
+                <CircleCheck />
+                <span className='text-white'>Save changes</span>
+            </Button>
+        </div>
+    );
+
     const finalJSX = (
         <div className="mt-1 p-2">
-            {defaultValue?._id && (
-                <div className="mb-2 flex justify-end gap-3">
-                    <Link href={`/amc/${defaultValue?._id}`} passHref target="_blank">
-                        <Button type='button' variant='default' className='w-36 justify-between'>
-                            <Wrench />
-                            <span>Show AMC</span>
-                        </Button>
-                    </Link>
-                    <Button type='button' className={`w-36 justify-between ${!disableInput ? "bg-destructive hover:bg-destructive" : ""}`} onClick={() => setDisableInput(prev => !prev)}>
-                        {disableInput ? (
-                            <>
-                                <Edit />
-                                <span>Start Editing</span>
-                            </>
-                        ) : (
-                            <>
-                                <CircleX />
-                                <span>Close Editing</span>
-                            </>
-                        )}
-                    </Button>
-                    {!defaultValue?.cancelled_at && (
-                        <Button
-                            type='button'
-                            variant='outline'
-                            className='w-36 justify-between border-orange-500 text-orange-600 hover:bg-orange-50 hover:text-orange-700'
-                            onClick={() => setShowCancelConfirmation(true)}
-                        >
-                            <Ban />
-                            <span>Cancel Order</span>
-                        </Button>
-                    )}
-                    <Button
-                        type='button'
-                        variant='destructive'
-                        className='w-36 justify-between'
-                        onClick={() => setShowDeleteConfirmation(true)}
-                    >
-                        <Trash2 />
-                        <span>Delete Order</span>
-                    </Button>
-                </div>
-            )}
+            {removeAccordion && actionButtons}
             <Form {...form}>
-                <form className="space-y-8" onSubmit={form.handleSubmit(onSubmit)}>
+                <form id={formId} className="space-y-8" onSubmit={form.handleSubmit(onSubmit)}>
+                    {!defaultValue?._id && (
+                        <div className="flex justify-end">
+                            <Button type="submit" disabled={disableInput || isLoading || !form.formState.isValid} loading={{ isLoading, loader: "tailspin" }} className='w-full py-5 md:py-2 md:w-36'>
+                                <CircleCheck />
+                                <span className='text-white'>Save changes</span>
+                            </Button>
+                        </div>
+                    )}
                     <Card>
                         <CardContent className='p-6'>
                             <div className="md:flex items-end gap-4 w-full">
@@ -1861,13 +1882,6 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
                             </CardContent>
                         </Card>
                     </div>
-
-                    <div className="flex justify-end">
-                        <Button type="submit" disabled={disableInput || isLoading || !form.formState.isValid} loading={{ isLoading, loader: "tailspin" }} className='w-full py-5 md:py-2 md:w-36'>
-                            <CircleCheck />
-                            <span className='text-white'>Save changes</span>
-                        </Button>
-                    </div>
                 </form>
 
             </Form>
@@ -1882,22 +1896,25 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
         }
 
         return (
-            <Accordion type="single" collapsible defaultValue={defaultOpen ? "client-detail" : undefined}>
-                <AccordionItem value="client-detail">
-                    <AccordionTrigger>
-                        <Typography variant='h1'>{title ?? "Order Details"}</Typography>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                        {AmcStartChangeModal()}
-                        {AmcStartLogsModal()}
-                        {AmcHistoryModal()}
-                        {StatusChangeModal()}
-                        {StatusLogsModal()}
-                        {AmcRateHistoryModal()}
-                        {finalJSX}
-                    </AccordionContent>
-                </AccordionItem>
-            </Accordion>
+            <>
+                {actionButtons}
+                <Accordion type="single" collapsible defaultValue={defaultOpen ? "client-detail" : undefined}>
+                    <AccordionItem value="client-detail">
+                        <AccordionTrigger>
+                            <Typography variant='h1'>{title ?? "Order Details"}</Typography>
+                        </AccordionTrigger>
+                        <AccordionContent>
+                            {AmcStartChangeModal()}
+                            {AmcStartLogsModal()}
+                            {AmcHistoryModal()}
+                            {StatusChangeModal()}
+                            {StatusLogsModal()}
+                            {AmcRateHistoryModal()}
+                            {finalJSX}
+                        </AccordionContent>
+                    </AccordionItem>
+                </Accordion>
+            </>
         );
     };
 
