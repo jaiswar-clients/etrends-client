@@ -341,15 +341,37 @@ const AMCList: React.FC<IProps> = ({
     },
   });
 
+  // Find client and product names for display
+  const clientName = useMemo(() => {
+    if (!initialClientFilter || !companyData?.clients) return undefined;
+    const client = companyData.clients.find(
+      (c) => c._id === initialClientFilter,
+    );
+    return client?.name;
+  }, [initialClientFilter, companyData?.clients]);
+
+  const productName = useMemo(() => {
+    if (!initialProductFilter || initialProductFilter.length === 0) {
+      return undefined;
+    }
+    return initialProductFilter.join(",");
+  }, [initialProductFilter]);
+
+  const selectedFinancialYear = useMemo(() => {
+    if (!selectedFY) return undefined;
+    const fy = financialYears.find((f) => f.id === selectedFY);
+    return fy?.label;
+  }, [selectedFY]);
+
   // Effect to set initial filters from props
   useEffect(() => {
-    if (initialClientFilter) {
-      table.getColumn("client")?.setFilterValue(initialClientFilter);
-    }
+    table.getColumn("client")?.setFilterValue(clientName || "");
     if (initialProductFilter && initialProductFilter.length > 0) {
       table.getColumn("order")?.setFilterValue(initialProductFilter);
+    } else {
+      table.getColumn("order")?.setFilterValue(undefined);
     }
-  }, [initialClientFilter, initialProductFilter, activeFilters, table]);
+  }, [clientName, initialProductFilter, activeFilters, table]);
 
   const handleFilterChange = (filter: string, enabled: boolean) => {
     const updatedFilters = enabled
@@ -456,28 +478,6 @@ const AMCList: React.FC<IProps> = ({
       setIsDownloading(false);
     }
   };
-
-  // Find client and product names for display
-  const clientName = useMemo(() => {
-    if (!initialClientFilter || !companyData?.clients) return undefined;
-    const client = companyData.clients.find(
-      (c) => c._id === initialClientFilter,
-    );
-    return client?.name;
-  }, [initialClientFilter, companyData?.clients]);
-
-  const productName = useMemo(() => {
-    if (!initialProductFilter || initialProductFilter.length === 0) {
-      return undefined;
-    }
-    return initialProductFilter.join(",");
-  }, [initialProductFilter]);
-
-  const selectedFinancialYear = useMemo(() => {
-    if (!selectedFY) return undefined;
-    const fy = financialYears.find((f) => f.id === selectedFY);
-    return fy?.label;
-  }, [selectedFY]);
 
   return (
     <div>
