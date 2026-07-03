@@ -364,9 +364,9 @@ const PendingPaymentsList: React.FC<IProps> = ({
             } else if (item.type === "new_order") {
               router.push(`/purchases/${item.order_id}?type=order&client=${item.client_id}`)
             } else if (item.type === "customization") {
-              router.push(`/purchases/${item.order_id}`)
+              router.push(`/purchases/${item.entity_id}?type=customization&client=${item.client_id}`)
             } else if (item.type === "auditor_licence") {
-              router.push(`/purchases/${item.order_id}`)
+              router.push(`/purchases/${item.entity_id}?type=license&client=${item.client_id}`)
             } else {
               router.push(`/purchases/${item.order_id}`)
             }
