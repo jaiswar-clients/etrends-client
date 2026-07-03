@@ -39,12 +39,14 @@ const PendingPayments = () => {
         const initialProductIds = searchParams?.get('productIds')
         const initialTypes = searchParams?.get('types')
         const initialFY = searchParams?.get('fy')
+        const initialAllYears = searchParams?.get('allYears') === '1'
         const urlPage = searchParams?.get('page')
         const urlPageSize = searchParams?.get('pageSize')
 
         let startDate = initialStartDate || undefined
         let endDate = initialEndDate || undefined
         let fy = initialFY || undefined
+        let allYears = initialAllYears
 
         if (!initialFY && initialStartDate && initialEndDate) {
             const financialYears = generateFinancialYears()
@@ -62,7 +64,7 @@ const PendingPayments = () => {
             if (matchingFY) fy = matchingFY.id
         }
 
-        if (!initialStartDate && !initialEndDate && !fy) {
+        if (!initialStartDate && !initialEndDate && !fy && !initialAllYears) {
             fy = getDefaultFY()
             const financialYears = generateFinancialYears()
             const defaultFYObj = financialYears.find(f => f.id === fy)
@@ -84,6 +86,7 @@ const PendingPayments = () => {
             productIds: initialProductIds ? initialProductIds.split(',') : [],
             types: initialTypes ? initialTypes.split(',') : [],
             fy,
+            allYears,
         }
     })
 
@@ -109,6 +112,7 @@ const PendingPayments = () => {
             productIds: queryArgs.productIds.length > 0 ? queryArgs.productIds.join(',') : undefined,
             types: queryArgs.types.length > 0 ? queryArgs.types.join(',') : undefined,
             fy: queryArgs.fy,
+            allYears: queryArgs.allYears ? '1' : undefined,
             page: queryArgs.page,
             pageSize: queryArgs.pageSize,
         }
@@ -123,7 +127,7 @@ const PendingPayments = () => {
     const handleFYFilterChange = (fy: string | undefined) => {
         setQueryArgs(prev => {
             if (!fy) {
-                return { ...prev, fy: undefined, startDate: undefined, endDate: undefined, page: 1 }
+                return { ...prev, fy: undefined, startDate: undefined, endDate: undefined, allYears: true, page: 1 }
             }
             const financialYears = generateFinancialYears()
             const fyObj = financialYears.find(f => f.id === fy)
@@ -136,10 +140,11 @@ const PendingPayments = () => {
                     fy,
                     startDate: fyObj.startDate,
                     endDate: endDate.toISOString(),
+                    allYears: false,
                     page: 1,
                 }
             }
-            return { ...prev, fy, page: 1 }
+            return { ...prev, fy, allYears: false, page: 1 }
         })
     }
 
@@ -157,7 +162,7 @@ const PendingPayments = () => {
                 const inputEnd = normalizeDate(endDate)
                 return fyStart.getTime() === inputStart.getTime() && fyEnd.getTime() === inputEnd.getTime()
             })
-            return { ...prev, fy: matchingFY?.id, startDate, endDate, page: 1 }
+            return { ...prev, fy: matchingFY?.id, startDate, endDate, allYears: false, page: 1 }
         })
     }
 
@@ -210,6 +215,7 @@ const PendingPayments = () => {
         onPageChange={handlePageChange}
         isLoading={isFetching}
         selectedFY={queryArgs.fy}
+        allYears={queryArgs.allYears}
         onFYFilterChange={handleFYFilterChange}
         onCustomDateChange={handleCustomDateChange}
         dateRange={dateRangeSelector}

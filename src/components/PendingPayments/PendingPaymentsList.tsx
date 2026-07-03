@@ -121,6 +121,7 @@ interface IProps {
   onPageChange: (page: number) => void
   isLoading?: boolean
   selectedFY?: string
+  allYears?: boolean
   onFYFilterChange: (fy: string | undefined) => void
   onCustomDateChange: (startDate: string, endDate: string) => void
   dateRange: { startDate: Date; endDate: Date }
@@ -162,6 +163,7 @@ const PendingPaymentsList: React.FC<IProps> = ({
   onPageChange,
   isLoading,
   selectedFY,
+  allYears,
   onFYFilterChange,
   onCustomDateChange,
   dateRange,
@@ -531,7 +533,7 @@ const PendingPaymentsList: React.FC<IProps> = ({
         <div className="flex gap-2 flex-wrap">
           {/* Financial Year Filter */}
           <FinancialYearFilter
-            selectedFY={selectedFY}
+            selectedFY={allYears ? undefined : selectedFY}
             onFYFilterChange={onFYFilterChange}
             onCustomDateChange={onCustomDateChange}
             dateRange={dateRange}
