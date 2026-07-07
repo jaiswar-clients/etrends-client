@@ -346,7 +346,7 @@ const PageWithQuery = ({ id }: { id: string }) => {
 
   const createOrderHandler = async (data: OrderDetailInputs) => {
     try {
-      const order = await createOrderApi({ ...data, client_id: id }).unwrap();
+      await createOrderApi({ ...data, client_id: id }).unwrap();
       toast({
         variant: "success",
         title: "Order Created",

@@ -21,7 +21,7 @@ const NewCustomization: React.FC<IProps> = ({ clientId }) => {
         await checkOnSubmit('customization', clientId, data)
 
         try {
-            const customization = await addCustomizationApi({ ...data, cost: Number(data.cost), order_id: orderId }).unwrap()
+            await addCustomizationApi({ ...data, cost: Number(data.cost), order_id: orderId }).unwrap()
             toast({
                 variant: 'success',
                 title: 'Customization Created Successfully',

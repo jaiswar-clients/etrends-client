@@ -123,7 +123,7 @@ const PurchaseDetail: React.FC<IProps> = ({ id, type, clientId }) => {
         }
 
         try {
-            const resp = await updateCustomizationApi({ ...data, id: customizationData?.data._id }).unwrap()
+            await updateCustomizationApi({ ...data, id: customizationData?.data._id }).unwrap()
             toast({
                 variant: "success",
                 title: "Order Updated",
@@ -140,7 +140,7 @@ const PurchaseDetail: React.FC<IProps> = ({ id, type, clientId }) => {
 
     const updateLicenseHandler = async (data: ILicenseInputs) => {
         try {
-            const resp = await updateLicenseByIdApi({ ...data, cost_per_license: Number(data.cost_per_license), total_license: Number(data.total_license), id }).unwrap()
+            await updateLicenseByIdApi({ ...data, cost_per_license: Number(data.cost_per_license), total_license: Number(data.total_license), id }).unwrap()
             toast({
                 variant: "success",
                 title: "Order Updated",
@@ -157,7 +157,7 @@ const PurchaseDetail: React.FC<IProps> = ({ id, type, clientId }) => {
 
     const updateAdditionalServiceHandler = async (data: IAdditionalServiceInputs) => {
         try {
-            const resp = await updateAdditionalServiceApi({ ...data, cost: Number(data.cost), id }).unwrap()
+            await updateAdditionalServiceApi({ ...data, cost: Number(data.cost), id }).unwrap()
             toast({
                 variant: "success",
                 title: "Order Updated",

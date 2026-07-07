@@ -22,7 +22,7 @@ const NewOrder: React.FC<IProps> = ({ clientId }) => {
     await checkOnSubmit('order', clientId, data)
 
     try {
-      const order = await createOrderApi({ ...data, client_id: clientId }).unwrap()
+      await createOrderApi({ ...data, client_id: clientId }).unwrap()
       toast({
         variant: 'success',
         title: 'Order Created Successfully',

@@ -18,7 +18,7 @@ const NewAdditionalService: React.FC<IProps> = ({ clientId }) => {
         await checkOnSubmit('additional-service', clientId, data)
 
         try {
-            const resp = await addAddtionalServiceApi({ ...data, cost: Number(data.cost), order_id: orderId }).unwrap()
+            await addAddtionalServiceApi({ ...data, cost: Number(data.cost), order_id: orderId }).unwrap()
             toast({
                 variant: 'success',
                 title: 'Service Created Successfully',

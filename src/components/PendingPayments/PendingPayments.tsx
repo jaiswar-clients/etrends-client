@@ -46,7 +46,7 @@ const PendingPayments = () => {
         let startDate = initialStartDate || undefined
         let endDate = initialEndDate || undefined
         let fy = initialFY || undefined
-        let allYears = initialAllYears
+        const allYears = initialAllYears
 
         if (!initialFY && initialStartDate && initialEndDate) {
             const financialYears = generateFinancialYears()

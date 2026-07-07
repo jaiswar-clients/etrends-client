@@ -18,7 +18,7 @@ const NewLicense: React.FC<IProps> = ({ clientId }) => {
         await checkOnSubmit('license', clientId, data)
 
         try {
-            const license = await addLicenseApi({ ...data, total_license: Number(data.total_license), cost_per_license: Number(data.cost_per_license), order_id: orderId }).unwrap()
+            await addLicenseApi({ ...data, total_license: Number(data.total_license), cost_per_license: Number(data.cost_per_license), order_id: orderId }).unwrap()
             toast({
                 variant: "success",
                 title: "License Added Successfully",

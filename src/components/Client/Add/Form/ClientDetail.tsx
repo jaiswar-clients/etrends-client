@@ -141,7 +141,7 @@ const ClientDetail: React.FC<IProps> = ({
   const onSubmit: SubmitHandler<ClientDetailsInputs> = async (data) => {
     setIsLoading(true);
     try {
-      const dbClientId = await handler({
+      await handler({
         ...data,
         amc_frequency_in_months: Number(data.amc_frequency_in_months),
       });
