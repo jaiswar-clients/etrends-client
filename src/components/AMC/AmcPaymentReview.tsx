@@ -1,4 +1,4 @@
-import { IAMCPaymentReview, PAYMENT_STATUS_ENUM } from '@/types/order'
+import { IAMCPaymentReview, PAYMENT_STATUS_ENUM, formatPaymentStatus } from '@/types/order'
 import React, { useState } from 'react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table'
 import { Button } from '../ui/button'
@@ -43,7 +43,7 @@ const AmcPaymentReview: React.FC<IProps> = ({ amcId, data, handler }) => {
         defaultValues: {
             from_date: new Date(),
             to_date: new Date(),
-            status: PAYMENT_STATUS_ENUM.PENDING,
+            status: PAYMENT_STATUS_ENUM.TO_BE_CREATED,
             amc_rate_applied: 0,
             amc_rate_amount: 0,
             total_cost: 0,
@@ -181,9 +181,9 @@ const AmcPaymentReview: React.FC<IProps> = ({ amcId, data, handler }) => {
                             <TableCell>
                                 <Badge
                                     variant={payment.status === PAYMENT_STATUS_ENUM.PAID ? 'success' : 'destructive'}
-                                    className="capitalize"
+                                    className=""
                                 >
-                                    {payment.status}
+                                    {formatPaymentStatus(payment.status)}
                                 </Badge>
                             </TableCell>
                             <TableCell>
@@ -283,7 +283,7 @@ const AmcPaymentReview: React.FC<IProps> = ({ amcId, data, handler }) => {
                                                 <SelectContent>
                                                     {Object.values(PAYMENT_STATUS_ENUM).map((status) => (
                                                         <SelectItem key={status} value={status}>
-                                                            {status}
+                                                            {formatPaymentStatus(status)}
                                                         </SelectItem>
                                                     ))}
                                                 </SelectContent>

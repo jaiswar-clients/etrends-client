@@ -16,7 +16,7 @@ import {
 import DatePicker from '@/components/ui/datepicker'
 import { useFileUpload } from '@/hooks/useFileUpload'
 import { toast } from '@/hooks/use-toast'
-import { ILicenceObject, PAYMENT_STATUS_ENUM } from '@/types/order'
+import { ILicenceObject, PAYMENT_STATUS_ENUM, formatPaymentStatus } from '@/types/order'
 import Link from 'next/link'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Card, CardContent } from '@/components/ui/card'
@@ -69,7 +69,7 @@ const LicenseForm: React.FC<ILicenseProps> = ({ clientId, handler, isLoading, la
         invoice_document: defaultValue?.invoice_document || "",
         invoice_number: defaultValue?.invoice_number || "",
         invoice_date: defaultValue?.invoice_date ? new Date(defaultValue?.invoice_date) : undefined,
-        payment_status: defaultValue?.payment_status || PAYMENT_STATUS_ENUM.PENDING,
+        payment_status: defaultValue?.payment_status || PAYMENT_STATUS_ENUM.TO_BE_CREATED,
         payment_receive_date: defaultValue?.payment_receive_date ? new Date(defaultValue?.payment_receive_date) : undefined,
         amc_rate: defaultValue?.amc_rate || { percentage: 0, amount: 0 }
     }
@@ -443,7 +443,7 @@ const LicenseForm: React.FC<ILicenseProps> = ({ clientId, handler, isLoading, la
                                             <FormControl>
                                                 <Select value={field.value} onValueChange={field.onChange}>
                                                     <SelectTrigger className="w-full bg-white" disabled={disableInput}>
-                                                        <SelectValue className="capitalize" placeholder={
+                                                        <SelectValue placeholder={
                                                             <div className="flex items-center">
                                                                 <div className={`w-2 h-2 rounded-full mr-2 ${
                                                                     field.value === PAYMENT_STATUS_ENUM.PAID ? 'bg-green-500' :
@@ -451,7 +451,7 @@ const LicenseForm: React.FC<ILicenseProps> = ({ clientId, handler, isLoading, la
                                                                     field.value === PAYMENT_STATUS_ENUM.PROFORMA ? 'bg-yellow-500' :
                                                                     'bg-red-500'
                                                                 }`} />
-                                                                <span className="capitalize">{field.value || PAYMENT_STATUS_ENUM.PENDING}</span>
+                                                                <span>{formatPaymentStatus(field.value || PAYMENT_STATUS_ENUM.TO_BE_CREATED)}</span>
                                                             </div>
                                                         } />
                                                     </SelectTrigger>
@@ -460,7 +460,7 @@ const LicenseForm: React.FC<ILicenseProps> = ({ clientId, handler, isLoading, la
                                                             Object.entries(PAYMENT_STATUS_ENUM)
                                                                 .filter(([key]) => isNaN(Number(key)))
                                                                 .map(([key, value]) => (
-                                                                    <SelectItem value={value} key={key} className='capitalize'>
+                                                                    <SelectItem value={value} key={key}>
                                                                         <div className="flex items-center">
                                                                             <div className={`w-2 h-2 rounded-full mr-2 ${
                                                                                 value === PAYMENT_STATUS_ENUM.PAID ? 'bg-green-500' :
@@ -468,7 +468,7 @@ const LicenseForm: React.FC<ILicenseProps> = ({ clientId, handler, isLoading, la
                                                                                 value === PAYMENT_STATUS_ENUM.PROFORMA ? 'bg-yellow-500' :
                                                                                 'bg-red-500'
                                                                             }`} />
-                                                                            <span className="capitalize">{value}</span>
+                                                                            <span>{formatPaymentStatus(value)}</span>
                                                                         </div>
                                                                     </SelectItem>
                                                                 ))

@@ -18,6 +18,7 @@ import {
 } from "@/redux/api/order";
 import DatePicker from "../ui/datepicker";
 import type { IAMCPayment } from "@/types/order";
+import { formatPaymentStatus } from "@/types/order";
 import {
   Select,
   SelectContent,
@@ -268,7 +269,7 @@ const AMCPayment = ({ payment, amcId, onClose }: IProps) => {
 
   const paymentStatusColor = (status: PAYMENT_STATUS_ENUM) => {
     if (status === PAYMENT_STATUS_ENUM.PAID) return "bg-green-700";
-    if (status === PAYMENT_STATUS_ENUM.PENDING) return "bg-red-600";
+    if (status === PAYMENT_STATUS_ENUM.TO_BE_CREATED) return "bg-red-600";
     if (status === PAYMENT_STATUS_ENUM.PROFORMA) return "bg-yellow-600";
     if (status === PAYMENT_STATUS_ENUM.INVOICE) return "bg-blue-600";
   };
@@ -347,7 +348,7 @@ const AMCPayment = ({ payment, amcId, onClose }: IProps) => {
                   <Select onValueChange={field.onChange} value={field.value}>
                     <SelectTrigger className="bg-white">
                       <SelectValue
-                        placeholder={field.value}
+                        placeholder={formatPaymentStatus(field.value)}
                         className="capitalize"
                       />
                     </SelectTrigger>
@@ -358,13 +359,12 @@ const AMCPayment = ({ payment, amcId, onClose }: IProps) => {
                           <SelectItem
                             value={value}
                             key={key}
-                            className="capitalize"
                           >
                             <div className="flex items-center">
                               <div
                                 className={`w-2 h-2 rounded-full ${paymentStatusColor(value)} mr-2`}
                               ></div>
-                              <span className="capitalize">{value}</span>
+                              <span>{formatPaymentStatus(value)}</span>
                             </div>
                           </SelectItem>
                         ))}

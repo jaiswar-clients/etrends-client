@@ -77,7 +77,7 @@ const AdditionalServiceForm: React.FC<IAdditionalServiceProps> = ({ clientId, la
         invoice_document: defaultValue?.invoice_document ?? '',
         invoice_number: defaultValue?.invoice_number ?? '',
         invoice_date: defaultValue?.invoice_date ? new Date(defaultValue.invoice_date) : new Date(),
-        payment_status: defaultValue?.payment_status ?? PAYMENT_STATUS_ENUM.PENDING,
+        payment_status: defaultValue?.payment_status ?? PAYMENT_STATUS_ENUM.TO_BE_CREATED,
         payment_receive_date: defaultValue?.payment_receive_date ? new Date(defaultValue.payment_receive_date) : undefined,
         amc_rate: defaultValue?.amc_rate || { percentage: 0, amount: 0 }
     }

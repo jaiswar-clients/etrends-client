@@ -45,7 +45,7 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
   const getFilterName = (filter: string) => {
     const filterMap: Record<string, string> = {
       'paid': 'Paid',
-      'pending': 'Pending',
+      'to_be_created': 'To be Created',
       'proforma': 'Proforma',
       'invoice': 'Invoice'
     }

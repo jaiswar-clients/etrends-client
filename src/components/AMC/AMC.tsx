@@ -15,7 +15,7 @@ const getDefaultFY = () => {
 
 export enum AMC_FILTER {
     PAID = 'paid',
-    PENDING = 'pending',
+    TO_BE_CREATED = 'to_be_created',
     PROFORMA = 'proforma',
     INVOICE = 'invoice',
 }
@@ -38,8 +38,10 @@ const AMC = () => {
     }
 
     const [queryArgs, setQueryArgs] = useState(() => {
-        const initialFilterStr = searchParams?.get('filter') || AMC_FILTER.PENDING
-        const initialFilters = initialFilterStr.split(',') as AMC_FILTER[];
+        const initialFilterStr = searchParams?.get('filter') || AMC_FILTER.TO_BE_CREATED
+        const initialFilters = initialFilterStr
+            .split(',')
+            .map((f) => (f === 'pending' ? AMC_FILTER.TO_BE_CREATED : f)) as AMC_FILTER[];
         const initialStartDate = searchParams?.get('startDate')
         const initialEndDate = searchParams?.get('endDate')
         const initialPage = searchParams?.get('page')
@@ -251,7 +253,7 @@ const AMC = () => {
         companyData={filtersData?.data}
         totalAmount={{
             paid: data?.data?.total_amount?.paid ?? 0,
-            pending: data?.data?.total_amount?.pending ?? 0,
+            to_be_created: data?.data?.total_amount?.to_be_created ?? 0,
             proforma: data?.data?.total_amount?.proforma ?? 0,
             invoice: data?.data?.total_amount?.invoice ?? 0,
             total: data?.data?.total_amount?.total ?? 0

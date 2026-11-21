@@ -43,7 +43,7 @@ import {
   PaginationPrevious,
   PaginationEllipsis,
 } from "@/components/ui/pagination";
-import { IOrderFilterCompanyResponse } from "@/types/order";
+import { IOrderFilterCompanyResponse, formatPaymentStatus } from "@/types/order";
 import {
   Card,
   CardContent,
@@ -85,7 +85,7 @@ const filterPaymentsByDateAndStatus = (
       let match = false;
       switch (filterType) {
         case "paid":
-        case "pending":
+        case "to_be_created":
         case "proforma":
         case "invoice":
           match =
@@ -108,7 +108,7 @@ interface IProps {
   };
   totalAmount: {
     paid: number | undefined;
-    pending: number | undefined;
+    to_be_created: number | undefined;
     proforma: number | undefined;
     invoice: number | undefined;
     total: number;
@@ -380,7 +380,7 @@ const AMCList: React.FC<IProps> = ({
 
     // Ensure at least one filter is selected
     if (updatedFilters.length === 0) {
-      updatedFilters.push(AMC_FILTER.PENDING);
+      updatedFilters.push(AMC_FILTER.TO_BE_CREATED);
     }
 
     // Maintain current date settings
@@ -511,12 +511,12 @@ const AMCList: React.FC<IProps> = ({
 
         <Card className="bg-gradient-to-br from-red-50 to-red-100 border-red-200">
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg text-red-700">Pending</CardTitle>
-            <CardDescription>Awaiting payment</CardDescription>
+            <CardTitle className="text-lg text-red-700">To be Created</CardTitle>
+            <CardDescription>Proforma not yet raised</CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-red-800">
-              {formatCurrency(totalAmount.pending || 0)}
+              {formatCurrency(totalAmount.to_be_created || 0)}
             </p>
           </CardContent>
         </Card>
@@ -578,11 +578,11 @@ const AMCList: React.FC<IProps> = ({
                 key={filter}
                 className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
               >
-                {filter.charAt(0).toUpperCase() + filter.slice(1)}
+                {formatPaymentStatus(filter)}
                 <button
                   onClick={() => handleFilterChange(filter, false)}
                   className="ml-1.5 h-3 w-3 rounded-full bg-blue-600 text-white hover:bg-blue-700 flex items-center justify-center"
-                  aria-label={`Remove ${filter} filter`}
+                  aria-label={`Remove ${formatPaymentStatus(filter)} filter`}
                 >
                   ×
                 </button>
@@ -801,13 +801,13 @@ const AMCList: React.FC<IProps> = ({
               {Object.values(AMC_FILTER).map((filter) => (
                 <DropdownMenuCheckboxItem
                   key={filter}
-                  className="capitalize"
+                  className=""
                   checked={activeFilters.includes(filter)}
                   onCheckedChange={(value) => {
                     handleFilterChange(filter, value);
                   }}
                 >
-                  {filter} AMC
+                  {formatPaymentStatus(filter)} AMC
                 </DropdownMenuCheckboxItem>
               ))}
             </DropdownMenuContent>
@@ -1030,7 +1030,7 @@ const AMCList: React.FC<IProps> = ({
                                   switch (status) {
                                     case "paid":
                                       return "bg-green-100 text-green-800 border-green-200";
-                                    case "pending":
+                                    case "to_be_created":
                                       return "bg-red-100 text-red-800 border-red-200";
                                     case "proforma":
                                       return "bg-yellow-100 text-yellow-800 border-yellow-200";
@@ -1045,7 +1045,7 @@ const AMCList: React.FC<IProps> = ({
                                   switch (status) {
                                     case "paid":
                                       return "✓";
-                                    case "pending":
+                                    case "to_be_created":
                                       return "⏱";
                                     case "proforma":
                                       return "📋";
@@ -1078,7 +1078,7 @@ const AMCList: React.FC<IProps> = ({
                                               className={`px-2 py-1 rounded-full text-xs font-medium uppercase tracking-wide ${
                                                 payment.status === "paid"
                                                   ? "bg-green-600 text-white"
-                                                  : payment.status === "pending"
+                                                  : payment.status === "to_be_created"
                                                     ? "bg-red-600 text-white"
                                                     : payment.status ===
                                                         "proforma"
@@ -1089,7 +1089,7 @@ const AMCList: React.FC<IProps> = ({
                                                         : "bg-gray-600 text-white"
                                               }`}
                                             >
-                                              {payment.status}
+                                              {formatPaymentStatus(payment.status)}
                                             </span>
                                           </div>
                                         </div>

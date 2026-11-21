@@ -163,12 +163,26 @@ export type TransformedAMCObject = Omit<IAMCObject, "order_id"> & {
   _id: string;
 };
 
+// Lifecycle: to_be_created -> proforma -> invoice -> paid
 export enum PAYMENT_STATUS_ENUM {
-  PENDING = "pending",
+  TO_BE_CREATED = "to_be_created",
   PROFORMA = "proforma",
   INVOICE = "invoice",
   PAID = "paid",
 }
+
+export const PAYMENT_STATUS_LABELS: Record<PAYMENT_STATUS_ENUM, string> = {
+  [PAYMENT_STATUS_ENUM.TO_BE_CREATED]: "To be Created",
+  [PAYMENT_STATUS_ENUM.PROFORMA]: "Proforma",
+  [PAYMENT_STATUS_ENUM.INVOICE]: "Invoice",
+  [PAYMENT_STATUS_ENUM.PAID]: "Paid",
+};
+
+/** Human label for a payment status value; falls back to the raw value. */
+export const formatPaymentStatus = (status?: string | null): string =>
+  status
+    ? PAYMENT_STATUS_LABELS[status as PAYMENT_STATUS_ENUM] ?? status
+    : "";
 
 export interface IAMCPayment {
   _id?: string;

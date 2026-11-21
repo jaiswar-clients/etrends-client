@@ -46,6 +46,7 @@ import {
 
 import { useAppSelector } from "@/redux/hook";
 import { cn, formatCurrency, formatIndianNumber } from "@/lib/utils";
+import { formatPaymentStatus } from "@/types/order";
 import {
   Calendar,
   Building2,
@@ -233,11 +234,11 @@ const CompactRevenueDonut = ({ newSales, amc }: { newSales: number; amc: number 
 const StatusBadge = ({ status }: { status: string }) => {
   const statusLower = status?.toLowerCase() || '';
   const variant = statusLower === 'paid' ? 'success' :
-                  statusLower === 'pending' ? 'secondary' :
+                  statusLower === 'to_be_created' ? 'secondary' :
                   'outline';
   return (
     <Badge variant={variant} className="text-[10px] px-1.5 py-0">
-      {status || 'Unknown'}
+      {formatPaymentStatus(status) || 'Unknown'}
     </Badge>
   );
 };
