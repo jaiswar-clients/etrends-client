@@ -89,7 +89,9 @@ const Purchase: React.FC<IProps> = ({ page: initialPage }) => {
         const urlPageSize = searchParams?.get('pageSize')
         const initialTypes = searchParams?.get('types')
         const initialIncludeCancelled = searchParams?.get('include_cancelled') === 'true'
-        const initialPaymentStatus = searchParams?.get('paymentStatus') as PAYMENT_STATUS_ENUM | undefined
+        const rawPaymentStatus = searchParams?.get('paymentStatus')
+        // legacy 'pending' bookmarks -> 'to_be_created'
+        const initialPaymentStatus = (rawPaymentStatus === 'pending' ? PAYMENT_STATUS_ENUM.TO_BE_CREATED : rawPaymentStatus) as PAYMENT_STATUS_ENUM | undefined
 
         let startDate = initialStartDate || undefined
         let endDate = initialEndDate || undefined

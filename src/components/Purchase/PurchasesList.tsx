@@ -747,12 +747,12 @@ const PurchasesList: React.FC<IProps> = ({
                 onPaymentStatusChange(value === "all" ? undefined : value)
               }
             >
-              <SelectTrigger className="w-[150px] capitalize">
+              <SelectTrigger className="w-[150px]">
                 <SelectValue placeholder="Payment Status" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="to_be_created">To be Created</SelectItem>
                 <SelectItem value="proforma">Proforma</SelectItem>
                 <SelectItem value="invoice">Invoice</SelectItem>
                 <SelectItem value="paid">Paid</SelectItem>

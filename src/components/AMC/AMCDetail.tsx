@@ -25,6 +25,7 @@ import OrderDetail from "../Client/Add/Form/OrderDetail";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { IAMCObject, IAMCPayment, OrderDetailInputs } from "@/types/order";
+import { formatPaymentStatus } from "@/types/order";
 import { Badge } from "../ui/badge";
 import {
   Dialog,
@@ -166,7 +167,7 @@ const columns = (
 
       const paymentStatusColor = (status: PAYMENT_STATUS_ENUM) => {
         if (status === PAYMENT_STATUS_ENUM.PAID) return "bg-green-700";
-        if (status === PAYMENT_STATUS_ENUM.PENDING) return "bg-red-600";
+        if (status === PAYMENT_STATUS_ENUM.TO_BE_CREATED) return "bg-red-600";
         if (status === PAYMENT_STATUS_ENUM.PROFORMA) return "bg-yellow-600";
         if (status === PAYMENT_STATUS_ENUM.INVOICE) return "bg-blue-600";
       };
@@ -176,7 +177,7 @@ const columns = (
             status,
           )}`}
         >
-          {status}
+          {formatPaymentStatus(status)}
         </div>
       );
     },
@@ -305,17 +306,17 @@ const DataTable = ({
           type="button"
           variant={
             table.getColumn("status")?.getFilterValue() ===
-            PAYMENT_STATUS_ENUM.PENDING
+            PAYMENT_STATUS_ENUM.TO_BE_CREATED
               ? "default"
               : "outline"
           }
           onClick={() =>
             table
               .getColumn("status")
-              ?.setFilterValue(PAYMENT_STATUS_ENUM.PENDING)
+              ?.setFilterValue(PAYMENT_STATUS_ENUM.TO_BE_CREATED)
           }
         >
-          Pending
+          To be Created
         </Button>
         <Button
           type="button"

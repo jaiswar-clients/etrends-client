@@ -26,7 +26,7 @@ import DatePicker from '@/components/ui/datepicker'
 import { CircleCheck, CirclePlus, CircleX, Edit, File, IndianRupee, Trash2, Wrench, X, History, Clock, Ban } from 'lucide-react'
 import { Separator } from '@radix-ui/react-separator'
 import { useToast } from '@/hooks/use-toast'
-import { IPaymentTerm, LicenseDetails, OrderDetailInputs } from '@/types/order'
+import { IPaymentTerm, LicenseDetails, OrderDetailInputs, formatPaymentStatus } from '@/types/order'
 import { useAppSelector } from '@/redux/hook'
 import { IOrderObject, PAYMENT_STATUS_ENUM, useDeleteOrderByIdMutation, useCancelOrderMutation } from '@/redux/api/order'
 import {
@@ -164,7 +164,7 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
                     invoice_document: "",
                     invoice_number: "",
                     invoice_date: undefined,
-                    status: PAYMENT_STATUS_ENUM.PENDING,
+                    status: PAYMENT_STATUS_ENUM.TO_BE_CREATED,
                     payment_receive_date: undefined
                 },
                 {
@@ -174,7 +174,7 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
                     invoice_document: "",
                     invoice_number: "",
                     invoice_date: undefined,
-                    status: PAYMENT_STATUS_ENUM.PENDING,
+                    status: PAYMENT_STATUS_ENUM.TO_BE_CREATED,
                     payment_receive_date: undefined
                 },
                 {
@@ -184,7 +184,7 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
                     invoice_document: "",
                     invoice_number: "",
                     invoice_date: undefined,
-                    status: PAYMENT_STATUS_ENUM.PENDING,
+                    status: PAYMENT_STATUS_ENUM.TO_BE_CREATED,
                     payment_receive_date: undefined
                 },
             ],
@@ -267,7 +267,7 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
             invoice_date: undefined,
             invoice_document: "",
             invoice_number: "",
-            status: PAYMENT_STATUS_ENUM.PENDING,
+            status: PAYMENT_STATUS_ENUM.TO_BE_CREATED,
         });
     };
 
@@ -589,8 +589,8 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
                 });
                 return;
             }
-            // Clear payment receive date if status is pending
-            if (term.status === PAYMENT_STATUS_ENUM.PENDING && term.payment_receive_date) {
+            // Clear payment receive date if status is to be created
+            if (term.status === PAYMENT_STATUS_ENUM.TO_BE_CREATED && term.payment_receive_date) {
                 term.payment_receive_date = undefined;
             }
         }
@@ -1656,17 +1656,17 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
                                                                 <FormControl>
                                                                     <Select onValueChange={field.onChange}>
                                                                         <SelectTrigger className="w-full bg-white" disabled={disableInput}>
-                                                                            <SelectValue className="capitalize" placeholder=
+                                                                            <SelectValue placeholder=
                                                                                 {
                                                                                     field.value === PAYMENT_STATUS_ENUM.PAID ? (
                                                                                         <div className="flex items-center">
                                                                                             <div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div>
-                                                                                            {PAYMENT_STATUS_ENUM.PAID}
+                                                                                            {formatPaymentStatus(PAYMENT_STATUS_ENUM.PAID)}
                                                                                         </div>
                                                                                     ) : (
                                                                                         <div className="flex items-center">
                                                                                             <div className="w-2 h-2 rounded-full bg-red-500 mr-2"></div>
-                                                                                            <span className="capitalize">{PAYMENT_STATUS_ENUM.PENDING}</span>
+                                                                                            <span>{formatPaymentStatus(field.value || PAYMENT_STATUS_ENUM.TO_BE_CREATED)}</span>
                                                                                         </div>
                                                                                     )
                                                                                 }
@@ -1679,16 +1679,16 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
                                                                                 Object.entries(PAYMENT_STATUS_ENUM)
                                                                                     .filter(([key]) => isNaN(Number(key)))
                                                                                     .map(([key, value]) => (
-                                                                                        <SelectItem value={value} key={key} className='capitalize'>
+                                                                                        <SelectItem value={value} key={key}>
                                                                                             {value === PAYMENT_STATUS_ENUM.PAID ? (
                                                                                                 <div className="flex items-center">
                                                                                                     <div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div>
-                                                                                                    {value}
+                                                                                                    {formatPaymentStatus(value)}
                                                                                                 </div>
                                                                                             ) : (
                                                                                                 <div className="flex items-center">
                                                                                                     <div className="w-2 h-2 rounded-full bg-red-500 mr-2"></div>
-                                                                                                    <span className="capitalize">{value}</span>
+                                                                                                    <span>{formatPaymentStatus(value)}</span>
                                                                                                 </div>
                                                                                             )}
                                                                                         </SelectItem>

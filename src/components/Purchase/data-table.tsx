@@ -39,6 +39,7 @@ import {
   ICustomizationObject,
   IAdditionalServiceObject,
   PURCHASE_TYPE,
+  formatPaymentStatus,
 } from "@/types/order";
 import { Separator } from "../ui/separator";
 import { useRouter } from "next/navigation";
@@ -200,9 +201,9 @@ export function DataTable<TData, TValue>({
                 </div>
                 <Badge
                   variant="outline"
-                  className="bg-blue-50 text-blue-600 border-blue-200 capitalize"
+                  className="bg-blue-50 text-blue-600 border-blue-200"
                 >
-                  {license.payment_status || "Pending"}
+                  {formatPaymentStatus(license.payment_status) || "To be Created"}
                 </Badge>
               </div>
               <Separator className="my-2" />
