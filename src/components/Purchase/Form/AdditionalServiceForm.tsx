@@ -59,7 +59,7 @@ export interface IAdditionalServiceInputs {
 
 const AdditionalServiceForm: React.FC<IAdditionalServiceProps> = ({ clientId, label, handler, isLoading, defaultValue, disable, onPurchaseOrderNumberChange, onInvoiceNumberChange, onProductChange }) => {
     const { data: productsList } = useGetPurchasedProductsByClientQuery(clientId)
-    const { uploadFile, getFileNameFromUrl } = useFileUpload()
+    const { uploadFile, getFileNameFromUrl, getFileUrl } = useFileUpload()
     const [disableInput, setDisableInput] = useState(disable)
     const [isPercentage, setIsPercentage] = useState(true)
 
@@ -110,7 +110,7 @@ const AdditionalServiceForm: React.FC<IAdditionalServiceProps> = ({ clientId, la
             if (!field.value) return null;
             return (
                 <div className="flex items-center gap-2">
-                    <Link href={field.value} target='_blank' passHref>
+                    <Link href={getFileUrl(field.value)} target='_blank' passHref>
                         <Button variant={disableInput ? 'default' : 'outline'} type='button' className={!disableInput ? 'rounded-full w-8 h-8 ml-2 absolute -top-3 -right-10' : ''}>
                             {disableInput ? 'View' : <File className='w-1' />}
                         </Button>

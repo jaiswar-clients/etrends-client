@@ -22,6 +22,8 @@ export interface ILicenceObject {
   invoice_document: string;
   invoice_number: string;
   invoice_date: Date;
+  /** Payment terms (split of rate.amount × total_license); item-level payment fields summarize them. */
+  payment_terms?: IPaymentTerm[];
   deleted: boolean;
   createdAt: string;
   updatedAt: string;
@@ -47,6 +49,8 @@ export interface ICustomizationObject {
   invoice_date: Date;
   type: CustomizationType;
   title?: string;
+  /** Payment terms (split of cost); item-level payment fields summarize them. */
+  payment_terms?: IPaymentTerm[];
   deleted: boolean;
   createdAt: string;
   updatedAt: string;

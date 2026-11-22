@@ -43,7 +43,7 @@ export const INFO_BOX_CONTENT = {
       "Creates payment schedules for this specific AMC",
       "Only periods without existing payments will be added",
       "Payments will use the current AMC rate settings",
-      "All new payments will be created with \"pending\" status",
+      "All new payments will be created with \"To be Created\" status",
     ],
   },
   bulk: {

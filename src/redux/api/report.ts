@@ -94,28 +94,25 @@ export interface IRevenueDashboardResponse {
   monthlyBreakdown: IMonthlyRevenueBreakdown[];
 }
 
-export interface IPeriodBreakdown {
-  period: string;
+// Cumulative amounts: collected <= invoiced <= expected.
+// expected  = to_be_created + proforma + invoice + paid
+// invoiced  = invoice + paid
+// collected = paid
+export interface ICollectionTotals {
   expected: number;
+  invoiced: number;
   collected: number;
+}
+
+export interface IPeriodBreakdown extends ICollectionTotals {
+  period: string;
 }
 
 export interface IExpectedVsCollectedResponse {
   fiscalYear: string;
-  newSales: {
-    expected: number;
-    collected: number;
-    breakdown: IPeriodBreakdown[];
-  };
-  amc: {
-    expected: number;
-    collected: number;
-    breakdown: IPeriodBreakdown[];
-  };
-  total: {
-    expected: number;
-    collected: number;
-  };
+  newSales: ICollectionTotals & { breakdown: IPeriodBreakdown[] };
+  amc: ICollectionTotals & { breakdown: IPeriodBreakdown[] };
+  total: ICollectionTotals;
 }
 
 export interface IMonthlyBreakdownDetail {
@@ -195,6 +192,111 @@ export interface IClientHealthDashboardResponse {
   concentrationRisk: IClientConcentrationRisk;
   fiscalYear: string;
 }
+
+// ==================== DASHBOARD DRILL-DOWN ====================
+
+export type DrilldownCard =
+  | "total-revenue"
+  | "new-sales"
+  | "amc-revenue"
+  | "revenue-split"
+  | "revenue-trend"
+  | "collection-rate"
+  | "sales-collection"
+  | "amc-collection"
+  | "expected-vs-collected"
+  | "client-health"
+  | "client-performance"
+  | "concentration-risk"
+  | "expected-revenue"
+  | "proforma"
+  | "to-be-created";
+
+export interface IDrilldownColumn {
+  key: string;
+  label: string;
+  type: "text" | "currency" | "date" | "status" | "number" | "percent";
+}
+
+/** Where a drill-down row navigates to (server sets it as row._ref). */
+export interface IRowRef {
+  kind: "order" | "customization" | "license" | "additional_service" | "amc" | "client";
+  /** order / item id; for "amc" the linked order id (AMC page is keyed by order). */
+  id: string;
+  clientId?: string;
+}
+
+/** App route for a drill-down row, or null when it has no detail page. */
+export const drilldownRowHref = (ref?: IRowRef | null): string | null => {
+  if (!ref?.id) return null;
+  const client = ref.clientId ? `&client=${ref.clientId}` : "";
+  switch (ref.kind) {
+    case "amc":
+      return `/amc/${ref.id}`;
+    case "client":
+      return `/clients/${ref.id}`;
+    case "order":
+    case "customization":
+    case "license":
+    case "additional_service":
+      return `/purchases/${ref.id}?type=${ref.kind}${client}`;
+    default:
+      return null;
+  }
+};
+
+export interface IDrilldownResponse {
+  card: DrilldownCard;
+  title: string;
+  subtitle?: string;
+  columns: IDrilldownColumn[];
+  rows: Record<string, any>[];
+  /** Columns offered as filter chips (e.g. ["category", "status"]). */
+  filterKeys?: string[];
+  /** Column whose values get subtotals (e.g. "category" -> New Order / AMC). */
+  subtotalKey?: string;
+}
+
+export interface IStreamTotals {
+  newSales: number;
+  amc: number;
+  total: number;
+}
+
+/** Expected = invoiced (Total Revenue) + proforma + toBeCreated. */
+export interface IRevenuePipelineSummary {
+  fiscalYear: string;
+  invoiced: IStreamTotals;
+  proforma: IStreamTotals;
+  toBeCreated: IStreamTotals;
+  expected: IStreamTotals;
+}
+
+export interface IDrilldownArgs {
+  card: DrilldownCard;
+  fiscalYear: number;
+  filter?: string;
+  orderTypes?: string;
+  period?: string;
+}
+
+/** Query string shared by the drill-down table and its Excel export. */
+export const buildDrilldownParams = (
+  args: IDrilldownArgs & { filters?: Record<string, string[]>; search?: string }
+) => {
+  const params = new URLSearchParams();
+  params.append("card", args.card);
+  params.append("fiscalYear", args.fiscalYear.toString());
+  if (args.filter) params.append("filter", args.filter);
+  if (args.orderTypes) params.append("orderTypes", args.orderTypes);
+  if (args.period) params.append("period", args.period);
+  const filters = Object.fromEntries(
+    Object.entries(args.filters ?? {}).filter(([, values]) => values.length > 0)
+  );
+  if (Object.keys(filters).length) params.append("filters", JSON.stringify(filters));
+  if (args.search?.trim()) params.append("search", args.search.trim());
+  return params;
+};
 
 export const reportApi = createApi({
   reducerPath: "report",
@@ -305,6 +407,21 @@ export const reportApi = createApi({
         method: HTTP_REQUEST.GET,
       }),
     }),
+    getRevenuePipeline: builder.query<
+      IResponse<IRevenuePipelineSummary>,
+      { fiscalYear: number; orderTypes?: string }
+    >({
+      query: ({ fiscalYear, orderTypes }) => ({
+        url: `/revenue-pipeline?fiscalYear=${fiscalYear}${orderTypes ? `&orderTypes=${orderTypes}` : ""}`,
+        method: HTTP_REQUEST.GET,
+      }),
+    }),
+    getDashboardDrilldown: builder.query<IResponse<IDrilldownResponse>, IDrilldownArgs>({
+      query: (args) => ({
+        url: `/drilldown?${buildDrilldownParams(args).toString()}`,
+        method: HTTP_REQUEST.GET,
+      }),
+    }),
     // CLIENT HEALTH & RETENTION DASHBOARD
     getClientHealthDashboard: builder.query<
       IResponse<IClientHealthDashboardResponse>,
@@ -328,6 +445,8 @@ export const {
   useGetExpectedVsCollectedQuery,
   useGetMonthlyRevenueBreakdownQuery,
   useGetClientHealthDashboardQuery,
+  useGetDashboardDrilldownQuery,
+  useGetRevenuePipelineQuery,
 } = reportApi;
 
 // Backward compatibility aliases (deprecated)

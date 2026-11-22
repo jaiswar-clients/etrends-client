@@ -49,7 +49,7 @@ interface IProps {
 type IPaymentForm = IAMCPayment;
 
 const AMCPayment = ({ payment, amcId, onClose }: IProps) => {
-  const { uploadFile, getFileNameFromUrl } = useFileUpload();
+  const { uploadFile, getFileNameFromUrl, getFileUrl } = useFileUpload();
   const [updateAMCPayment, { isLoading }] = useUpdateAMCPaymentByIdMutation();
   const [deleteAMCPayment, { isLoading: isDeleting }] =
     useDeleteAMCPaymentByIdMutation();
@@ -209,7 +209,7 @@ const AMCPayment = ({ payment, amcId, onClose }: IProps) => {
 
     const renderFilePreview = (field: any) => (
       <div className="flex items-center gap-2">
-        <Link href={field.value as string} target="_blank" passHref>
+        <Link href={getFileUrl(field.value as string)} target="_blank" passHref>
           <Button variant="outline" type="button">
             <File className="w-4 h-4 mr-2" />
             View File
@@ -427,7 +427,7 @@ const AMCPayment = ({ payment, amcId, onClose }: IProps) => {
                       {field.value && (
                         <div className="flex items-center gap-2">
                           <Link
-                            href={field.value as string}
+                            href={getFileUrl(field.value as string)}
                             target="_blank"
                             passHref
                           >

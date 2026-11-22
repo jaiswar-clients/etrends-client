@@ -16,12 +16,13 @@ import {
 import DatePicker from '@/components/ui/datepicker'
 import { useFileUpload } from '@/hooks/useFileUpload'
 import { toast } from '@/hooks/use-toast'
-import { ILicenceObject, PAYMENT_STATUS_ENUM, formatPaymentStatus } from '@/types/order'
+import { ILicenceObject, PAYMENT_STATUS_ENUM } from '@/types/order'
 import Link from 'next/link'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Card, CardContent } from '@/components/ui/card'
 import { formatCurrency } from '@/lib/utils'
 import { AmountInput } from '@/components/ui/AmountInput'
+import StandalonePaymentTerms, { IStandaloneTermInput, normalizeTermsForApi, termsFromItem, validateStandaloneTerms } from './StandalonePaymentTerms'
 
 interface ILicenseProps {
     clientId: string
@@ -50,12 +51,14 @@ export interface ILicenseInputs {
         percentage: number;
         amount: number;
     };
+    /** Payment terms split the license cost (replaces the single invoice / status fields). */
+    payment_terms?: IStandaloneTermInput[];
 }
 
 const LicenseForm: React.FC<ILicenseProps> = ({ clientId, handler, isLoading, label, defaultValue, disable = false, onPurchaseOrderNumberChange, onProductChange }) => {
     const { data: productsList } = useGetPurchasedProductsByClientQuery(clientId)
     const [isPercentage, setIsPercentage] = useState(true)
-    const { uploadFile, getFileNameFromUrl } = useFileUpload()
+    const { uploadFile, getFileNameFromUrl, getFileUrl } = useFileUpload()
 
     const [disableInput, setDisableInput] = useState(disable)
 
@@ -71,7 +74,8 @@ const LicenseForm: React.FC<ILicenseProps> = ({ clientId, handler, isLoading, la
         invoice_date: defaultValue?.invoice_date ? new Date(defaultValue?.invoice_date) : undefined,
         payment_status: defaultValue?.payment_status || PAYMENT_STATUS_ENUM.TO_BE_CREATED,
         payment_receive_date: defaultValue?.payment_receive_date ? new Date(defaultValue?.payment_receive_date) : undefined,
-        amc_rate: defaultValue?.amc_rate || { percentage: 0, amount: 0 }
+        amc_rate: defaultValue?.amc_rate || { percentage: 0, amount: 0 },
+        payment_terms: termsFromItem(defaultValue, (defaultValue?.rate.amount || 0) * (defaultValue?.total_license || 0)),
     }
 
     const form = useForm<ILicenseInputs>({ defaultValues })
@@ -91,6 +95,7 @@ const LicenseForm: React.FC<ILicenseProps> = ({ clientId, handler, isLoading, la
             form.setValue('payment_status', defaultValue.payment_status)
             form.setValue('payment_receive_date', defaultValue.payment_receive_date ? new Date(defaultValue.payment_receive_date) : undefined)
             form.setValue('amc_rate', defaultValue.amc_rate || { percentage: 0, amount: 0 })
+            form.setValue('payment_terms', termsFromItem(defaultValue, (defaultValue.rate.amount || 0) * (defaultValue.total_license || 0)))
         }
     }, [defaultValue])
 
@@ -114,7 +119,7 @@ const LicenseForm: React.FC<ILicenseProps> = ({ clientId, handler, isLoading, la
         const renderFilePreview = (field: any) => {
             return (
                 <div className="flex items-center gap-2">
-                    <Link href={field.value as string} target='_blank' passHref>
+                    <Link href={getFileUrl(field.value as string)} target='_blank' passHref>
                         <Button variant={disableInput ? 'default' : 'outline'} type='button' className={!disableInput ? 'rounded-full w-8 h-8 ml-2 absolute -top-3 -right-10' : ''}>
                             {disableInput ? 'View' : <File className='w-1' />}
                         </Button>
@@ -182,8 +187,6 @@ const LicenseForm: React.FC<ILicenseProps> = ({ clientId, handler, isLoading, la
             total_license: 'Total License',
             product_id: 'Product',
             purchase_date: 'Purchase Date',
-            invoice_number: 'Invoice Number',
-            invoice_date: 'Invoice Date',
         };
 
         const missingFields = Object.entries(requiredFields)
@@ -199,12 +202,10 @@ const LicenseForm: React.FC<ILicenseProps> = ({ clientId, handler, isLoading, la
             return;
         }
 
-        if (data.payment_status === PAYMENT_STATUS_ENUM.PAID && !data.payment_receive_date) {
-            toast({
-                variant: "destructive",
-                title: "Error",
-                description: "Payment receive date is required when payment status is paid"
-            });
+        const baseAmount = (Number(data.cost_per_license) || 0) * (Number(data.total_license) || 0)
+        const termsError = validateStandaloneTerms(data.payment_terms, baseAmount)
+        if (termsError) {
+            toast({ variant: "destructive", title: "Payment Terms", description: termsError });
             return;
         }
 
@@ -212,7 +213,7 @@ const LicenseForm: React.FC<ILicenseProps> = ({ clientId, handler, isLoading, la
         if (!product) {
             throw new Error('Product not found')
         }
-        handler(data, product.order_id)
+        handler({ ...data, payment_terms: normalizeTermsForApi(data.payment_terms || [], baseAmount) }, product.order_id)
     }
 
     const selectPlaceHolder = (name: "product_id", value: string) => {
@@ -362,7 +363,6 @@ const LicenseForm: React.FC<ILicenseProps> = ({ clientId, handler, isLoading, la
                             <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-4">Documents</h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {renderFormField('purchase_order_document', 'Purchase Order Document', 'Upload Purchase Order Document', 'file')}
-                                {renderFormField('invoice_document', 'Invoice Document', 'Upload Invoice Document', 'file')}
                             </div>
                         </CardContent>
                     </Card>
@@ -370,7 +370,7 @@ const LicenseForm: React.FC<ILicenseProps> = ({ clientId, handler, isLoading, la
                     {/* Invoice & Payment */}
                     <Card className="border-0 shadow-sm">
                         <CardContent className="p-5">
-                            <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-4">Invoice & Payment</h3>
+                            <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-4">Purchase Order</h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <FormField
                                     control={form.control}
@@ -396,104 +396,19 @@ const LicenseForm: React.FC<ILicenseProps> = ({ clientId, handler, isLoading, la
                                         </FormItem>
                                     )}
                                 />
-                                <FormField
-                                    control={form.control}
-                                    name="invoice_number"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel className='text-gray-500 text-sm'>Invoice Number</FormLabel>
-                                            <FormControl>
-                                                <Input
-                                                    type="text"
-                                                    {...field}
-                                                    onChange={field.onChange}
-                                                    value={field.value}
-                                                    disabled={disableInput}
-                                                    className='bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none'
-                                                    placeholder='Enter invoice number'
-                                                />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="invoice_date"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel className='text-gray-500 text-sm'>Invoice Date</FormLabel>
-                                            <FormControl>
-                                                <DatePicker
-                                                    date={field.value}
-                                                    onDateChange={field.onChange}
-                                                    disabled={disableInput}
-                                                />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name={`payment_status`}
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel className='text-gray-500 text-sm'>Payment Status</FormLabel>
-                                            <FormControl>
-                                                <Select value={field.value} onValueChange={field.onChange}>
-                                                    <SelectTrigger className="w-full bg-white" disabled={disableInput}>
-                                                        <SelectValue placeholder={
-                                                            <div className="flex items-center">
-                                                                <div className={`w-2 h-2 rounded-full mr-2 ${
-                                                                    field.value === PAYMENT_STATUS_ENUM.PAID ? 'bg-green-500' :
-                                                                    field.value === PAYMENT_STATUS_ENUM.INVOICE ? 'bg-blue-500' :
-                                                                    field.value === PAYMENT_STATUS_ENUM.PROFORMA ? 'bg-yellow-500' :
-                                                                    'bg-red-500'
-                                                                }`} />
-                                                                <span>{formatPaymentStatus(field.value || PAYMENT_STATUS_ENUM.TO_BE_CREATED)}</span>
-                                                            </div>
-                                                        } />
-                                                    </SelectTrigger>
-                                                    <SelectContent className='bg-white'>
-                                                        {
-                                                            Object.entries(PAYMENT_STATUS_ENUM)
-                                                                .filter(([key]) => isNaN(Number(key)))
-                                                                .map(([key, value]) => (
-                                                                    <SelectItem value={value} key={key}>
-                                                                        <div className="flex items-center">
-                                                                            <div className={`w-2 h-2 rounded-full mr-2 ${
-                                                                                value === PAYMENT_STATUS_ENUM.PAID ? 'bg-green-500' :
-                                                                                value === PAYMENT_STATUS_ENUM.INVOICE ? 'bg-blue-500' :
-                                                                                value === PAYMENT_STATUS_ENUM.PROFORMA ? 'bg-yellow-500' :
-                                                                                'bg-red-500'
-                                                                            }`} />
-                                                                            <span>{formatPaymentStatus(value)}</span>
-                                                                        </div>
-                                                                    </SelectItem>
-                                                                ))
-                                                        }
-                                                    </SelectContent>
-                                                </Select>
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name={`payment_receive_date`}
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel className='text-gray-500 text-sm'>Payment Receive Date</FormLabel>
-                                            <FormControl>
-                                                <DatePicker date={field.value} onDateChange={field.onChange} placeholder='Payment Receive Date' disabled={disableInput} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
                             </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Payment Terms */}
+                    <Card className="border-0 shadow-sm">
+                        <CardContent className="p-5">
+                            <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-4">Payment Terms</h3>
+                            <StandalonePaymentTerms
+                                form={form}
+                                baseAmount={(Number(form.watch("cost_per_license")) || 0) * (Number(form.watch("total_license")) || 0)}
+                                disabled={disableInput}
+                            />
                         </CardContent>
                     </Card>
 

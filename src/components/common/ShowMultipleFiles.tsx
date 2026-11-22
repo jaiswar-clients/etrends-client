@@ -22,7 +22,7 @@ export default function ShowMultipleFilesModal({
   files, 
   triggerText = "View Files" 
 }: ShowMultipleFilesModalProps) {
-  const { getFileNameFromUrl } = useFileUpload()
+  const { getFileNameFromUrl, getFileUrl } = useFileUpload()
   const [open, setOpen] = useState(false)
 
   if (!files?.length) return null
@@ -45,7 +45,7 @@ export default function ShowMultipleFilesModal({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => window.open(file, '_blank')}
+                onClick={() => window.open(getFileUrl(file), '_blank')}
                 className="flex items-center gap-2"
               >
                 <Eye className="h-4 w-4" />

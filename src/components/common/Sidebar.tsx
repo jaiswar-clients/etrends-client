@@ -42,8 +42,8 @@ const items = [
         icon: HiOutlineWrenchScrewdriver,
     },
     {
-        title: "Pending Payments",
-        url: "pending-payments",
+        title: "Outstanding Payments",
+        url: "outstanding-payments",
         icon: Clock,
     },
     {

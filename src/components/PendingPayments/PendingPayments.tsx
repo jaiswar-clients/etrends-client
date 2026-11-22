@@ -1,6 +1,6 @@
 "use client"
 import React, { useState, useEffect } from 'react'
-import PendingPaymentsList from './PendingPaymentsList'
+import PendingPaymentsList, { OUTSTANDING_STATUSES } from './PendingPaymentsList'
 import { useGetPendingPaymentsQuery, useGetOrderFiltersOfCompanyQuery } from '@/redux/api/order'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { generateFinancialYears } from '@/components/common/FinancialYearFilter'
@@ -38,6 +38,7 @@ const PendingPayments = () => {
         const initialProduct = searchParams?.get('product')
         const initialProductIds = searchParams?.get('productIds')
         const initialTypes = searchParams?.get('types')
+        const initialStatuses = searchParams?.get('status')
         const initialFY = searchParams?.get('fy')
         const initialAllYears = searchParams?.get('allYears') === '1'
         const urlPage = searchParams?.get('page')
@@ -85,6 +86,10 @@ const PendingPayments = () => {
             products: initialProduct ? initialProduct.split(',') : [],
             productIds: initialProductIds ? initialProductIds.split(',') : [],
             types: initialTypes ? initialTypes.split(',') : [],
+            statuses: (() => {
+                const parsed = initialStatuses ? initialStatuses.split(',').map(s => s.trim()).filter(Boolean) : []
+                return parsed.length ? parsed : OUTSTANDING_STATUSES
+            })(),
             fy,
             allYears,
         }
@@ -98,6 +103,7 @@ const PendingPayments = () => {
         client_id: queryArgs.clientId,
         product_id: queryArgs.productIds.length > 0 ? queryArgs.productIds.join(',') : undefined,
         type: queryArgs.types.length > 0 ? queryArgs.types.join(',') : undefined,
+        status: queryArgs.statuses.join(','),
     })
 
     const { data: filtersData } = useGetOrderFiltersOfCompanyQuery()
@@ -111,6 +117,8 @@ const PendingPayments = () => {
             product: queryArgs.products.length > 0 ? queryArgs.products.join(',') : undefined,
             productIds: queryArgs.productIds.length > 0 ? queryArgs.productIds.join(',') : undefined,
             types: queryArgs.types.length > 0 ? queryArgs.types.join(',') : undefined,
+            // default (outstanding) is not written to the URL
+            status: queryArgs.statuses.join(',') === OUTSTANDING_STATUSES.join(',') ? undefined : queryArgs.statuses.join(','),
             fy: queryArgs.fy,
             allYears: queryArgs.allYears ? '1' : undefined,
             page: queryArgs.page,
@@ -122,7 +130,7 @@ const PendingPayments = () => {
 
     useEffect(() => {
         refetch()
-    }, [queryArgs.page, queryArgs.pageSize, queryArgs.startDate, queryArgs.endDate, queryArgs.clientId, queryArgs.types, queryArgs.productIds, refetch])
+    }, [queryArgs.page, queryArgs.pageSize, queryArgs.startDate, queryArgs.endDate, queryArgs.clientId, queryArgs.types, queryArgs.productIds, queryArgs.statuses, refetch])
 
     const handleFYFilterChange = (fy: string | undefined) => {
         setQueryArgs(prev => {
@@ -178,6 +186,11 @@ const PendingPayments = () => {
         setQueryArgs(prev => ({ ...prev, types, page: 1 }))
     }
 
+    const handleStatusesChange = (statuses: string[]) => {
+        // Empty selection falls back to the outstanding default
+        setQueryArgs(prev => ({ ...prev, statuses: statuses.length ? statuses : OUTSTANDING_STATUSES, page: 1 }))
+    }
+
     const handlePageChange = (page: number) => {
         setQueryArgs(prev => ({ ...prev, page }))
     }
@@ -203,6 +216,7 @@ const PendingPayments = () => {
             products: queryArgs.products,
             productIds: queryArgs.productIds,
             types: queryArgs.types,
+            statuses: queryArgs.statuses,
             page: queryArgs.page,
             pageSize: queryArgs.pageSize,
             fy: queryArgs.fy,
@@ -212,6 +226,7 @@ const PendingPayments = () => {
         onClientFilterChange={handleClientFilterChange}
         onProductFilterChange={handleProductFilterChange}
         onTypesChange={handleTypesChange}
+        onStatusesChange={handleStatusesChange}
         onPageChange={handlePageChange}
         isLoading={isFetching}
         selectedFY={queryArgs.fy}

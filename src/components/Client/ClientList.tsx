@@ -135,6 +135,25 @@ const columns = (
     ),
   },
   {
+    id: "auditor_count",
+    header: "Auditors",
+    cell: ({ row }) => {
+      const count = row.original.auditor_count;
+      if (!count?.total) return <div className="text-slate-400">-</div>;
+      return (
+        <div
+          className="leading-tight"
+          title={`Base ${count.base} (New Order) + Additional ${count.additional} (licenses purchased)`}
+        >
+          <div className="font-semibold">{count.total}</div>
+          <div className="text-[11px] text-slate-500 whitespace-nowrap">
+            Base {count.base} · Add&apos;l {count.additional}
+          </div>
+        </div>
+      );
+    },
+  },
+  {
     accessorKey: "first_order_date",
     header: "First Purchase",
     cell: ({ row }) => {

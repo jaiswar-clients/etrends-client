@@ -1,5 +1,16 @@
-import PendingPayments from "@/components/PendingPayments/PendingPayments"
+import { redirect } from "next/navigation"
 
-export default function PendingPaymentsPage() {
-    return <PendingPayments />
+// Renamed to Outstanding Payments; keep old links / bookmarks working.
+export default async function PendingPaymentsRedirect({
+    searchParams,
+}: {
+    searchParams: Promise<Record<string, string | string[] | undefined>>
+}) {
+    const params = new URLSearchParams()
+    for (const [key, value] of Object.entries(await searchParams)) {
+        if (typeof value === "string") params.set(key, value)
+        else if (Array.isArray(value)) value.forEach((v) => params.append(key, v))
+    }
+    const qs = params.toString()
+    redirect(`/outstanding-payments${qs ? `?${qs}` : ""}`)
 }

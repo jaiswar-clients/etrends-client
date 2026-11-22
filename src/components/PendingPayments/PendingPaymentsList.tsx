@@ -9,7 +9,7 @@ import {
   SortingState,
   getSortedRowModel,
 } from "@tanstack/react-table"
-import { ChevronDown, FileSpreadsheet, Eye, Clock } from "lucide-react"
+import { X, ChevronDown, FileSpreadsheet, Eye, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Table,
@@ -48,6 +48,24 @@ import { useToast } from "@/hooks/use-toast"
 import { Badge } from "@/components/ui/badge"
 import FinancialYearFilter, { generateFinancialYears } from "../common/FinancialYearFilter"
 import { useExportPendingPaymentsToExcelMutation } from "@/redux/api/order"
+import { formatPaymentStatus } from "@/types/order"
+
+/** Outstanding = invoiced but not yet paid (default status filter). */
+export const OUTSTANDING_STATUSES = ["invoice"]
+
+const STATUS_OPTIONS = [
+  { value: "to_be_created", label: "To be Created" },
+  { value: "proforma", label: "Proforma" },
+  { value: "invoice", label: "Invoice" },
+  { value: "paid", label: "Paid" },
+]
+
+const statusBadgeColors: Record<string, string> = {
+  to_be_created: "bg-slate-100 text-slate-700 border-slate-200",
+  proforma: "bg-amber-50 text-amber-800 border-amber-200",
+  invoice: "bg-blue-50 text-blue-800 border-blue-200",
+  paid: "bg-emerald-50 text-emerald-800 border-emerald-200",
+}
 import { useRouter } from "next/navigation"
 
 const financialYears = generateFinancialYears()
@@ -71,7 +89,8 @@ interface PendingPaymentRow {
   purchase_order_number?: string
   amount: number
   status: string
-  invoice_date?: string
+  invoice_date?: string | null
+  row_date?: string | null
   invoice_number?: string
   entity_id: string
 }
@@ -109,6 +128,7 @@ interface IProps {
     products?: string[]
     productIds?: string[]
     types?: string[]
+    statuses?: string[]
     page: number
     pageSize: number
     fy?: string
@@ -118,6 +138,7 @@ interface IProps {
   onClientFilterChange: (clientName: string | undefined, clientId: string | undefined) => void
   onProductFilterChange: (productNames: string[], productIds: string[]) => void
   onTypesChange: (types: string[]) => void
+  onStatusesChange: (statuses: string[]) => void
   onPageChange: (page: number) => void
   isLoading?: boolean
   selectedFY?: string
@@ -160,6 +181,7 @@ const PendingPaymentsList: React.FC<IProps> = ({
   onClientFilterChange,
   onProductFilterChange,
   onTypesChange,
+  onStatusesChange,
   onPageChange,
   isLoading,
   selectedFY,
@@ -262,12 +284,29 @@ const PendingPaymentsList: React.FC<IProps> = ({
     return `${selected.length} selected`
   }, [initialFilters.types])
 
+  // Status filter (default: outstanding = Invoice only)
+  const selectedStatuses = useMemo(
+    () => (initialFilters.statuses?.length ? initialFilters.statuses : OUTSTANDING_STATUSES),
+    [initialFilters.statuses],
+  )
+  const selectedStatusesLabel = useMemo(() => {
+    if (selectedStatuses.length === STATUS_OPTIONS.length) return "All"
+    if (
+      selectedStatuses.length === OUTSTANDING_STATUSES.length &&
+      OUTSTANDING_STATUSES.every((s) => selectedStatuses.includes(s))
+    )
+      return "Invoice (Outstanding)"
+    return STATUS_OPTIONS.filter((s) => selectedStatuses.includes(s.value))
+      .map((s) => s.label)
+      .join(", ")
+  }, [selectedStatuses])
+
   const handleExportClick = async () => {
     setIsExporting(true)
     try {
       toast({
         title: "Preparing export",
-        description: "Generating Excel file with your pending payments data...",
+        description: "Generating Excel file with your outstanding payments data...",
         duration: 3000,
       })
 
@@ -277,6 +316,7 @@ const PendingPaymentsList: React.FC<IProps> = ({
         client_id: initialFilters.clientId,
         product_id: initialFilters.productIds?.join(",") || undefined,
         type: initialFilters.types?.join(",") || undefined,
+        status: (initialFilters.statuses?.length ? initialFilters.statuses : OUTSTANDING_STATUSES).join(","),
       })
 
       if ("data" in result) {
@@ -285,7 +325,7 @@ const PendingPaymentsList: React.FC<IProps> = ({
         const link = document.createElement("a")
         const currentDate = new Date().toISOString().split("T")[0]
         link.href = url
-        link.setAttribute("download", `Pending_Payments_Export_${currentDate}.xlsx`)
+        link.setAttribute("download", `Outstanding_Payments_Export_${currentDate}.xlsx`)
         document.body.appendChild(link)
         link.click()
         document.body.removeChild(link)
@@ -293,7 +333,7 @@ const PendingPaymentsList: React.FC<IProps> = ({
 
         toast({
           title: "Export successful",
-          description: "Your pending payments data has been exported to Excel.",
+          description: "Your outstanding payments data has been exported to Excel.",
         })
       } else {
         throw new Error("Export failed")
@@ -348,7 +388,21 @@ const PendingPaymentsList: React.FC<IProps> = ({
       {
         id: "invoice_date",
         header: "Invoice Date",
-        cell: ({ row }) => formatDate(row.original.invoice_date || ""),
+        cell: ({ row }) =>
+          row.original.invoice_date ? (
+            formatDate(row.original.invoice_date)
+          ) : (
+            <span className="text-slate-400">Not invoiced</span>
+          ),
+      },
+      {
+        id: "status",
+        header: "Status",
+        cell: ({ row }) => (
+          <Badge variant="outline" className={statusBadgeColors[row.original.status] || ""}>
+            {formatPaymentStatus(row.original.status)}
+          </Badge>
+        ),
       },
       {
         accessorKey: "amount",
@@ -413,8 +467,10 @@ const PendingPaymentsList: React.FC<IProps> = ({
       <div className="grid grid-cols-1 md:!grid-cols-2 lg:!grid-cols-3 xl:!grid-cols-5 gap-4 mb-6">
         <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg text-blue-700">Total Pending</CardTitle>
-            <CardDescription>All outstanding</CardDescription>
+            <CardTitle className="text-lg text-blue-700">
+              {selectedStatuses.length === 1 && selectedStatuses[0] === "invoice" ? "Total Outstanding" : "Total"}
+            </CardTitle>
+            <CardDescription>{selectedStatusesLabel}</CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-blue-800">{formatCurrency(totalAmount.total)}</p>
@@ -463,7 +519,7 @@ const PendingPaymentsList: React.FC<IProps> = ({
       </div>
 
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
-        <h1 className="text-2xl font-bold tracking-tight">Pending Payments</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Outstanding Payments</h1>
 
         <Button
           onClick={handleExportClick}
@@ -667,59 +723,74 @@ const PendingPaymentsList: React.FC<IProps> = ({
             )}
           </div>
 
-          {/* Order Type Filter */}
-          <div className="relative">
-            {selectedTypesLabel ? (
-              <div className="flex items-center space-x-1 h-10 px-4 py-2 bg-gray-100 rounded-md">
-                <span className="text-sm font-medium">{selectedTypesLabel}</span>
-                <button
-                  onClick={() => onTypesChange([])}
-                  className="ml-1 text-gray-500 hover:text-gray-700"
+          {/* Status Filter */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="min-w-[140px]">
+                Status: {selectedStatusesLabel} <ChevronDown className="ml-2 h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuCheckboxItem
+                checked={selectedStatuses.length === STATUS_OPTIONS.length}
+                onCheckedChange={(value) => onStatusesChange(value ? STATUS_OPTIONS.map((s) => s.value) : OUTSTANDING_STATUSES)}
+              >
+                Select All
+              </DropdownMenuCheckboxItem>
+              {STATUS_OPTIONS.map((s) => (
+                <DropdownMenuCheckboxItem
+                  key={s.value}
+                  checked={selectedStatuses.includes(s.value)}
+                  onSelect={(e) => e.preventDefault()}
+                  onCheckedChange={(value) =>
+                    onStatusesChange(
+                      value ? [...selectedStatuses, s.value] : selectedStatuses.filter((v) => v !== s.value)
+                    )
+                  }
                 >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                  </svg>
-                </button>
-              </div>
-            ) : (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="capitalize min-w-[120px]">
-                    Type <ChevronDown className="ml-2 h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
+                  {s.label}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Order Type Filter (multi-select) */}
+          <div className="flex items-center gap-1">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="min-w-[120px]">
+                  Type{selectedTypesLabel ? `: ${selectedTypesLabel}` : ""} <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuCheckboxItem
+                  checked={allTypesSelected}
+                  onSelect={(e) => e.preventDefault()}
+                  onCheckedChange={(value) => handleTypeSelectAll(value)}
+                >
+                  Select All
+                </DropdownMenuCheckboxItem>
+                {TYPE_OPTIONS.map((t) => (
                   <DropdownMenuCheckboxItem
-                    checked={allTypesSelected}
-                    onCheckedChange={(value) => handleTypeSelectAll(value)}
+                    key={t.value}
+                    checked={initialFilters.types?.includes(t.value)}
+                    onSelect={(e) => e.preventDefault()}
+                    onCheckedChange={(value) => handleTypeToggle(t.value, value)}
                   >
-                    Select All
+                    {t.label}
                   </DropdownMenuCheckboxItem>
-                  {TYPE_OPTIONS.map((t) => (
-                    <DropdownMenuCheckboxItem
-                      key={t.value}
-                      className="capitalize"
-                      checked={initialFilters.types?.includes(t.value)}
-                      onCheckedChange={(value) => {
-                        handleTypeToggle(t.value, value)
-                      }}
-                    >
-                      {t.label}
-                    </DropdownMenuCheckboxItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            {selectedTypesLabel && (
+              <button
+                onClick={() => onTypesChange([])}
+                className="h-10 px-2 text-gray-500 hover:text-gray-700"
+                aria-label="Clear type filter"
+                title="Clear type filter"
+              >
+                <X className="h-4 w-4" />
+              </button>
             )}
           </div>
         </div>
@@ -768,7 +839,7 @@ const PendingPaymentsList: React.FC<IProps> = ({
                 <TableCell colSpan={columns.length} className="h-24 text-center">
                   <div className="flex flex-col items-center justify-center py-6">
                     <Clock className="h-12 w-12 mb-3 text-gray-400" />
-                    <p className="text-lg font-medium text-gray-600">No pending payments found</p>
+                    <p className="text-lg font-medium text-gray-600">No outstanding payments found</p>
                     <p className="text-sm text-gray-500 mt-1">Try adjusting your filters.</p>
                   </div>
                 </TableCell>

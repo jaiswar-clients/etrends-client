@@ -2,11 +2,13 @@ import { useState } from 'react'
 import { v4 } from 'uuid'
 import { toast } from "./use-toast"
 import { useUploadFileMutation } from '@/redux/api/app'
+import { getFileUrl } from '@/lib/file-url'
 
 interface FileUploadReturn {
     uploading: boolean
     uploadFile: (file: File, showToast?: boolean) => Promise<string | undefined>
     getFileNameFromUrl: (url: string) => string
+    getFileUrl: (value?: string | null) => string
 }
 
 export function useFileUpload(): FileUploadReturn {
@@ -60,6 +62,6 @@ export function useFileUpload(): FileUploadReturn {
         uploading,
         uploadFile,
         getFileNameFromUrl,
-
+        getFileUrl,
     }
 }
