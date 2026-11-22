@@ -107,7 +107,7 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
 
     const router = useRouter();
     const formId = React.useId();
-    const { uploadFile, getFileNameFromUrl } = useFileUpload()
+    const { uploadFile, getFileNameFromUrl, getFileUrl } = useFileUpload()
     const { toast } = useToast()
     const { products } = useAppSelector(state => state.user)
     const { user } = useAppSelector(state => state.user)
@@ -468,7 +468,7 @@ const OrderDetail: React.FC<OrderProps> = ({ title, handler, defaultValue, updat
 
         const renderFilePreview = (field: any) => (
             <div className="flex items-center gap-2">
-                <Link href={field.value as string} target='_blank' passHref>
+                <Link href={getFileUrl(field.value as string)} target='_blank' passHref>
                     <Button variant={disableInput ? 'default' : 'outline'} type='button' className={!disableInput ? 'rounded-full w-8 h-8 ml-2 absolute -top-3 -right-10' : ''}>
                         {disableInput ? 'View' : <File className='w-1' />}
                     </Button>

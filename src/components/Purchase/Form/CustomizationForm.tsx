@@ -196,7 +196,7 @@ export function ModulesCombobox({
 const CustomizationForm: React.FC<ICustomationProps> = ({ clientId, handler, isLoading = false, label, disable = false, defaultValue, onPurchaseOrderNumberChange, onInvoiceNumberChange, onProductChange }) => {
     const [isPercentage, setIsPercentage] = useState(true)
     const { data: productsList } = useGetPurchasedProductsByClientQuery(clientId)
-    const { uploadFile, getFileNameFromUrl } = useFileUpload()
+    const { uploadFile, getFileNameFromUrl, getFileUrl } = useFileUpload()
     const [selectedProduct, setSelectedProduct] = useState<IProduct | null>()
     const [addNewModule, setAddNewModule] = useState<{ add: boolean, value: string, type?: "report" | "module", description: string }>({ add: false, value: '', description: '' })
 
@@ -292,7 +292,7 @@ const CustomizationForm: React.FC<ICustomationProps> = ({ clientId, handler, isL
         const renderFilePreview = (field: any) => {
             return (
                 <div className="flex items-center gap-2">
-                    <Link href={field.value as string} target='_blank' passHref>
+                    <Link href={getFileUrl(field.value as string)} target='_blank' passHref>
                         <Button variant={disableInput ? 'default' : 'outline'} type='button' className={!disableInput ? 'rounded-full w-8 h-8 ml-2 absolute -top-3 -right-10' : ''}>
                             {disableInput ? 'View' : <File className='w-1' />}
                         </Button>
