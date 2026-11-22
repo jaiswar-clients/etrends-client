@@ -491,6 +491,10 @@ export const orderApi = createApi({
         };
         total_amount: {
           total: number;
+          to_be_created?: number;
+          proforma?: number;
+          invoice?: number;
+          paid?: number;
           new_order: number;
           customization: number;
           auditor_licence: number;
@@ -505,6 +509,8 @@ export const orderApi = createApi({
         client_id?: string;
         product_id?: string;
         type?: string;
+        /** Comma-separated payment statuses; server default = outstanding (to_be_created, proforma, invoice). */
+        status?: string;
       }
     >({
       query: (body) => {
@@ -516,6 +522,7 @@ export const orderApi = createApi({
         if (body.client_id) params.append('client_id', body.client_id);
         if (body.product_id) params.append('product_id', body.product_id);
         if (body.type) params.append('type', body.type);
+        if (body.status) params.append('status', body.status);
         return `/pending-payments?${params.toString()}`;
       },
       providesTags: ['PENDING_PAYMENTS'],
@@ -528,6 +535,7 @@ export const orderApi = createApi({
         client_id?: string;
         product_id?: string;
         type?: string;
+        status?: string;
       }
     >({
       query: (params) => ({

@@ -5,6 +5,7 @@ import { OrderDetailInputs } from "@/types/order";
 import Typography from "@/components/ui/Typography";
 import { toast } from "@/hooks/use-toast";
 import {
+  IClientDataObject,
   IClientProfitOrderDetail,
   useGetClientByIdQuery,
   useGetProfitFromClientQuery,
@@ -38,6 +39,7 @@ import {
   Plus,
   Wrench,
   Trash2,
+  Users,
 } from "lucide-react";
 import { dateToHumanReadable, formatCurrency } from "@/lib/utils";
 import {
@@ -307,6 +309,96 @@ export function OrderDetailModal({
   );
 }
 
+const AuditorCountCard = ({
+  clientId,
+  count,
+}: {
+  clientId: string;
+  count?: IClientDataObject["auditor_count"];
+}) => {
+  const base = count?.base ?? 0;
+  const additional = count?.additional ?? 0;
+  const total = count?.total ?? base + additional;
+  const details = count?.details ?? [];
+
+  return (
+    <div className="bg-gray-50 p-4 rounded-lg shadow-sm mb-2">
+      <div className="grid grid-cols-3 gap-4">
+        <div className="p-3 bg-white rounded-md text-center">
+          <p className="text-gray-600 font-semibold flex items-center justify-center gap-1.5">
+            <Users className="w-4 h-4" /> Total Auditors
+          </p>
+          <p className="text-3xl text-blue-700 font-semibold">{total}</p>
+        </div>
+        <div className="p-3 bg-white rounded-md text-center">
+          <p className="text-gray-600 font-semibold">Base</p>
+          <p className="text-gray-500 text-xs">added during New Order</p>
+          <p className="text-2xl text-slate-800 font-semibold">{base}</p>
+        </div>
+        <div className="p-3 bg-white rounded-md text-center">
+          <p className="text-gray-600 font-semibold">Additional</p>
+          <p className="text-gray-500 text-xs">licenses purchased</p>
+          <p className="text-2xl text-slate-800 font-semibold">{additional}</p>
+        </div>
+      </div>
+      {details.length > 0 && (
+        <div className="flex justify-end mt-2">
+          <Dialog>
+            <DialogTrigger>
+              <p className="text-xs underline cursor-pointer">Show Breakdown</p>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[640px]">
+              <DialogHeader>
+                <DialogTitle>Auditor Count Breakdown</DialogTitle>
+                <DialogDescription>
+                  Base auditors from each New Order plus additional licenses purchased (inactive orders excluded).
+                </DialogDescription>
+              </DialogHeader>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Source</TableHead>
+                    <TableHead>Product</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead className="text-right">Auditors</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {details.map((d) => (
+                    <TableRow key={`${d.source}-${d.id}`}>
+                      <TableCell>
+                        <Link
+                          className="underline"
+                          href={
+                            d.source === "New Order"
+                              ? `/purchases/${d.orderId}?type=order&client=${clientId}`
+                              : `/purchases/${d.id}?type=license&client=${clientId}`
+                          }
+                        >
+                          {d.source}
+                        </Link>
+                      </TableCell>
+                      <TableCell>{d.products || "-"}</TableCell>
+                      <TableCell>{d.date ? dateToHumanReadable(d.date) : "-"}</TableCell>
+                      <TableCell className="text-right font-medium">{d.count}</TableCell>
+                    </TableRow>
+                  ))}
+                  <TableRow className="bg-zinc-100">
+                    <TableHead className="text-black">Total</TableHead>
+                    <TableHead />
+                    <TableHead />
+                    <TableHead className="text-right text-black">{total}</TableHead>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </DialogContent>
+          </Dialog>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const PageWithQuery = ({ id }: { id: string }) => {
   const { data } = useGetClientByIdQuery(id);
   const [updateClientApi] = useUpdateClientMutation();
@@ -394,6 +486,11 @@ const PageWithQuery = ({ id }: { id: string }) => {
       </p>
 
       <Typography variant="h2" className="text-3xl mb-4">
+        Auditor Count
+      </Typography>
+      <AuditorCountCard clientId={id} count={data?.data.auditor_count} />
+
+      <Typography variant="h2" className="text-3xl mb-4 mt-6">
         Financial Summary
       </Typography>
       <div className="bg-gray-50 p-4 rounded-lg shadow-sm">

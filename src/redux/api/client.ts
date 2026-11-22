@@ -14,6 +14,23 @@ import {
 
 const authUrl = `${process.env.NEXT_PUBLIC_API_URL}/clients`;
 
+/** Auditor (license) count: base from New Orders + additional licenses purchased. */
+export interface IAuditorCount {
+  base: number;
+  additional: number;
+  total: number;
+}
+
+export interface IAuditorCountDetail {
+  source: "New Order" | "Additional License";
+  id: string;
+  orderId: string;
+  products: string;
+  count: number;
+  date: string | null;
+  paymentStatus?: string;
+}
+
 export type IClientDataObject = Omit<ClientDetailsInputs, "parent_company"> & {
   _id: string;
   createdAt: string;
@@ -23,6 +40,7 @@ export type IClientDataObject = Omit<ClientDetailsInputs, "parent_company"> & {
     name: string;
   };
   first_order_date: string;
+  auditor_count?: IAuditorCount & { details?: IAuditorCountDetail[] };
 };
 
 export type IClientProfitOrderDetail = Omit<IOrderObject, "products"> & {
@@ -62,6 +80,7 @@ export type GetAllClientResponse = Pick<
   | "products"
   | "first_order_date"
   | "parent_company"
+  | "auditor_count"
 >;
 
 // Add new interfaces for filtering

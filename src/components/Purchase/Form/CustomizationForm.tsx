@@ -17,7 +17,7 @@ import {
 import { useFileUpload } from '@/hooks/useFileUpload'
 import DatePicker from '@/components/ui/datepicker'
 import { useToast } from '@/hooks/use-toast'
-import { ICustomizationObject, PAYMENT_STATUS_ENUM, formatPaymentStatus } from '@/types/order'
+import { ICustomizationObject, PAYMENT_STATUS_ENUM } from '@/types/order'
 import Link from 'next/link'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { AmountInput } from '@/components/ui/AmountInput'
@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/dialog"
 import { useUpdateProductByIdMutation } from '@/redux/api/product'
 import { Textarea } from '@/components/ui/textarea'
+import StandalonePaymentTerms, { IStandaloneTermInput, normalizeTermsForApi, termsFromItem, validateStandaloneTerms } from './StandalonePaymentTerms'
 import {
     Command,
     CommandEmpty,
@@ -70,6 +71,8 @@ export interface ICustomizationInputs extends CustomizationDetails {
         percentage: number;
         amount: number;
     };
+    /** Payment terms split the cost (replaces the single invoice / status fields). */
+    payment_terms?: IStandaloneTermInput[];
 }
 
 export interface ModuleData {
@@ -220,7 +223,8 @@ const CustomizationForm: React.FC<ICustomationProps> = ({ clientId, handler, isL
         reports: defaultValue?.reports || [],
         payment_status: defaultValue?.payment_status || PAYMENT_STATUS_ENUM.TO_BE_CREATED,
         payment_receive_date: defaultValue?.payment_receive_date ? new Date(defaultValue.payment_receive_date) : undefined,
-        amc_rate: defaultValue?.amc_rate || { percentage: 0, amount: 0 }
+        amc_rate: defaultValue?.amc_rate || { percentage: 0, amount: 0 },
+        payment_terms: termsFromItem(defaultValue, defaultValue.cost || 0),
     }
 
     const defaultValues = {
@@ -238,7 +242,8 @@ const CustomizationForm: React.FC<ICustomationProps> = ({ clientId, handler, isL
         reports: defaultValue?.reports || [],
         payment_status: defaultValue?.payment_status || PAYMENT_STATUS_ENUM.TO_BE_CREATED,
         payment_receive_date: defaultValue?.payment_receive_date ? new Date(defaultValue.payment_receive_date) : undefined,
-        amc_rate: defaultValue?.amc_rate || { percentage: 0, amount: 0 }
+        amc_rate: defaultValue?.amc_rate || { percentage: 0, amount: 0 },
+        payment_terms: termsFromItem(defaultValue, defaultValue?.cost || 0),
     }
 
 
@@ -389,9 +394,6 @@ const CustomizationForm: React.FC<ICustomationProps> = ({ clientId, handler, isL
         const missingFields = [];
         if (!data.product_id) missingFields.push('Product');
         if (!data.cost) missingFields.push('Cost');
-        if (!data.invoice_document) missingFields.push('Invoice Document');
-        if (!data.invoice_number) missingFields.push('Invoice Number');
-        if (!data.invoice_date) missingFields.push('Invoice Date');
         if (!data.purchased_date) missingFields.push('Purchased Date');
         if (!data.modules.length) missingFields.push('Modules');
 
@@ -404,12 +406,9 @@ const CustomizationForm: React.FC<ICustomationProps> = ({ clientId, handler, isL
             return
         }
 
-        if (data.payment_status === PAYMENT_STATUS_ENUM.PAID && !data.payment_receive_date) {
-            toast({
-                variant: 'destructive',
-                title: 'Required Fields Missing',
-                description: 'Please fill the Payment Receive Date'
-            })
+        const termsError = validateStandaloneTerms(data.payment_terms)
+        if (termsError) {
+            toast({ variant: 'destructive', title: 'Payment Terms', description: termsError })
             return
         }
 
@@ -417,7 +416,7 @@ const CustomizationForm: React.FC<ICustomationProps> = ({ clientId, handler, isL
         if (!product) {
             throw new Error('Product not found')
         }
-        await handler({ ...data, cost: Number(data.cost) }, product.order_id)
+        await handler({ ...data, cost: Number(data.cost), payment_terms: normalizeTermsForApi(data.payment_terms || [], Number(data.cost) || 0) }, product.order_id)
     }
 
     const selectPlaceHolder = (name: "product_id" | "type", value: string) => {
@@ -671,7 +670,6 @@ const CustomizationForm: React.FC<ICustomationProps> = ({ clientId, handler, isL
                             <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-4">Documents</h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {renderFormField('purchase_order_document', 'Purchase Order Document', 'Upload Purchase Order Document', 'file')}
-                                {renderFormField('invoice_document', 'Invoice Document', 'Upload Invoice Document', 'file')}
                             </div>
                         </CardContent>
                     </Card>
@@ -679,87 +677,23 @@ const CustomizationForm: React.FC<ICustomationProps> = ({ clientId, handler, isL
                     {/* Invoice & Payment */}
                     <Card className="border-0 shadow-sm">
                         <CardContent className="p-5">
-                            <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-4">Invoice & Payment</h3>
+                            <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-4">Purchase Order</h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {renderFormField('purchase_order_number', 'Purchase Order Number', 'Enter purchase order number', 'text')}
-                                {renderFormField('invoice_number', 'Invoice Number', 'Enter invoice number', 'text')}
-                                <FormField
-                                    control={form.control}
-                                    name="invoice_date"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel className='text-gray-500 text-sm'>Invoice Date</FormLabel>
-                                            <FormControl>
-                                                <DatePicker
-                                                    date={field.value}
-                                                    onDateChange={field.onChange}
-                                                    disabled={disableInput}
-                                                />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name={`payment_status`}
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel className='text-gray-500 text-sm'>Payment Status</FormLabel>
-                                            <FormControl>
-                                                <Select value={field.value} onValueChange={field.onChange}>
-                                                    <SelectTrigger className="w-full bg-white" disabled={disableInput}>
-                                                        <SelectValue placeholder={
-                                                            <div className="flex items-center">
-                                                                <div className={`w-2 h-2 rounded-full mr-2 ${
-                                                                    field.value === PAYMENT_STATUS_ENUM.PAID ? 'bg-green-500' :
-                                                                    field.value === PAYMENT_STATUS_ENUM.INVOICE ? 'bg-blue-500' :
-                                                                    field.value === PAYMENT_STATUS_ENUM.PROFORMA ? 'bg-yellow-500' :
-                                                                    'bg-red-500'
-                                                                }`} />
-                                                                <span>{formatPaymentStatus(field.value || PAYMENT_STATUS_ENUM.TO_BE_CREATED)}</span>
-                                                            </div>
-                                                        } />
-                                                    </SelectTrigger>
-                                                    <SelectContent className='bg-white'>
-                                                        {
-                                                            Object.entries(PAYMENT_STATUS_ENUM)
-                                                                .filter(([key]) => isNaN(Number(key)))
-                                                                .map(([key, value]) => (
-                                                                    <SelectItem value={value} key={key}>
-                                                                        <div className="flex items-center">
-                                                                            <div className={`w-2 h-2 rounded-full mr-2 ${
-                                                                                value === PAYMENT_STATUS_ENUM.PAID ? 'bg-green-500' :
-                                                                                value === PAYMENT_STATUS_ENUM.INVOICE ? 'bg-blue-500' :
-                                                                                value === PAYMENT_STATUS_ENUM.PROFORMA ? 'bg-yellow-500' :
-                                                                                'bg-red-500'
-                                                                            }`} />
-                                                                            <span>{formatPaymentStatus(value)}</span>
-                                                                        </div>
-                                                                    </SelectItem>
-                                                                ))
-                                                        }
-                                                    </SelectContent>
-                                                </Select>
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name={`payment_receive_date`}
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel className='text-gray-500 text-sm'>Payment Receive Date</FormLabel>
-                                            <FormControl>
-                                                <DatePicker date={field.value} onDateChange={field.onChange} placeholder='Payment Receive Date' disabled={disableInput} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
                             </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Payment Terms */}
+                    <Card className="border-0 shadow-sm">
+                        <CardContent className="p-5">
+                            <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-4">Payment Terms</h3>
+                            <StandalonePaymentTerms
+                                form={form}
+                                baseAmount={Number(form.watch("cost")) || 0}
+                                disabled={disableInput}
+                                onInvoiceNumberChange={onInvoiceNumberChange}
+                            />
                         </CardContent>
                     </Card>
 
