@@ -202,7 +202,8 @@ const LicenseForm: React.FC<ILicenseProps> = ({ clientId, handler, isLoading, la
             return;
         }
 
-        const termsError = validateStandaloneTerms(data.payment_terms)
+        const baseAmount = (Number(data.cost_per_license) || 0) * (Number(data.total_license) || 0)
+        const termsError = validateStandaloneTerms(data.payment_terms, baseAmount)
         if (termsError) {
             toast({ variant: "destructive", title: "Payment Terms", description: termsError });
             return;
@@ -212,7 +213,6 @@ const LicenseForm: React.FC<ILicenseProps> = ({ clientId, handler, isLoading, la
         if (!product) {
             throw new Error('Product not found')
         }
-        const baseAmount = (Number(data.cost_per_license) || 0) * (Number(data.total_license) || 0)
         handler({ ...data, payment_terms: normalizeTermsForApi(data.payment_terms || [], baseAmount) }, product.order_id)
     }
 

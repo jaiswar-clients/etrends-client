@@ -86,7 +86,10 @@ const PendingPayments = () => {
             products: initialProduct ? initialProduct.split(',') : [],
             productIds: initialProductIds ? initialProductIds.split(',') : [],
             types: initialTypes ? initialTypes.split(',') : [],
-            statuses: initialStatuses ? initialStatuses.split(',').filter(Boolean) : OUTSTANDING_STATUSES,
+            statuses: (() => {
+                const parsed = initialStatuses ? initialStatuses.split(',').map(s => s.trim()).filter(Boolean) : []
+                return parsed.length ? parsed : OUTSTANDING_STATUSES
+            })(),
             fy,
             allYears,
         }

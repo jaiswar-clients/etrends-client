@@ -1,5 +1,13 @@
 const FILES_MARKER = '/v1/files/'
 
+const decodeSafe = (segment: string) => {
+  try {
+    return decodeURIComponent(segment)
+  } catch {
+    return segment
+  }
+}
+
 /**
  * Turn a stored file key into a URL the browser can open.
  *
@@ -24,11 +32,16 @@ export function getFileUrl(value?: string | null): string {
     return apiUrl ? `${apiUrl}/files/${fileKey}` : `/v1/files/${fileKey}`
   }
 
-  const relativePath = value.startsWith('/v1/')
+  const rawPath = value.startsWith('/v1/')
     ? value.slice('/v1'.length)
     : value.startsWith('/files/')
       ? value
       : `/files/${value.replace(/^\/+/, '')}`
+  // Encode each segment so names with "#", "?" or spaces stay part of the file name
+  const relativePath = rawPath
+    .split('/')
+    .map((segment) => encodeURIComponent(decodeSafe(segment)))
+    .join('/')
 
   return apiUrl ? `${apiUrl}${relativePath}` : `/v1${relativePath}`
 }

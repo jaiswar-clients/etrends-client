@@ -73,10 +73,18 @@ export const termsFromItem = (
 }
 
 /** Returns an error message, or null when the terms are valid. */
-export const validateStandaloneTerms = (terms: IStandaloneTermInput[] | undefined): string | null => {
+export const validateStandaloneTerms = (terms: IStandaloneTermInput[] | undefined, baseAmount?: number): string | null => {
   if (!terms?.length) return "Add at least one payment term"
+  for (const [i, t] of terms.entries()) {
+    const pct = Number(t.percentage_from_base_cost)
+    if (!Number.isFinite(pct) || pct <= 0 || pct > 100) return `${t.name || `Term ${i + 1}`}: percentage must be more than 0 and at most 100`
+  }
   const total = terms.reduce((s, t) => s + (Number(t.percentage_from_base_cost) || 0), 0)
   if (Math.abs(total - 100) > 0.01) return `Payment terms must add up to 100% (currently ${total.toFixed(2)}%)`
+  if (baseAmount !== undefined && baseAmount > 0) {
+    const amountTotal = terms.reduce((s, t) => s + (Number(t.calculated_amount) || 0), 0)
+    if (Math.abs(amountTotal - baseAmount) > 1) return `Payment term amounts add up to ${formatCurrency(amountTotal)}, not the total cost ${formatCurrency(baseAmount)}`
+  }
   for (const [i, t] of terms.entries()) {
     const label = t.name || `Term ${i + 1}`
     const invoiced = t.status === PAYMENT_STATUS_ENUM.INVOICE || t.status === PAYMENT_STATUS_ENUM.PAID
@@ -185,7 +193,7 @@ const StandalonePaymentTerms: React.FC<IProps> = ({ form, baseAmount, disabled, 
                 <FormItem>
                   <FormLabel className="text-sm text-gray-500">Percentage of Cost</FormLabel>
                   <FormControl>
-                    <Input type="number" value={field.value ?? ""} onChange={(e) => setPercentage(i, e.target.value)} disabled={disabled} className="bg-white" placeholder="%" />
+                    <Input type="number" step="any" min={0} max={100} value={field.value ?? ""} onChange={(e) => setPercentage(i, e.target.value)} disabled={disabled} className="bg-white" placeholder="%" />
                   </FormControl>
                 </FormItem>
               )}
@@ -197,7 +205,7 @@ const StandalonePaymentTerms: React.FC<IProps> = ({ form, baseAmount, disabled, 
                 <FormItem>
                   <FormLabel className="text-sm text-gray-500">Amount</FormLabel>
                   <FormControl>
-                    <Input type="number" value={field.value ?? ""} onChange={(e) => setAmount(i, e.target.value)} disabled={disabled} className="bg-white" placeholder="Amount" />
+                    <Input type="number" step="any" min={0} value={field.value ?? ""} onChange={(e) => setAmount(i, e.target.value)} disabled={disabled} className="bg-white" placeholder="Amount" />
                   </FormControl>
                 </FormItem>
               )}

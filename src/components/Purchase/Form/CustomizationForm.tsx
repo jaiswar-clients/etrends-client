@@ -406,7 +406,7 @@ const CustomizationForm: React.FC<ICustomationProps> = ({ clientId, handler, isL
             return
         }
 
-        const termsError = validateStandaloneTerms(data.payment_terms)
+        const termsError = validateStandaloneTerms(data.payment_terms, Number(data.cost) || 0)
         if (termsError) {
             toast({ variant: 'destructive', title: 'Payment Terms', description: termsError })
             return

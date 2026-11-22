@@ -399,7 +399,7 @@ const RevenueReportDashboard = () => {
   const urlDrill = searchParams.get("drill") as DrilldownCard | null;
   const urlDrillPeriod = searchParams.get("drillPeriod");
   const [drill, setDrillState] = useState<DrilldownRequest | null>(
-    urlDrill && DRILL_TITLES[urlDrill]
+    urlDrill && Object.prototype.hasOwnProperty.call(DRILL_TITLES, urlDrill)
       ? { card: urlDrill, title: DRILL_TITLES[urlDrill], period: urlDrillPeriod ?? undefined }
       : null
   );
@@ -479,7 +479,10 @@ const RevenueReportDashboard = () => {
   const { data: revenueData, isLoading: isRevenueLoading } = useGetRevenueDashboardQuery(revenueFilters);
   const { data: expectedVsCollectedData, isLoading: isExpectedVsCollectedLoading } = useGetExpectedVsCollectedQuery({ fiscalYear, filter: filterType, orderTypes });
   const { data: clientHealthData, isLoading: isClientHealthLoading } = useGetClientHealthDashboardQuery({ fiscalYear });
-  const { data: pipelineData } = useGetRevenuePipelineQuery({ fiscalYear, orderTypes });
+  // currentData: undefined while loading / after an error, never values from the previous filters
+  const { currentData: pipelineData, isError: isPipelineError } = useGetRevenuePipelineQuery({ fiscalYear, orderTypes });
+  const pipelineReady = !!pipelineData?.data;
+  const pipelinePlaceholder = isPipelineError ? "Unavailable" : "…";
 
   const revenueChartData = useMemo(() => {
     return revenueData?.data?.monthlyBreakdown.map((item) => ({
@@ -520,7 +523,7 @@ const RevenueReportDashboard = () => {
     // Pipeline cards: Exp Revenue = Total Revenue + Proforma + To be Created
     const proforma = pipelineData?.data?.proforma ?? { newSales: 0, amc: 0, total: 0 };
     const toBeCreated = pipelineData?.data?.toBeCreated ?? { newSales: 0, amc: 0, total: 0 };
-    const expectedRevenue = total + proforma.total + toBeCreated.total;
+    const expectedRevenue = total + proforma.total + toBeCreated.total; // shown only when pipelineReady
     return { newSales, amc, total, collected, invoiced, collectionRate, proforma, toBeCreated, expectedRevenue };
   }, [revenueData, expectedVsCollectedData, pipelineData]);
 
@@ -661,10 +664,10 @@ const RevenueReportDashboard = () => {
           <>
             {/* Row 1: Pipeline cards. Exp Revenue = Total Revenue + Proforma + To be Created */}
             <div className="grid grid-cols-4 gap-2">
-              <CompactKPICard title="Exp Revenue" value={formatIndianNumber(summary.expectedRevenue)} subtitle={`Total + Proforma + To be Created · ${formatCurrency(summary.expectedRevenue)}`} icon={TrendingUp} color="#ca8a04" onClick={() => setDrill({ card: "expected-revenue", title: "Expected Revenue" })} />
+              <CompactKPICard title="Exp Revenue" value={pipelineReady ? formatIndianNumber(summary.expectedRevenue) : pipelinePlaceholder} subtitle={pipelineReady ? `Total + Proforma + To be Created · ${formatCurrency(summary.expectedRevenue)}` : "Total + Proforma + To be Created"} icon={TrendingUp} color="#ca8a04" onClick={() => setDrill({ card: "expected-revenue", title: "Expected Revenue" })} />
               <CompactKPICard title="Total Revenue" value={formatIndianNumber(summary.total)} subtitle={`Invoice + Paid · ${formatCurrency(summary.total)}`} icon={IndianRupee} color="#1e40af" onClick={() => setDrill({ card: "total-revenue", title: "Total Revenue" })} />
-              <CompactKPICard title="Proforma Invoice" value={formatIndianNumber(summary.proforma.total)} subtitle={`New ${formatIndianNumber(summary.proforma.newSales)} · AMC ${formatIndianNumber(summary.proforma.amc)}`} icon={FileText} color="#ea580c" onClick={() => setDrill({ card: "proforma", title: "Proforma Invoice" })} />
-              <CompactKPICard title="To be Created" value={formatIndianNumber(summary.toBeCreated.total)} subtitle={`New ${formatIndianNumber(summary.toBeCreated.newSales)} · AMC ${formatIndianNumber(summary.toBeCreated.amc)}`} icon={FilePlus2} color="#64748b" onClick={() => setDrill({ card: "to-be-created", title: "To be Created" })} />
+              <CompactKPICard title="Proforma Invoice" value={pipelineReady ? formatIndianNumber(summary.proforma.total) : pipelinePlaceholder} subtitle={pipelineReady ? `New ${formatIndianNumber(summary.proforma.newSales)} · AMC ${formatIndianNumber(summary.proforma.amc)}` : undefined} icon={FileText} color="#ea580c" onClick={() => setDrill({ card: "proforma", title: "Proforma Invoice" })} />
+              <CompactKPICard title="To be Created" value={pipelineReady ? formatIndianNumber(summary.toBeCreated.total) : pipelinePlaceholder} subtitle={pipelineReady ? `New ${formatIndianNumber(summary.toBeCreated.newSales)} · AMC ${formatIndianNumber(summary.toBeCreated.amc)}` : undefined} icon={FilePlus2} color="#64748b" onClick={() => setDrill({ card: "to-be-created", title: "To be Created" })} />
             </div>
 
             {/* Row 2: Revenue split & collection */}
